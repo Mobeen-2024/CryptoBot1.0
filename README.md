@@ -1,5 +1,5 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="CryptoBot1.0.png" />
+<img width="1200" height="475" alt="GHBanner" src="public/CryptoBot1.0.png" />
 </div>
 
 # Run and deploy your AI Studio app
