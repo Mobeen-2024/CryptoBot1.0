@@ -9,6 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Logger } from './logger';
 import Database from 'better-sqlite3';
+import os from 'os';
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import { TradeCopier } from './tradeCopier';
+import { DeltaNeutralBot } from './src/services/deltaNeutralBot.js';
 
 async function startServer() {
   const app = express();
@@ -39,6 +41,9 @@ async function startServer() {
   // Start Trade Copier Service
   const tradeCopier = new TradeCopier(io);
   tradeCopier.start().catch(err => Logger.error('Failed to start Trade Copier:', err));
+
+  // Initialize Delta Neutral Bot
+  const deltaNeutralBot = new DeltaNeutralBot(io);
 
   app.use(cors());
   app.use(express.json());
@@ -83,6 +88,33 @@ async function startServer() {
     } catch (error) {
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
+  });
+
+  // Delta Neutral Bot Endpoints
+  app.post('/api/bot/start', async (req, res) => {
+    try {
+      const { symbol, qty, stopLossUSDT } = req.body;
+      if (!symbol || !qty || !stopLossUSDT) {
+        return res.status(400).json({ error: 'Missing required parameters' });
+      }
+      await deltaNeutralBot.start(symbol, Number(qty), Number(stopLossUSDT));
+      res.json({ message: 'Bot started successfully', status: deltaNeutralBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to start bot' });
+    }
+  });
+
+  app.post('/api/bot/stop', async (req, res) => {
+    try {
+      await deltaNeutralBot.stop();
+      res.json({ message: 'Bot stopped successfully', status: deltaNeutralBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to stop bot' });
+    }
+  });
+
+  app.get('/api/bot/status', (req, res) => {
+    res.json(deltaNeutralBot.getStatus());
   });
 
   const handleBinanceError = (error: any, res: express.Response, defaultMessage: string) => {
@@ -442,7 +474,21 @@ async function startServer() {
   }
 
   httpServer.listen(port, '0.0.0.0', () => {
-    Logger.info(`Server running at http://localhost:${port} (and http://0.0.0.0:${port})`);
+    Logger.info(`Server running at http://localhost:${port} (Local)`);
+    
+    // Find Local Network IP
+    const interfaces = os.networkInterfaces();
+    const addresses: string[] = [];
+    for (const k in interfaces) {
+        for (const k2 in interfaces[k]!) {
+            const address = interfaces[k]![Number(k2)];
+            if (address.family === 'IPv4' && !address.internal) {
+                addresses.push(address.address);
+            }
+        }
+    }
+    const lanIP = addresses.length > 0 ? addresses[0] : '0.0.0.0';
+    Logger.info(`Server running at http://${lanIP}:${port} (Network)`);
   });
 }
 

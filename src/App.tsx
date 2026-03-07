@@ -11,6 +11,7 @@ import { PerformanceChart } from './components/PerformanceChart';
 import { CurrentPositions } from './components/CurrentPositions';
 import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
+import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
 import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Briefcase, LineChart, History, Bot, Database } from 'lucide-react';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
 import toast, { Toaster } from 'react-hot-toast';
@@ -37,7 +38,7 @@ export default function App() {
   const [lastRefreshed, setLastRefreshed] = useState(Date.now());
   const [error, setError] = useState<{ message: string, details?: string, code?: string } | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'positions' | 'analytics' | 'history' | 'ai' | 'database'>('positions');
+  const [activeTab, setActiveTab] = useState<'positions' | 'analytics' | 'history' | 'ai' | 'database' | 'delta'>('positions');
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -466,8 +467,16 @@ export default function App() {
               onClick={() => setActiveTab('database')}
               className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'database' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
             >
-              <Database className="w-3.5 h-3.5" />
+                <Database className="w-3.5 h-3.5" />
               Database
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('delta')}
+              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'delta' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Strategy Engine
             </button>
           </div>
 
@@ -478,6 +487,7 @@ export default function App() {
             {activeTab === 'history' && <RecentTrades trades={recentTrades} />}
             {activeTab === 'ai' && <AIAgentPanel marketData={marketData} symbol={symbol} />}
             {activeTab === 'database' && <DatabasePanel />}
+            {activeTab === 'delta' && <DeltaNeutralPanel symbol={symbol} />}
           </div>
         </div>
 
