@@ -1,0 +1,5 @@
+{
+  "name": "CryptoBot",
+  "description": "A cryptocurrency trading bot and analysis dashboard integrated with Binance and Gemini.",
+  "requestFramePermissions": []
+}
