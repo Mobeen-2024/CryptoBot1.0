@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { LeverageModal } from './LeverageModal';
+import { OrderTypeModal } from './OrderTypeModal';
 
 interface OrderPanelProps {
   symbol: string;
@@ -48,6 +50,10 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   const [marginMode, setMarginMode] = useState<'Cross' | 'Isolated'>('Cross');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [riskAccepted, setRiskAccepted] = useState(false);
+  const [isSpotMargin, setIsSpotMargin] = useState(false);
+  const [isLeverageModalOpen, setIsLeverageModalOpen] = useState(false);
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
+  const [isDraggingSlider, setIsDraggingSlider] = useState(false);
 
   // Unified state object
   const [os, setOs] = useState<OrderState>({
@@ -85,7 +91,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   
   // Max calculations
   const avbl = os.mode === 'BUY' ? balance : baseBalance;
-  const effectiveLeverage = Math.max(1, os.leverage); // Treat 0x as 1x for math purposes so we don't get 0 max
+  const effectiveLeverage = Math.max(1, isSpotMargin ? os.leverage : 1); // Treat 0x as 1x for math purposes so we don't get 0 max
   const maxUsdt = os.mode === 'BUY' ? avbl * effectiveLeverage : 0;
   const maxQuantity = os.mode === 'BUY' 
     ? (executionPrice > 0 ? (avbl * effectiveLeverage) / executionPrice : 0)
@@ -134,7 +140,18 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const pct = Number(e.target.value);
+    let pct = Number(e.target.value);
+    
+    // Magnetic Snap Logic
+    const snapPoints = [0, 25, 50, 75, 100];
+    const snapThreshold = 4;
+    for (const point of snapPoints) {
+      if (Math.abs(pct - point) <= snapThreshold) {
+        pct = point;
+        break;
+      }
+    }
+
     const q = Number(((maxQuantity * pct) / 100).toFixed(4));
     const t = q && executionPrice > 0 ? Number((q * executionPrice).toFixed(4)) : '';
     updateOs({ quantity: q || '', total: t || '' });
@@ -190,10 +207,10 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
       price: os.orderType === 'LIMIT' || os.orderType === 'OCO' ? Number(os.price) : undefined,
       stopPrice: os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? Number(os.stopPrice) : undefined,
       limitPrice: os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? Number(os.limitPrice) : undefined,
-      marginMode,
-      leverage: os.leverage,
-      autoBorrow: os.autoBorrow,
-      autoRepay: os.autoRepay,
+      marginMode: isSpotMargin ? marginMode : undefined,
+      leverage: isSpotMargin ? os.leverage : undefined,
+      autoBorrow: isSpotMargin ? os.autoBorrow : undefined,
+      autoRepay: isSpotMargin ? os.autoRepay : undefined,
       takeProfit: (os.orderType === 'STOP_LIMIT' || os.showTPSL) && os.takeProfit ? Number(os.takeProfit) : undefined,
       slTrigger: os.showTPSL && os.slTrigger ? Number(os.slTrigger) : undefined,
       slLimit: os.showTPSL && os.slLimit ? Number(os.slLimit) : undefined,
@@ -205,6 +222,12 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   // Validation
   let isInvalid = false;
   let validationError = '';
+
+  const getPriceDelta = () => {
+    if (os.orderType === 'MARKET' || !os.price || currentPrice === 0) return null;
+    return (((Number(os.price) - currentPrice) / currentPrice) * 100).toFixed(2);
+  };
+  const priceDelta = getPriceDelta();
 
   const quantity = Number(os.quantity);
   const price = Number(os.price);
@@ -309,98 +332,92 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   return (
     <div className="bg-[#0b0e11] px-4 py-3 rounded-lg w-full max-w-[320px] mx-auto flex flex-col h-full text-[#eaecef]">
       
-      {/* Header Section: Margin Mode & Leverage */}
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex bg-[#1e2329] rounded-md p-0.5">
+      {/* Top Toggle: Spot vs Margin */}
+      <div className="flex justify-between items-center mb-3 pb-2 border-b border-[#2b3139]">
+        <span className="text-[13px] font-bold text-[#eaecef]">
+          {isSpotMargin ? 'Spot Margin Trading' : 'Spot Trading'}
+        </span>
+        <label className="flex items-center cursor-pointer group">
+          <span className="text-[#848e9c] text-xs mr-2 font-medium">Margin</span>
+          <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${isSpotMargin ? 'bg-[#fcd535]' : 'bg-[#474d57]'}`}>
+            <div className={`absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform duration-300 ${isSpotMargin ? 'translate-x-4' : ''}`}></div>
+          </div>
+          <input type="checkbox" className="hidden" checked={isSpotMargin} onChange={(e) => setIsSpotMargin(e.target.checked)} />
+        </label>
+      </div>
+
+      {/* Functional Pills (Margin Only) */}
+      {isSpotMargin && (
+        <div className="flex gap-1.5 mb-2">
           <button 
             type="button"
-            className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${marginMode === 'Cross' ? 'bg-[#2b3139] text-[#eaecef]' : 'text-[#848e9c] hover:text-[#eaecef]'}`}
-            onClick={() => setMarginMode('Cross')}
-          >Cross</button>
-          <button 
-            type="button"
-            className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${marginMode === 'Isolated' ? 'bg-[#2b3139] text-[#eaecef]' : 'text-[#848e9c] hover:text-[#eaecef]'}`}
-            onClick={() => setMarginMode('Isolated')}
-          >Isolated</button>
-        </div>
-        
-        <div className="relative bg-[#1e2329] rounded-md flex items-center px-2 py-1 hover:bg-[#2b3139] transition-colors cursor-pointer border border-transparent hover:border-[#5e6673]">
-          <select 
-            value={os.leverage} 
-            onChange={(e) => updateOs({ leverage: Number(e.target.value) })}
-            className="appearance-none bg-transparent text-xs font-medium text-[#eaecef] outline-none cursor-pointer pr-4"
+            onClick={() => setMarginMode(prev => prev === 'Cross' ? 'Isolated' : 'Cross')}
+            className="flex-1 bg-[#1e2329] hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[#fcd535] text-[10px] font-bold transition-colors whitespace-nowrap"
           >
-            {[0,1,2,3,4,5,6,7,8,9,10].map(x => <option key={x} value={x} className="bg-[#1e2329]">{x}x</option>)}
-          </select>
-          <div className="absolute right-1.5 pointer-events-none">
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#848e9c]"><path d="m6 9 6 6 6-6"/></svg>
-          </div>
+            {marginMode}
+          </button>
+          <button 
+            type="button"
+            onClick={() => setIsLeverageModalOpen(true)}
+            className="flex-1 bg-[#1e2329] hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[#eaecef] text-[10px] font-bold transition-colors whitespace-nowrap"
+          >
+            {os.leverage}x
+          </button>
+          <button 
+            type="button"
+            onClick={() => updateOs({ autoBorrow: !os.autoBorrow })}
+            className={`flex-1 hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[10px] font-bold transition-colors whitespace-nowrap ${os.autoBorrow ? 'bg-[#fcd535] text-black' : 'bg-[#1e2329] text-[#eaecef]'}`}
+          >
+            Auto B.
+          </button>
+          <button 
+            type="button"
+            onClick={() => updateOs({ autoRepay: !os.autoRepay })}
+            className={`flex-1 hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[10px] font-bold transition-colors whitespace-nowrap ${os.autoRepay ? 'bg-[#fcd535] text-black' : 'bg-[#1e2329] text-[#eaecef]'}`}
+          >
+            Auto R.
+          </button>
         </div>
-      </div>
+      )}
 
-      {/* Auto Borrow / Repay */}
-      <div className="flex justify-between items-center mb-4 px-1">
-        <label className="flex items-center gap-2 cursor-pointer group">
-          <span className="text-[#848e9c] text-xs group-hover:text-[#eaecef] transition-colors">Auto Borrow</span>
-          <div className={`w-7 h-3.5 rounded-full relative transition-colors duration-300 ${os.autoBorrow ? 'bg-[#fcd535]' : 'bg-[#2b3139]'}`}>
-            <div className={`absolute top-[2px] left-[2px] w-2.5 h-2.5 rounded-full bg-white transition-transform duration-300 ${os.autoBorrow ? 'translate-x-3.5' : ''}`}></div>
-          </div>
-          <input type="checkbox" className="hidden" checked={os.autoBorrow} onChange={(e) => updateOs({ autoBorrow: e.target.checked })} />
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer group">
-          <span className="text-[#848e9c] text-xs group-hover:text-[#eaecef] transition-colors">Auto Repay</span>
-          <div className={`w-7 h-3.5 rounded-full relative transition-colors duration-300 ${os.autoRepay ? 'bg-[#fcd535]' : 'bg-[#2b3139]'}`}>
-            <div className={`absolute top-[2px] left-[2px] w-2.5 h-2.5 rounded-full bg-white transition-transform duration-300 ${os.autoRepay ? 'translate-x-3.5' : ''}`}></div>
-          </div>
-          <input type="checkbox" className="hidden" checked={os.autoRepay} onChange={(e) => updateOs({ autoRepay: e.target.checked })} />
-        </label>
-      </div>
-
-      {/* Action Toggle (Buy/Sell) */}
-      <div className="flex mb-3 gap-[10px]">
+      {/* Action Toggle (Buy/Sell) - Sliding Pill */}
+      <div className="flex mb-3 relative h-10 rounded-[8px] bg-[#1e2329] p-1 shadow-inner">
+        {/* Sliding Background */}
+        <div 
+          className="absolute top-1 bottom-1 w-[calc(50%-4px)] flex-1 rounded-[6px] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          style={{
+            left: os.mode === 'BUY' ? '4px' : 'calc(50%)',
+            backgroundImage: os.mode === 'BUY' ? 'linear-gradient(to bottom, #2ebd85, #22996a)' : 'linear-gradient(to bottom, #f6465d, #d13045)',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}
+        />
         <button
           type="button"
-          className={`flex-1 py-2.5 text-sm font-bold rounded transition-all duration-200 ${os.mode === 'BUY' ? 'text-white' : 'bg-[#1e2329] text-[#848e9c] hover:text-[#eaecef]'}`}
-          style={{ backgroundColor: os.mode === 'BUY' ? activeColor : undefined }}
           onClick={() => updateOs({ mode: 'BUY' })}
+          className={`flex-1 relative z-10 font-bold text-[13px] transition-colors duration-300 flex items-center justify-center rounded-md ${os.mode === 'BUY' ? 'text-white' : 'text-[#848e9c] hover:text-[#eaecef]'}`}
         >
           Buy
         </button>
         <button
           type="button"
-          className={`flex-1 py-2.5 text-sm font-bold rounded transition-all duration-200 ${os.mode === 'SELL' ? 'text-white' : 'bg-[#1e2329] text-[#848e9c] hover:text-[#eaecef]'}`}
-          style={{ backgroundColor: os.mode === 'SELL' ? activeColor : undefined }}
           onClick={() => updateOs({ mode: 'SELL' })}
+          className={`flex-1 relative z-10 font-bold text-[13px] transition-colors duration-300 flex items-center justify-center rounded-md ${os.mode === 'SELL' ? 'text-white' : 'text-[#848e9c] hover:text-[#eaecef]'}`}
         >
           Sell
         </button>
       </div>
 
-      {/* Trade Mode Header */}
-      <div className="flex items-center justify-between border-b border-[#2b3139] mb-4 pb-0">
-        <div className="flex gap-4">
-          {(['LIMIT', 'MARKET', 'STOP_LIMIT', 'OCO'] as const).map((t) => {
-            const isActive = os.orderType === t;
-            const label = t === 'STOP_LIMIT' ? 'Stop Limit' : t === 'OCO' ? 'OCO' : t.charAt(0) + t.slice(1).toLowerCase();
-            return (
-              <button
-                key={t}
-                type="button"
-                className={`pb-2 text-xs font-semibold relative transition-all ${
-                  isActive ? 'text-[#eaecef] opacity-100' : 'text-[#848e9c] opacity-60 hover:opacity-100 hover:text-[#eaecef]'
-                }`}
-                onClick={() => updateOs({ orderType: t })}
-              >
-                {label}
-                {isActive && (
-                  <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#fcd535] rounded-t-sm" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <button type="button" className="text-[#848e9c] opacity-60 hover:opacity-100 hover:text-[#eaecef] transition-opacity pb-2" title="Order Type Info">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+      {/* Order Type Dropdown Trigger */}
+      <div className="mb-3">
+        <button 
+          type="button"
+          onClick={() => setIsTypeModalOpen(true)}
+          className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-[#eaecef] bg-transparent hover:bg-white/5 px-2 py-1.5 rounded transition-colors"
+        >
+          <span className="border-b border-dashed border-[#848e9c]">
+            {os.orderType === 'STOP_LIMIT' ? 'Stop Limit' : os.orderType === 'OCO' ? 'OCO' : os.orderType.charAt(0) + os.orderType.slice(1).toLowerCase()}
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#848e9c" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </button>
       </div>
 
@@ -411,79 +428,83 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           {/* Take Profit for STOP_LIMIT (Integrated) */}
           {os.orderType === 'STOP_LIMIT' && (
             <div className="space-y-1">
-              <div className={`bg-[#1e2329] rounded-lg flex items-center h-10 transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden px-1`}>
-                <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap">Take Profit</span>
+              <div className={`bg-[#1e2329] rounded-[8px] flex items-center h-[34px] transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden px-1`}>
+                <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap opacity-60">Take Profit</span>
                 <input 
                   type="number" step="any" min="0" value={os.takeProfit} onChange={(e) => updateOs({ takeProfit: e.target.value ? Number(e.target.value) : '' })}
-                  className="flex-1 bg-transparent text-[#eaecef] text-sm text-center focus:outline-none font-mono placeholder-[#848e9c]" placeholder="Optional"
+                  className="flex-1 bg-transparent text-[#eaecef] text-sm text-right focus:outline-none font-mono placeholder-[#848e9c]" placeholder="Optional"
                 />
-                <span className="text-[#eaecef] text-xs pr-2 font-medium">{quoteAsset}</span>
+                <span className="text-[#eaecef] text-xs px-2 font-medium shrink-0">{quoteAsset}</span>
               </div>
-              {tpTotal > 0 && <div className="text-[10px] text-gray-500 text-right px-1">Total: {tpTotal.toFixed(2)} {quoteAsset}</div>}
+              {tpTotal > 0 && <div className="text-[10px] text-[#848e9c] text-right px-1">Total: {tpTotal.toFixed(2)} {quoteAsset}</div>}
             </div>
           )}
 
           {/* Stop Input (Stop Loss Trigger) */}
           {(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO') && (
             <div className="space-y-1">
-              <div className={`bg-[#1e2329] rounded-lg flex items-center h-10 transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden px-1`}>
-                <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap">Stop Loss</span>
+              <div className={`bg-[#1e2329] rounded-[6px] flex items-center h-[34px] transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden px-1`}>
+                <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap opacity-60">Stop Loss</span>
                 <input 
                   type="number" step="any" min="0" value={os.stopPrice} onChange={(e) => updateOs({ stopPrice: e.target.value ? Number(e.target.value) : '' })}
-                  className="flex-1 bg-transparent text-[#eaecef] text-sm text-center focus:outline-none font-mono placeholder-[#848e9c]" placeholder="Trigger" required
+                  className="flex-1 bg-transparent text-[#eaecef] text-sm text-right focus:outline-none font-mono placeholder-[#848e9c]" placeholder="Trigger" required
                 />
-                <span className="text-[#eaecef] text-xs pr-2 font-medium">{quoteAsset}</span>
+                <span className="text-[#eaecef] text-xs px-2 font-medium shrink-0">{quoteAsset}</span>
               </div>
-              {os.quantity && os.stopPrice && <div className="text-[10px] text-gray-500 text-right px-1">Total: {(Number(os.quantity) * Number(os.stopPrice)).toFixed(2)} {quoteAsset}</div>}
+              {os.quantity && os.stopPrice && <div className="text-[10px] text-[#848e9c] text-right px-1">Total: {(Number(os.quantity) * Number(os.stopPrice)).toFixed(2)} {quoteAsset}</div>}
             </div>
           )}
 
-          {/* Limit Input */}
-          {(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO') && (
-            <div className={`bg-[#1e2329] rounded-lg flex items-center justify-between h-10 transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden`}>
-              <button type="button" onClick={() => stepPrice('limitPrice', false)} className="w-10 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 hover:text-[#eaecef] transition-colors shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
-              <input 
-                type="number" step="any" min="0" value={os.limitPrice} onChange={(e) => handleLimitPriceChange(e.target.value)}
-                className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-center focus:outline-none font-mono placeholder-[#848e9c]" placeholder="Limit Price" required
-              />
-              <button type="button" onClick={() => stepPrice('limitPrice', true)} className="w-10 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 hover:text-[#eaecef] transition-colors shrink-0">
-                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
-            </div>
-          )}
-
-          {/* Price Input */}
+          {/* Limit / Price Input */}
           {os.orderType === 'MARKET' ? (
-            <div className="bg-[#1e2329] rounded-lg flex items-center h-10 transition-colors border border-transparent opacity-60 cursor-not-allowed pr-2">
+            <div className="bg-[#1e2329] rounded-[8px] flex items-center h-[34px] transition-colors border border-transparent opacity-60 cursor-not-allowed pr-2">
               <input type="text" value="Market Price" disabled className="flex-1 bg-transparent text-[#eaecef] text-sm text-center focus:outline-none font-mono cursor-not-allowed" />
               <span className="text-[#eaecef] text-xs font-medium">{quoteAsset}</span>
             </div>
-          ) : os.orderType !== 'STOP_LIMIT' ? (
-            <div className={`bg-[#1e2329] rounded-lg flex items-center justify-between h-10 transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden`}>
-              <button type="button" onClick={() => stepPrice('price', false)} className="w-10 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 hover:text-[#eaecef] transition-colors shrink-0">
+          ) : (
+            <div className={`bg-[#1e2329] rounded-[8px] flex items-center justify-between h-[34px] transition-all duration-200 border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden`}>
+              {/* Nested Stepper - Extreme Left */}
+              <button type="button" onClick={() => stepPrice(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? 'limitPrice' : 'price', false)} className={`w-8 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 ${os.mode === 'BUY' ? 'hover:text-[#2ebd85]' : 'hover:text-[#f6465d]'} transition-colors shrink-0 bg-[#2b3139]/20`}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               </button>
+              
+              <span className="text-[#848e9c] text-xs pl-2 pr-1 whitespace-nowrap opacity-60 shrink-0 select-none">Price</span>
+              
               <input 
-                type="number" step="any" min="0" value={os.price} onChange={(e) => handlePriceChange(e.target.value)}
-                className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-center focus:outline-none font-mono placeholder-[#848e9c]" placeholder={os.orderType === 'OCO' ? 'Take Profit Price' : 'Price'} required
+                type="number" step="any" min="0" 
+                value={os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? os.limitPrice : os.price} 
+                onChange={(e) => os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? handleLimitPriceChange(e.target.value) : handlePriceChange(e.target.value)}
+                className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-right focus:outline-none font-mono placeholder-[#848e9c] pr-2" placeholder="0.00" required
               />
-              <button type="button" onClick={() => stepPrice('price', true)} className="w-10 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 hover:text-[#eaecef] transition-colors shrink-0 border-r border-[#2b3139]">
+              
+              <div className="flex items-center shrink-0 pr-2 gap-2">
+                {priceDelta && (
+                  <span className={`text-[10px] font-mono font-medium ${Number(priceDelta) > 0 ? 'text-[#0ecb81]' : Number(priceDelta) < 0 ? 'text-[#f6465d]' : 'text-[#848e9c]'}`}>
+                    {Number(priceDelta) > 0 ? '+' : ''}{priceDelta}%
+                  </span>
+                )}
+                {os.orderType !== 'STOP_LIMIT' && os.orderType !== 'OCO' ? (
+                  <button type="button" onClick={setBBO} className="text-[#eaecef] text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] hover:bg-white/10 transition-colors whitespace-nowrap bg-[#2b3139]/40">BBO</button>
+                ) : (
+                  <span className="text-[#eaecef] text-xs font-medium">{quoteAsset}</span>
+                )}
+              </div>
+
+              {/* Nested Stepper - Extreme Right */}
+              <button type="button" onClick={() => stepPrice(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? 'limitPrice' : 'price', true)} className={`w-8 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 ${os.mode === 'BUY' ? 'hover:text-[#2ebd85]' : 'hover:text-[#f6465d]'} transition-colors shrink-0 bg-[#2b3139]/20`}>
                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               </button>
-              <button type="button" onClick={setBBO} className="text-[#eaecef] text-[10px] font-bold px-3 h-full hover:bg-white/5 transition-colors whitespace-nowrap bg-[#2b3139]/30">BBO</button>
             </div>
-          ) : null}
+          )}
 
           {/* Amount Input */}
-          <div className={`bg-[#1e2329] rounded-lg flex items-center h-10 transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden px-1`}>
-             <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap">Amount</span>
+          <div className={`bg-[#1e2329] rounded-[8px] flex items-center h-[34px] transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden px-1`}>
+             <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap opacity-60 select-none">Amount</span>
             <input 
               type="number" step="any" min="0" value={os.quantity} onChange={(e) => handleQuantityChange(e.target.value)}
-              className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-center focus:outline-none font-mono placeholder-[#848e9c]" placeholder="0.00" required
+              className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-right focus:outline-none font-mono placeholder-[#848e9c] pr-2" placeholder="0.00" required
             />
-            <button type="button" onClick={setMaxQuantity} className="text-[#eaecef] text-[10px] font-bold px-2 rounded hover:bg-white/10 transition-colors whitespace-nowrap mr-2">MAX</button>
+            <button type="button" onClick={setMaxQuantity} className="text-[#fcd535] text-[10px] font-bold px-2 py-0.5 rounded-[4px] hover:bg-white/10 transition-colors whitespace-nowrap mr-2 border border-[#fcd535]/30 bg-[#fcd535]/10">MAX</button>
             <span className="text-[#eaecef] text-xs pr-2 font-medium shrink-0">{baseAsset}</span>
           </div>
         </div>
@@ -519,9 +540,20 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
               })}
             </div>
 
+            {/* Tooltip Bubble */}
+            {isDraggingSlider && (
+              <div 
+                className="absolute top-[-26px] z-30 transform -translate-x-1/2 bg-[#1e2329] border border-[#2b3139] text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded shadow shadow-black/50 whitespace-nowrap pointer-events-none"
+                style={{ left: `${balancePercentage}%` }}
+              >
+                {balancePercentage}%
+              </div>
+            )}
+
             {/* Invisible Range Input Overlay */}
             <input 
               type="range" min="0" max="100" step="1" value={balancePercentage} onChange={handleSliderChange}
+              onMouseDown={() => setIsDraggingSlider(true)} onMouseUp={() => setIsDraggingSlider(false)} onTouchStart={() => setIsDraggingSlider(true)} onTouchEnd={() => setIsDraggingSlider(false)}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
             />
           </div>
@@ -529,13 +561,13 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
 
         {/* Total Input */}
         {os.orderType !== 'MARKET' && (
-          <div className={`bg-[#1e2329] border border-transparent rounded-md flex items-center px-3 py-2 mb-2 transition-colors ${focusBorderClass} hover:border-[#5e6673]`}>
-            <span className="text-[#848e9c] text-xs w-16">Total</span>
+          <div className={`bg-[#1e2329] border border-transparent rounded-[8px] h-[34px] flex items-center px-1 mb-2 transition-colors ${focusBorderClass} hover:border-[#5e6673] overflow-hidden`}>
+            <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap opacity-60 select-none">Total</span>
             <input 
               type="number" step="any" min="0" value={os.total} onChange={(e) => handleTotalChange(e.target.value)}
-              className="flex-1 bg-transparent text-[#eaecef] text-sm text-left focus:outline-none font-mono placeholder-[#848e9c]" placeholder="0.00" required
+              className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-right pr-2 focus:outline-none font-mono placeholder-[#848e9c]" placeholder="0.00" required
             />
-            <span className="text-[#eaecef] text-xs ml-2 font-medium">{quoteAsset}</span>
+            <span className="text-[#eaecef] text-xs px-2 font-medium shrink-0">{quoteAsset}</span>
           </div>
         )}
 
@@ -595,7 +627,12 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
                 </div>
                 <input type="checkbox" checked={os.isIceberg} onChange={(e) => updateOs({ isIceberg: e.target.checked })} className="hidden" />
                 <span className="font-medium">Iceberg</span>
-                <span className="text-[9px] text-[#5e6673] ml-1">(Hide from Order Book)</span>
+                <span className="relative group flex items-center justify-center cursor-help">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#848e9c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block bg-[#1e2329] border border-[#2b3139] text-[#eaecef] text-[10px] p-2 rounded shadow-lg whitespace-nowrap z-50">
+                    Hide large orders from the public Order Book
+                  </div>
+                </span>
               </label>
             </div>
             
@@ -633,13 +670,42 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           </div>
 
           {/* Row: Liq. Price */}
-          <div className="flex justify-between items-center">
-            <span className="text-gray-500 hover:border-b border-gray-600 border-dashed cursor-help" title="Estimated Liquidation Price">Liq. Price</span>
-            <span className="text-[#fcd535] font-mono font-medium">
-              {os.leverage > 1 && os.quantity ? (os.mode === 'BUY' ? (executionPrice * 0.95).toFixed(2) : (executionPrice * 1.05).toFixed(2)) : '--'}
-            </span>
-          </div>
+          {isSpotMargin && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 hover:border-b border-gray-600 border-dashed cursor-help" title="Estimated Liquidation Price">Liq. Price</span>
+              <span className="text-[#fcd535] font-mono font-medium">
+                {os.leverage > 1 && os.quantity ? (os.mode === 'BUY' ? (executionPrice * 0.95).toFixed(2) : (executionPrice * 1.05).toFixed(2)) : '--'}
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* Advanced Settings Bottom (Margin Only) */}
+        {isSpotMargin && (
+          <div className="mt-2 mb-4 space-y-1">
+            <label className="flex items-center justify-between cursor-pointer group bg-[#1e2329] p-2.5 rounded-lg border border-transparent hover:border-[#2b3139] transition-colors">
+              <div className="flex flex-col">
+                <span className="text-[#eaecef] text-xs font-bold leading-tight">Auto Borrow</span>
+                <span className="text-[#848e9c] text-[10px] leading-tight mt-0.5">Automatically borrow isolated funds before order placement</span>
+              </div>
+              <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ml-3 shrink-0 ${os.autoBorrow ? 'bg-[#fcd535]' : 'bg-[#474d57]'}`}>
+                <div className={`absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform duration-300 ${os.autoBorrow ? 'translate-x-4' : ''}`}></div>
+              </div>
+              <input type="checkbox" className="hidden" checked={os.autoBorrow} onChange={(e) => updateOs({ autoBorrow: e.target.checked })} />
+            </label>
+
+            <label className="flex items-center justify-between cursor-pointer group bg-[#1e2329] p-2.5 rounded-lg border border-transparent hover:border-[#2b3139] transition-colors">
+              <div className="flex flex-col">
+                <span className="text-[#eaecef] text-xs font-bold leading-tight">Auto Repay</span>
+                <span className="text-[#848e9c] text-[10px] leading-tight mt-0.5">Automatically repay isolation loan when order executes</span>
+              </div>
+              <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ml-3 shrink-0 ${os.autoRepay ? 'bg-[#fcd535]' : 'bg-[#474d57]'}`}>
+                <div className={`absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform duration-300 ${os.autoRepay ? 'translate-x-4' : ''}`}></div>
+              </div>
+              <input type="checkbox" className="hidden" checked={os.autoRepay} onChange={(e) => updateOs({ autoRepay: e.target.checked })} />
+            </label>
+          </div>
+        )}
 
         {/* Execution Button */}
         <div className="mt-auto pt-2">
@@ -651,10 +717,12 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           <button
             type="submit"
             disabled={isInvalid}
-            className="w-full py-3 rounded-md font-bold text-white text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: activeColor }}
+            className="w-full py-[14px] rounded-[24px] font-bold text-white text-[13px] uppercase tracking-wide transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 active:scale-[0.98] shadow-lg shadow-black/20 text-shadow-sm"
+            style={{ 
+              backgroundImage: os.mode === 'BUY' ? 'linear-gradient(to bottom, #2ebd85, #22996a)' : 'linear-gradient(to bottom, #f6465d, #d13045)'
+            }}
           >
-            Margin {os.mode === 'BUY' ? 'Buy' : 'Sell'} {baseAsset}
+            {isSpotMargin ? 'Margin ' : ''}{os.mode === 'BUY' ? 'Buy' : 'Sell'} {baseAsset}
           </button>
         </div>
       </form>
@@ -763,6 +831,25 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           </div>
         </div>
       )}
+
+      {/* Custom Leverage Bottom Sheet Modal */}
+      <LeverageModal 
+        isOpen={isLeverageModalOpen}
+        onClose={() => setIsLeverageModalOpen(false)}
+        initialLeverage={os.leverage}
+        marginMode={marginMode}
+        onConfirm={(newLev) => {
+          updateOs({ leverage: newLev });
+          setIsLeverageModalOpen(false);
+          setRiskAccepted(false);
+        }}
+      />
+      <OrderTypeModal 
+        isOpen={isTypeModalOpen}
+        onClose={() => setIsTypeModalOpen(false)}
+        currentType={os.orderType}
+        onSelect={(t) => updateOs({ orderType: t })}
+      />
     </div>
   );
 };

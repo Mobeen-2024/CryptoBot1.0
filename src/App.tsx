@@ -16,6 +16,47 @@ import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Brie
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
 import toast, { Toaster } from 'react-hot-toast';
 
+// Simple deterministic countdown hook based on current UTC time and Binance intervals
+const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
+  const [timeLeft, setTimeLeft] = useState<string>('--:--');
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const msSinceEpoch = now.getTime();
+      let msPerInterval = 60000;
+      
+      const val = parseInt(interval);
+      const unit = interval.slice(-1);
+      
+      if (unit === 'm') msPerInterval = val * 60 * 1000;
+      else if (unit === 'h') msPerInterval = val * 60 * 60 * 1000;
+      else if (unit === 'd') msPerInterval = val * 24 * 60 * 60 * 1000;
+      
+      const nextTick = Math.ceil(msSinceEpoch / msPerInterval) * msPerInterval;
+      const remains = nextTick - msSinceEpoch;
+      
+      const h = Math.floor(remains / (1000 * 60 * 60));
+      const m = Math.floor((remains % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((remains % (1000 * 60)) / 1000);
+      
+      if (h > 0) {
+        setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+      } else {
+        setTimeLeft(`${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [interval]);
+
+  return (
+    <span className="text-[10px] font-mono font-medium text-[#848e9c] bg-[#1e2329] px-1.5 py-0.5 rounded flex items-center gap-1 border border-[#2b3139]">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      {timeLeft}
+    </span>
+  );
+};
+
 export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [chartInterval, setChartInterval] = useState('1h');
@@ -284,22 +325,23 @@ export default function App() {
         }} 
       />
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/40 backdrop-blur-md px-4 py-2 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <header className="border-b border-white/10 bg-black/40 backdrop-blur-md px-2 md:px-4 py-2 flex flex-col sm:flex-row items-center justify-between sticky top-0 z-50 gap-2 sm:gap-0">
+        <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-start">
           <div className="flex items-center gap-2">
             <Activity className="text-indigo-500 w-5 h-5" />
             <h1 className="text-lg font-bold text-white tracking-tight">CryptoBot</h1>
           </div>
 
-          <div className="h-6 w-px bg-white/10"></div>
+          <div className="hidden sm:block h-6 w-px bg-white/10"></div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <CoinSelector symbol={symbol} setSymbol={setSymbol} />
 
-            <div className="flex flex-col">
+            <div className="flex items-center gap-2">
               <span className={`font-mono font-bold text-lg ${priceChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
+              <CandleCountdown interval={chartInterval} />
             </div>
 
             {ticker24h && (
@@ -327,7 +369,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-white/10 pt-2 sm:pt-0">
           {/* Emergency Management Controls */}
           <CopierControls />
 

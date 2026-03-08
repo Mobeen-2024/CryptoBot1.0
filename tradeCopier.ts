@@ -521,10 +521,12 @@ export class TradeCopier {
       
       const masterBalance = await this.getBalance(this.masterClient, balanceAsset, 'master');
 
-      if (masterBalance <= 0) {
+      if (masterBalance <= 0 && !this.isShadowMode) {
         Logger.warn(`Trade Copier: Master balance for ${balanceAsset} is 0 or less. Skipping order execution for slaves.`);
         return;
       }
+      
+      const effectiveMasterBalance = masterBalance > 0 ? masterBalance : 10000; // Fallback for shadow mode dividing
 
       // Loop over configured slave clients
       for (const slave of this.slaveClients) {
@@ -542,7 +544,9 @@ export class TradeCopier {
           try {
             // Include slaveId to trigger Shadow Interceptor natively
             const slaveBalance = await this.getBalance(slave.client, balanceAsset, slaveId);
-            let ratio = slaveBalance / masterBalance;
+            const effectiveSlaveBalance = slaveBalance > 0 ? slaveBalance : (this.isShadowMode ? 10000 : 0);
+            
+            let ratio = effectiveSlaveBalance / effectiveMasterBalance;
             let slaveQuantity = masterQuantity * ratio;
 
             Logger.info(`Trade Copier [${slaveId}]: Balance Ratio Calculation (${side.toUpperCase()} -> use ${balanceAsset}):`);
@@ -624,8 +628,50 @@ export class TradeCopier {
     }
   }
 
-  public async processSimulatedMasterTrade(report: ExecutionReport) {
+  public async processSimulatedMasterTrade(report: any) {
     Logger.info(`Trade Copier: Received Simulated Master Trade from UI: ${report.S} ${report.l} ${report.s}`);
+    
+    try {
+      // Convert symbol to Binance format
+      let ccxtSymbol = report.s;
+      if (!ccxtSymbol.includes('/') && ccxtSymbol.endsWith('USDT')) {
+        ccxtSymbol = ccxtSymbol.replace('USDT', '/USDT');
+      }
+      
+      if (report.marginType && report.marginType !== 'SPOT') {
+        ccxtSymbol = `${ccxtSymbol}-${report.marginType}`;
+      }
+
+      const side = report.S.toLowerCase() as 'buy' | 'sell';
+      const masterTradeId = report.t.toString();
+      const masterOrderId = report.i.toString();
+      const executedPrice = parseFloat(report.L || '0');
+      const executedQuantity = parseFloat(report.l || '0');
+      const timestamp = report.T || Date.now();
+
+      // Explicitly log the Master's own simulated trade into the db 
+      // so the UI Positions tab can calculate PnL against the master.
+      const insert = this.db.prepare(`
+        INSERT INTO copied_fills_v2 (slave_id, master_trade_id, master_order_id, slave_order_id, symbol, side, quantity, price, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      insert.run('master', masterTradeId, masterOrderId, masterOrderId, ccxtSymbol, side, executedQuantity, executedPrice, timestamp);
+
+      if (this.io) {
+        this.io.emit('new_trade', {
+          slave_id: 'master',
+          master_trade_id: masterTradeId,
+          symbol: ccxtSymbol,
+          side,
+          quantity: executedQuantity,
+          price: executedPrice,
+          timestamp
+        });
+      }
+    } catch (err) {
+      Logger.error('Trade Copier: Failed to log Simulated Master Trade in DB:', err);
+    }
+
     this.handleExecutionReport(report);
   }
 

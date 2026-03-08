@@ -93,7 +93,7 @@ export const CoinSelector: React.FC<CoinSelectorProps> = ({ symbol, setSymbol })
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-3 w-80 bg-[#151619]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden flex flex-col max-h-[400px]">
+        <div className="absolute top-full left-0 sm:left-auto right-auto sm:right-0 mt-3 w-[calc(100vw-32px)] sm:w-80 bg-[#151619]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden flex flex-col max-h-[400px]">
           <div className="p-2 border-b border-white/10 bg-black/40">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />

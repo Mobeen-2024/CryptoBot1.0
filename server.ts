@@ -241,11 +241,40 @@ async function startServer() {
 
   app.post('/api/binance/order', async (req, res) => {
     try {
-      const { symbol, side, type, quantity, price, stopPrice, limitPrice, params = {} } = req.body;
+      const { 
+        symbol, side, type, quantity, price, stopPrice, limitPrice, 
+        marginMode, leverage, autoBorrow, autoRepay, 
+        takeProfit, slTrigger, slLimit, isIceberg,
+        params = {} 
+      } = req.body;
       const ccxtSymbol = formatSymbol(symbol);
       const isShadow = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
       
-      Logger.info(`${isShadow ? '[SHADOW] ' : ''}Placing order:`, { ccxtSymbol, side, type, quantity, price, stopPrice, limitPrice, params });
+      const ccxtParams: any = { ...params };
+
+      // Map Advanced UI Features to Binance CCXT Parameters
+      if (marginMode) {
+         ccxtParams.marginMode = marginMode.toLowerCase(); // 'cross' or 'isolated'
+         if (ccxtParams.marginMode === 'isolated') {
+            ccxtParams.isIsolated = 'TRUE'; // Force Binance isolated margin endpoint routing
+         }
+         if (autoBorrow) ccxtParams.sideEffectType = 'MARGIN_BUY';
+         if (autoRepay) ccxtParams.sideEffectType = 'AUTO_REPAY';
+      }
+
+      if (isIceberg) {
+         // Binance requires icebergQty. Mocking as a fraction of order, or 0 to hide.
+         ccxtParams.icebergQty = (Number(quantity) * 0.1).toFixed(4); 
+      }
+
+      if (takeProfit && slTrigger) {
+         // OCO is handled by passing stopPrice alongside limit price in ccxt, or explicitly calling createOrder('oco')
+         // We inject specific Binance fields just in case
+         ccxtParams.takeProfitPrice = Number(takeProfit);
+         ccxtParams.stopPrice = Number(slTrigger);
+      }
+
+      Logger.info(`${isShadow ? '[SHADOW] ' : ''}Placing order:`, { ccxtSymbol, side, type, quantity, price, ccxtParams });
 
       if (!isShadow && (!process.env.BINANCE_API_KEY || (!process.env.BINANCE_API_SECRET && !process.env.BINANCE_SECRET_KEY))) {
         return res.status(400).json({ error: 'Binance API keys not configured. Please set them in .env' });
@@ -273,9 +302,10 @@ async function startServer() {
          
          const shadowBalance = await tradeCopier.getBalance(publicExchange, balanceAsset, 'master');
          const orderValue = orderSide === 'buy' ? (amount * executePrice) : amount;
+         const effectiveLeverage = marginMode ? (Number(leverage) || 1) : 1;
          
-         if (shadowBalance < orderValue) {
-            return res.status(400).json({ error: 'Insufficient Virtual Shadow Balance' });
+         if ((shadowBalance * effectiveLeverage) < orderValue) {
+            return res.status(400).json({ error: `Insufficient Virtual Shadow Balance (Leverage ${effectiveLeverage}x)` });
          }
 
          // Update Master locally
@@ -314,13 +344,12 @@ async function startServer() {
             z: amount.toString(),
             L: executePrice.toString(),
             n: '0',
-            N: 'USDT',
             T: timestamp,
             t: timestamp,
             I: 123456,
             w: false,
-            m: false,
             M: false,
+            marginType: marginMode ? marginMode.toUpperCase() : 'SPOT',
             O: timestamp,
             Z: (amount * executePrice).toString(),
             Y: (amount * executePrice).toString(),
@@ -333,16 +362,20 @@ async function startServer() {
       } else {
         // Use authenticated exchange for real live orders
         if (orderType === 'market') {
-          order = await authenticatedExchange.createOrder(ccxtSymbol, 'market', orderSide, amount);
+          order = await authenticatedExchange.createOrder(ccxtSymbol, 'market', orderSide, amount, undefined, ccxtParams);
         } else if (orderType === 'limit') {
-          order = await authenticatedExchange.createOrder(ccxtSymbol, 'limit', orderSide, amount, Number(price));
+          order = await authenticatedExchange.createOrder(ccxtSymbol, 'limit', orderSide, amount, Number(price), ccxtParams);
         } else if (orderType === 'stop_limit') {
-          const stopParams = { ...params, stopPrice: Number(stopPrice) };
-          order = await authenticatedExchange.createOrder(ccxtSymbol, 'limit', orderSide, amount, Number(limitPrice), stopParams);
+          ccxtParams.stopPrice = Number(stopPrice);
+          order = await authenticatedExchange.createOrder(ccxtSymbol, 'limit', orderSide, amount, Number(limitPrice), ccxtParams);
         } else if (orderType === 'oco') {
-          return res.status(400).json({ error: 'OCO orders not fully implemented in this bridge yet' });
+          // Send OCO if user selected it
+          ccxtParams.stopPrice = Number(stopPrice);
+          ccxtParams.stopLimitPrice = Number(limitPrice);
+          order = await authenticatedExchange.createOrder(ccxtSymbol, 'limit', orderSide, amount, Number(price), ccxtParams);
+          // Note: Full standard OCO across all pairs might require a raw authenticatedExchange.sapiPostMarginOrderOco() call depending on CCXT version.
         } else {
-          order = await authenticatedExchange.createOrder(ccxtSymbol, orderType, orderSide, amount, price ? Number(price) : undefined, params);
+          order = await authenticatedExchange.createOrder(ccxtSymbol, orderType, orderSide, amount, price ? Number(price) : undefined, ccxtParams);
         }
       }
 

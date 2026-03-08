@@ -142,14 +142,14 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval }) => 
           time: data[data.length - 25].time,
           position: 'belowBar',
           color: '#10b981',
-          shape: 'circle',
+          shape: 'square',
           text: 'B',
         },
         {
           time: data[data.length - 10].time,
           position: 'aboveBar',
           color: '#f43f5e',
-          shape: 'circle',
+          shape: 'square',
           text: 'S',
         }
       ] as any[];
