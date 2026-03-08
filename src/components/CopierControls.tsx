@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PauseCircle, PlayCircle, AlertOctagon, RefreshCw } from 'lucide-react';
 import { SyncTradesModal } from './SyncTradesModal';
+import toast from 'react-hot-toast';
 
 export const CopierControls: React.FC = () => {
   const [isPaused, setIsPaused] = useState(false);
@@ -12,19 +13,67 @@ export const CopierControls: React.FC = () => {
     // In a real app, this would dispatch a WebSocket command to the backend copy engine
   };
 
-  const handleEmergencyClose = () => {
+  const handleEmergencyClose = async () => {
     const confirm = window.confirm(
       "EMERGENCY PROTOCOL:\n\nAre you sure you want to Market Close ALL open positions on the Slave account immediately?\n\nThis action cannot be undone and may incur high slippage."
     );
     
     if (confirm) {
       setIsLiquidating(true);
-      // Mocking API call latency
-      setTimeout(() => {
-        setIsLiquidating(false);
+      const toastId = toast.loading('Initiating Emergency Liquidation...');
+      
+      try {
+        const res = await fetch('/api/backend/positions');
+        const positions = await res.json();
+        
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const pos of positions) {
+            if (pos.netQuantity === 0) continue;
+            
+            const side = pos.netQuantity > 0 ? 'SELL' : 'BUY';
+            const quantity = Math.abs(pos.netQuantity);
+            
+            // To ensure margin modes map correctly on close, we need the raw symbol from the backend or ccxt format
+            // In the DB it might be BTC/USDT-ISOLATED. The backend processes the symbol directly in server.js
+            try {
+                const orderRes = await fetch('/api/binance/order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symbol: pos.symbol.replace('-ISOLATED', '').replace('-CROSS', ''),
+                        marginMode: pos.symbol.includes('-ISOLATED') ? 'isolated' : (pos.symbol.includes('-CROSS') ? 'cross' : undefined),
+                        side: side,
+                        type: 'MARKET',
+                        quantity: quantity
+                    })
+                });
+                
+                if (orderRes.ok) {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } catch (err) {
+                failCount++;
+            }
+        }
+        
+        if (failCount === 0 && successCount > 0) {
+            toast.success(`Emergency Shutdown Complete. ${successCount} positions liquidated.`, { id: toastId });
+        } else if (successCount > 0 && failCount > 0) {
+            toast.error(`Partial Liquidation: ${successCount} closed, ${failCount} failed.`, { id: toastId });
+        } else {
+            toast.error('Emergency Shutdown failed or no positions found.', { id: toastId });
+        }
+        
         setIsPaused(true); // Automatically pause copying after a panic close
-        alert("All slave positions have been liquidated to USDT successfully. Copier is currently PAUSED.");
-      }, 1500);
+      } catch (error) {
+          toast.error('Critical failure accessing position database.', { id: toastId });
+      } finally {
+          setIsLiquidating(false);
+      }
     }
   };
 
