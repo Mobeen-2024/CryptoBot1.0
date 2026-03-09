@@ -60,6 +60,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [candleCountdown, setCandleCountdown] = useState<{
     text: string;
     isUp: boolean;
+    priceY: number;
+    price: number;
   } | null>(null);
 
   // Helper to parse interval into ms
@@ -453,14 +455,39 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
             const minutes = Math.floor(remaining / (60 * 1000));
             const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
-            const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const hours = Math.floor(remaining / (60 * 60 * 1000));
+            const formattedTime = hours > 0
+              ? `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+              : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+            // Compute Y position of current price on chart
+            let priceY = -100;
+            const closePrice = parseFloat(kline.c);
+            if (seriesRef.current && chartRef.current) {
+              try {
+                const coord = seriesRef.current.priceToCoordinate(closePrice);
+                if (coord !== null && coord !== undefined) priceY = coord;
+              } catch(e) {}
+            }
+
             setCandleCountdown({
               text: formattedTime,
-              isUp: parseFloat(kline.c) >= parseFloat(kline.o),
+              isUp: closePrice >= parseFloat(kline.o),
+              priceY,
+              price: closePrice,
             });
           }, 1000);
         } else {
-          setCandleCountdown(prev => prev ? { ...prev, isUp: parseFloat(kline.c) >= parseFloat(kline.o) } : null);
+          // Update direction & position on each tick
+          const closePrice = parseFloat(kline.c);
+          let priceY = -100;
+          if (seriesRef.current && chartRef.current) {
+            try {
+              const coord = seriesRef.current.priceToCoordinate(closePrice);
+              if (coord !== null && coord !== undefined) priceY = coord;
+            } catch(e) {}
+          }
+          setCandleCountdown(prev => prev ? { ...prev, isUp: closePrice >= parseFloat(kline.o), priceY, price: closePrice } : null);
         }
       }
     };
@@ -600,7 +627,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   return (
     <div className="flex flex-col w-full h-full bg-[#0B0E11] rounded-xl overflow-hidden border border-[#1e2329] shadow-[0_0_40px_rgba(0,0,0,0.4)]">
       {/* ═══════════════ CHART TOOLBAR ═══════════════ */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#1e2329] bg-[#0B0E11]">
+      <div className="flex items-center justify-between px-2 sm:px-3 py-1 sm:py-1.5 border-b border-[#1e2329] bg-[#0B0E11]">
 
         {/* Avg Price Toggle + Inputs */}
         <div className="hidden md:flex items-center gap-2">
@@ -706,11 +733,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       
       {/* ── OHLC Crosshair Data HUD ──────────────────────────── */}
       {crosshairData && crosshairData.x !== undefined && (
-        <div className="absolute top-2.5 left-3 z-20 pointer-events-none select-none">
+        <div className="absolute top-1.5 sm:top-2.5 left-1.5 sm:left-3 z-20 pointer-events-none select-none max-w-[calc(100%-3rem)]">
           {/* Frosted glass container */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-[#0B0E11]/85 backdrop-blur-md rounded-lg px-3 py-1.5 border border-[#2b3139]/60 shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+          <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 sm:gap-y-1 bg-[#0B0E11]/85 backdrop-blur-md rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#2b3139]/60 shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
             {/* Date */}
-            <span className="text-[#fcd535] font-mono font-bold text-[10px] tracking-widest">
+            <span className="text-[#fcd535] font-mono font-bold text-[8px] sm:text-[10px] tracking-widest">
               {(typeof crosshairData.time === 'number') 
                 ? new Date(crosshairData.time * 1000).toLocaleDateString('en-CA').replace(/-/g, '/') 
                 : String(crosshairData.time)}
@@ -723,7 +750,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               const val = crosshairData[key];
               const isUp = crosshairData.close >= crosshairData.open;
               return (
-                <div key={key} className="flex items-center gap-1 text-[10px] font-mono">
+                <div key={key} className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] font-mono">
                   <span className="text-[#5e6673] uppercase font-medium">{key[0]}</span>
                   <span className={`font-bold ${isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{val.toFixed(2)}</span>
                 </div>
@@ -794,16 +821,23 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
       </div>
 
-      {/* ── Live Candle Countdown (pinned to right axis) ──────── */}
-      {candleCountdown && (
-        <div className="absolute right-[58px] bottom-[30px] z-20 pointer-events-none select-none">
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border backdrop-blur-sm shadow-lg ${candleCountdown.isUp ? 'bg-[#0ecb81]/8 border-[#0ecb81]/20' : 'bg-[#f6465d]/8 border-[#f6465d]/20'}`}>
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#0ecb81' : '#f6465d'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            <span className={`text-[10px] font-mono font-bold ${candleCountdown.isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
-              {candleCountdown.text}
-            </span>
+      {/* ── Live Candle Countdown (attached to current price on right axis) ── */}
+      {candleCountdown && candleCountdown.priceY > 0 && (
+        <div 
+          className="absolute right-[1px] z-20 pointer-events-none select-none transition-all duration-100 ease-out"
+          style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
+        >
+          {/* Price + Timer combined label */}
+          <div className={`flex items-center rounded-l-md overflow-hidden shadow-lg ${candleCountdown.isUp ? 'shadow-[#0ecb81]/10' : 'shadow-[#f6465d]/10'}`}>
+            {/* Timer section */}
+            <div className={`flex items-center gap-1 px-2 py-[3px] ${candleCountdown.isUp ? 'bg-[#0ecb81]/15 border-r border-[#0ecb81]/20' : 'bg-[#f6465d]/15 border-r border-[#f6465d]/20'}`}>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#0ecb81' : '#f6465d'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span className={`text-[9px] font-mono font-bold tracking-wide ${candleCountdown.isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                {candleCountdown.text}
+              </span>
+            </div>
           </div>
         </div>
       )}

@@ -363,26 +363,28 @@ export default function App() {
       />
 
       {/* ═══════════════════════════ HEADER ═══════════════════════════ */}
-      <header className="border-b border-[#2b3139] bg-[#181a20] px-3 md:px-5 py-0 flex items-center justify-between sticky top-0 z-50 h-14 shrink-0">
+      <header className="border-b border-[#2b3139] bg-[#181a20] px-2 sm:px-3 md:px-5 py-1.5 sm:py-0 flex flex-wrap sm:flex-nowrap items-center justify-between sticky top-0 z-50 sm:h-14 shrink-0 gap-y-1">
         {/* Left: Logo + Pair + Price */}
-        <div className="flex items-center gap-3 md:gap-5 h-full">
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-5 h-full min-w-0">
           {/* Logo */}
-          <div className="flex items-center gap-2 pr-4 border-r border-[#2b3139] h-full">
-            <div className="w-7 h-7 rounded-lg bg-[#fcd535] flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0b0e11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <div className="flex items-center gap-1.5 sm:gap-2 pr-2 sm:pr-4 border-r border-[#2b3139] h-full shrink-0">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#fcd535] flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0b0e11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
-            <span className="text-sm font-extrabold text-white tracking-tight hidden sm:block">CryptoBot<span className="text-[#fcd535]">.</span></span>
+            <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight hidden sm:block">CryptoBot<span className="text-[#fcd535]">.</span></span>
           </div>
 
           {/* Pair Selector */}
           <CoinSelector symbol={symbol} setSymbol={setSymbol} />
 
           {/* Price Display */}
-          <div className="flex items-center gap-3">
-            <span className={`font-mono font-bold text-xl tracking-tight ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <span className={`font-mono font-bold text-base sm:text-xl tracking-tight ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
               {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <CandleCountdown interval={chartInterval} />
+            <span className="hidden sm:flex">
+              <CandleCountdown interval={chartInterval} />
+            </span>
           </div>
 
           {/* 24h Stats */}
@@ -404,24 +406,33 @@ export default function App() {
         </div>
 
         {/* Right: Controls + Status */}
-        <div className="flex items-center gap-3 h-full">
-          <CopierControls />
+        <div className="flex items-center gap-1.5 sm:gap-3 h-full shrink-0">
+          <span className="hidden lg:flex"><CopierControls /></span>
 
           {/* Wallet Balance Pill */}
-          <div className="hidden md:flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-3 py-1.5">
+          <div className="hidden md:flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 sm:px-3 py-1.5">
             <Wallet className="w-3.5 h-3.5 text-[#fcd535]" />
-            <span className="text-xs font-mono font-bold text-[#eaecef]">${parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span className="text-[10px] sm:text-xs font-mono font-bold text-[#eaecef]">${parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
 
+          {/* 24h Change (mobile only - compact) */}
+          {ticker24h && (
+            <div className="flex xl:hidden items-center">
+              <span className={`text-[10px] font-mono font-bold ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                {priceChange >= 0 ? '+' : ''}{parseFloat(ticker24h.priceChangePercent).toFixed(2)}%
+              </span>
+            </div>
+          )}
+
           {/* API Status */}
-          <div className="flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 py-1">
             <div className={`glow-dot-sm ${apiConnected ? 'bg-[#0ecb81]' : 'bg-[#f6465d]'}`} />
-            <span className="text-[10px] font-mono font-bold text-[#5e6673]">{apiConnected ? 'LIVE' : 'OFF'}</span>
+            <span className="text-[9px] sm:text-[10px] font-mono font-bold text-[#5e6673]">{apiConnected ? 'LIVE' : 'OFF'}</span>
           </div>
 
           {/* Sandbox Badge */}
           {isSandbox && (
-            <span className="text-[9px] font-bold uppercase tracking-widest text-[#fcd535] bg-[#fcd535]/10 px-2 py-1 rounded-md border border-[#fcd535]/20">Testnet</span>
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-[#fcd535] bg-[#fcd535]/10 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-[#fcd535]/20">Test</span>
           )}
         </div>
       </header>
@@ -431,7 +442,7 @@ export default function App() {
 
         {/* Error Overlay */}
         {error && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md">
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-1rem)] sm:w-full max-w-md px-2 sm:px-0">
             <div className="bg-[#181a20] border border-[#f6465d]/30 p-4 rounded-xl shadow-[0_8px_32px_rgba(246,70,93,0.15)] flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-[#f6465d]/15 flex items-center justify-center shrink-0">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f6465d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -457,7 +468,7 @@ export default function App() {
         <div className="flex flex-col lg:flex-row gap-2 shrink-0 items-stretch">
           
           {/* Chart Panel */}
-          <div className="h-[550px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full">
+          <div className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full">
             {/* Chart Toolbar */}
             <div className="px-3 py-1.5 border-b border-[#2b3139] flex items-center justify-between bg-[#181a20] shrink-0">
               <div className="flex items-center gap-3">
@@ -478,13 +489,13 @@ export default function App() {
                   <span className="hidden sm:inline">Indicators</span>
                 </button>
                 {/* Interval Selector */}
-                <div className="flex bg-[#0b0e11] rounded-lg border border-[#2b3139] p-0.5">
+                <div className="flex bg-[#0b0e11] rounded-lg border border-[#2b3139] p-0.5 overflow-x-auto">
                   {['1m', '5m', '15m', '1h', '4h', '1d', '1w'].map((i) => (
                     <button
                       key={i}
                       type="button"
                       onClick={(e) => { e.preventDefault(); setChartInterval(i); }}
-                      className={`px-2 py-1 text-[10px] font-mono font-bold rounded-md transition-all ${chartInterval === i ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_0_8px_rgba(252,213,53,0.2)]' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
+                      className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-mono font-bold rounded-md transition-all whitespace-nowrap ${chartInterval === i ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_0_8px_rgba(252,213,53,0.2)]' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
                     >
                       {i}
                     </button>
@@ -519,17 +530,17 @@ export default function App() {
           <div className="flex flex-col md:flex-row gap-2 w-full lg:w-[650px] shrink-0">
             
             {/* Master Account */}
-            <div className="flex flex-col gap-2 flex-1 min-w-[300px]">
-              <div className="flex items-center justify-center gap-2 bg-[#0ecb81]/8 border border-[#0ecb81]/20 text-[#0ecb81] text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-lg">
+            <div className="flex flex-col gap-2 flex-1 min-w-0">
+              <div className="flex items-center justify-center gap-2 bg-[#0ecb81]/8 border border-[#0ecb81]/20 text-[#0ecb81] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg">
                 <div className="glow-dot-sm bg-[#0ecb81]" />
-                Master Account
+                Master
               </div>
               <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(balance)} baseBalance={parseFloat(baseBalance)} onPlaceOrder={handlePlaceOrder} />
             </div>
 
             {/* Slave Account */}
-            <div className="flex flex-col gap-2 flex-1 min-w-[300px]">
-              <div className="flex items-center justify-center gap-2 bg-[#2962FF]/8 border border-[#2962FF]/20 text-[#2962FF] text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-lg">
+            <div className="flex flex-col gap-2 flex-1 min-w-0">
+              <div className="flex items-center justify-center gap-2 bg-[#2962FF]/8 border border-[#2962FF]/20 text-[#2962FF] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg">
                 <div className="glow-dot-sm bg-[#2962FF]" />
                 Sub-Account
               </div>
@@ -540,22 +551,22 @@ export default function App() {
         </div>
 
         {/* ─── BOTTOM ROW: Tabbed Terminal ────────────────────────── */}
-        <div className="flex flex-col shrink-0 panel-surface overflow-hidden min-h-[300px]">
+        <div className="flex flex-col shrink-0 panel-surface overflow-hidden min-h-[250px] sm:min-h-[300px]">
           {/* Tab Bar */}
-          <div className="flex border-b border-[#2b3139] bg-[#181a20] shrink-0 overflow-x-auto custom-scrollbar px-1">
+          <div className="flex border-b border-[#2b3139] bg-[#181a20] shrink-0 overflow-x-auto custom-scrollbar">
             {([
               { id: 'positions', icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Positions' },
               { id: 'analytics', icon: <LineChart className="w-3.5 h-3.5" />, label: 'Analytics' },
               { id: 'history', icon: <History className="w-3.5 h-3.5" />, label: 'History' },
-              { id: 'ai', icon: <Bot className="w-3.5 h-3.5" />, label: 'AI Analysis' },
-              { id: 'database', icon: <Database className="w-3.5 h-3.5" />, label: 'Database' },
+              { id: 'ai', icon: <Bot className="w-3.5 h-3.5" />, label: 'AI' },
+              { id: 'database', icon: <Database className="w-3.5 h-3.5" />, label: 'DB' },
               { id: 'delta', icon: <Activity className="w-3.5 h-3.5" />, label: 'Strategy' },
-              { id: 'bot', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, label: 'Bot Manager' },
+              { id: 'bot', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, label: 'Bots' },
             ] as { id: typeof activeTab; icon: React.ReactNode; label: string }[]).map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'text-[#fcd535] border-[#fcd535] bg-[#fcd535]/5'
                     : 'text-[#5e6673] border-transparent hover:text-[#848e9c] hover:bg-[#1e2329]'
