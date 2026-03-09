@@ -33,6 +33,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [customBuy, setCustomBuy] = useState<string>('');
   const [customSell, setCustomSell] = useState<string>('');
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
+  const [showAvgLines, setShowAvgLines] = useState(false);
   const [crosshairData, setCrosshairData] = useState<{
     time: string | number;
     open: number;
@@ -551,246 +552,254 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         supertrendSeriesRef.current.setData(stData);
       }
 
+      // Price lines are now only created when showAvgLines is toggled on (see effect below)
       const currentPr = data[data.length - 1].close;
-      const mockBuyPrice = currentPr * 0.99;
-      const mockSellPrice = currentPr * 1.01;
-
-      if (!buyLineRef.current && seriesRef.current) {
-        buyLineRef.current = seriesRef.current.createPriceLine({
-          price: mockBuyPrice,
-          color: '#0ecb81',
-          lineWidth: 1,
-          lineStyle: 2, 
-          axisLabelVisible: false,
-        });
-      } else if (buyLineRef.current) {
-         buyLineRef.current.applyOptions({ price: mockBuyPrice });
-      }
-
-      if (!sellLineRef.current && seriesRef.current) {
-        sellLineRef.current = seriesRef.current.createPriceLine({
-          price: mockSellPrice,
-          color: '#f6465d',
-          lineWidth: 1,
-          lineStyle: 2, 
-          axisLabelVisible: false,
-        });
-      } else if (sellLineRef.current) {
-         sellLineRef.current.applyOptions({ price: mockSellPrice });
-      }
-
-      setAvgPositions(prev => ({ ...prev, buyPrice: mockBuyPrice, sellPrice: mockSellPrice }));
+      setAvgPositions(prev => ({ ...prev, buyPrice: prev.buyPrice || currentPr * 0.99, sellPrice: prev.sellPrice || currentPr * 1.01 }));
     }
   }, [data]);
 
-  // Handle custom Buy/Sell Avg Inputs
+  // Create / remove price lines when toggle or prices change
   useEffect(() => {
-    if (buyLineRef.current && customBuy !== '') {
-      const p = parseFloat(customBuy);
-      if (!isNaN(p)) {
-        buyLineRef.current.applyOptions({ price: p });
-        setAvgPositions(prev => ({ ...prev, buyPrice: p }));
-      }
-    }
-  }, [customBuy]);
+    if (!seriesRef.current) return;
 
-  useEffect(() => {
-    if (sellLineRef.current && customSell !== '') {
-      const p = parseFloat(customSell);
-      if (!isNaN(p)) {
-        sellLineRef.current.applyOptions({ price: p });
-        setAvgPositions(prev => ({ ...prev, sellPrice: p }));
+    if (showAvgLines) {
+      const buyP = customBuy ? parseFloat(customBuy) : avgPositions.buyPrice;
+      const sellP = customSell ? parseFloat(customSell) : avgPositions.sellPrice;
+
+      if (!buyLineRef.current && buyP > 0) {
+        buyLineRef.current = seriesRef.current.createPriceLine({
+          price: buyP, color: '#0ecb81', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+        });
+      } else if (buyLineRef.current && buyP > 0) {
+        buyLineRef.current.applyOptions({ price: buyP });
+      }
+
+      if (!sellLineRef.current && sellP > 0) {
+        sellLineRef.current = seriesRef.current.createPriceLine({
+          price: sellP, color: '#f6465d', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+        });
+      } else if (sellLineRef.current && sellP > 0) {
+        sellLineRef.current.applyOptions({ price: sellP });
+      }
+
+      if (buyP > 0) setAvgPositions(prev => ({ ...prev, buyPrice: buyP }));
+      if (sellP > 0) setAvgPositions(prev => ({ ...prev, sellPrice: sellP }));
+    } else {
+      // Remove lines when toggled off
+      if (buyLineRef.current && seriesRef.current) {
+        seriesRef.current.removePriceLine(buyLineRef.current);
+        buyLineRef.current = null;
+      }
+      if (sellLineRef.current && seriesRef.current) {
+        seriesRef.current.removePriceLine(sellLineRef.current);
+        sellLineRef.current = null;
       }
     }
-  }, [customSell]);
+  }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice]);
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#0B0E11] rounded-lg overflow-hidden border border-[#2b3139]">
-      {/* Navigation & Toolbar (Top Row) */}
-      <div className="flex items-center justify-end px-4 py-2 border-b border-[#2b3139]">
+    <div className="flex flex-col w-full h-full bg-[#0B0E11] rounded-xl overflow-hidden border border-[#1e2329] shadow-[0_0_40px_rgba(0,0,0,0.4)]">
+      {/* ═══════════════ CHART TOOLBAR ═══════════════ */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#1e2329] bg-[#0B0E11]">
 
-        <div className="hidden md:flex items-center gap-2 mr-6 opacity-80 hover:opacity-100 transition-opacity">
-          <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-500">Buy Avg</span>
-          <input 
-            type="number" 
-            placeholder="Price" 
-            className="bg-black/50 border border-white/10 rounded px-2 py-0.5 text-[10px] w-20 outline-none focus:border-emerald-500 text-emerald-500 font-mono font-bold" 
-            value={customBuy} 
-            onChange={e => setCustomBuy(e.target.value)} 
-          />
-          <span className="text-[10px] uppercase font-mono tracking-wider font-bold text-gray-500 ml-2">Sell Avg</span>
-          <input 
-            type="number" 
-            placeholder="Price" 
-            className="bg-black/50 border border-white/10 rounded px-2 py-0.5 text-[10px] w-20 outline-none focus:border-rose-500 text-rose-500 font-mono font-bold" 
-            value={customSell} 
-            onChange={e => setCustomSell(e.target.value)} 
-          />
+        {/* Avg Price Toggle + Inputs */}
+        <div className="hidden md:flex items-center gap-2">
+          <label className="flex items-center gap-1.5 cursor-pointer group select-none">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={showAvgLines}
+                onChange={e => setShowAvgLines(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-7 h-4 bg-[#2b3139] rounded-full peer-checked:bg-[#fcd535]/30 transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-3 h-3 bg-[#5e6673] rounded-full peer-checked:translate-x-3 peer-checked:bg-[#fcd535] transition-all shadow-sm" />
+            </div>
+            <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-[#5e6673] group-hover:text-[#848e9c] transition-colors">Avg</span>
+          </label>
+          {showAvgLines && (
+            <div className="flex items-center gap-1 animate-in fade-in duration-200">
+              <div className="flex items-center gap-1.5 bg-[#0ecb81]/5 border border-[#0ecb81]/15 rounded-lg px-2 py-1 group hover:border-[#0ecb81]/40 transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#0ecb81] opacity-60 group-hover:opacity-100 transition-opacity" />
+                <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-[#0ecb81]/60 group-hover:text-[#0ecb81] transition-colors">Buy</span>
+                <input 
+                  type="number" 
+                  placeholder="—" 
+                  className="bg-transparent w-[62px] outline-none text-[10px] text-[#0ecb81] font-mono font-bold placeholder:text-[#0ecb81]/20 text-right" 
+                  value={customBuy} 
+                  onChange={e => setCustomBuy(e.target.value)} 
+                />
+              </div>
+              <div className="flex items-center gap-1.5 bg-[#f6465d]/5 border border-[#f6465d]/15 rounded-lg px-2 py-1 group hover:border-[#f6465d]/40 transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#f6465d] opacity-60 group-hover:opacity-100 transition-opacity" />
+                <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-[#f6465d]/60 group-hover:text-[#f6465d] transition-colors">Sell</span>
+                <input 
+                  type="number" 
+                  placeholder="—" 
+                  className="bg-transparent w-[62px] outline-none text-[10px] text-[#f6465d] font-mono font-bold placeholder:text-[#0ecb81]/20 text-right" 
+                  value={customSell} 
+                  onChange={e => setCustomSell(e.target.value)} 
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Drawing Toolbar */}
-        <div className="hidden md:flex items-center gap-1 mr-4 border border-[#2b3139] rounded-lg p-1">
+        {/* Center: Drawing Tools */}
+        <div className="hidden md:flex items-center gap-0.5 bg-[#181a20] border border-[#2b3139] rounded-lg p-0.5">
           {([
-            { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select / Move',    color: '#848e9c' },
+            { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select',          color: '#848e9c' },
             { id: 'trendline',  icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',      title: 'Trendline',       color: '#fcd535' },
-            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Horiz. S/R Line', color: '#0ecb81' },
-            { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Annotation', color: '#2962FF' },
+            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Support/Resist',  color: '#0ecb81' },
+            { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#2962FF' },
           ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
             <button
               key={tool.id}
               title={tool.title}
               onClick={() => setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool)}
-              className={`p-1.5 rounded transition-colors ${
+              className={`p-1.5 rounded-md transition-all duration-150 ${
                 activeTool === tool.id
-                  ? 'bg-[#2b3139] text-white'
-                  : 'text-[#5e6673] hover:text-[#eaecef] hover:bg-[#2b3139]/50'
+                  ? 'bg-[#2b3139] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+                  : 'hover:bg-[#2b3139]/50'
               }`}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke={activeTool === tool.id ? tool.color : 'currentColor'}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke={activeTool === tool.id ? tool.color : '#5e6673'}
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d={tool.icon}/>
               </svg>
             </button>
           ))}
-          {/* Divider + Clear All */}
-          <div className="w-px h-4 bg-[#2b3139] mx-0.5"/>
+          <div className="w-px h-3.5 bg-[#2b3139] mx-0.5"/>
           <button
             title="Clear all drawings"
             onClick={() => {
               localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
               setActiveTool('none');
-              // Force reload signal via a random key change is handled inside ChartDrawingLayer
               window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
             }}
-            className="p-1.5 rounded text-[#5e6673] hover:text-[#f6465d] hover:bg-[#f6465d]/10 transition-colors"
+            className="p-1.5 rounded-md text-[#5e6673] hover:text-[#f6465d] hover:bg-[#f6465d]/8 transition-all"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
             </svg>
           </button>
         </div>
 
-        {/* Action Icons (Right) */}
-        <div className="flex items-center gap-3.5 text-gray-400">
-          <button type="button" className="hover:text-[#1e2329] transition-colors cursor-pointer" title="Grid Settings" onClick={(e) => e.preventDefault()}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="3" y1="9" x2="21" y2="9"></line>
-              <line x1="3" y1="15" x2="21" y2="15"></line>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
-              <line x1="15" y1="3" x2="15" y2="21"></line>
+        {/* Right: Utility Actions */}
+        <div className="flex items-center gap-1">
+          <button type="button" className="p-1.5 rounded-md text-[#5e6673] hover:text-[#eaecef] hover:bg-[#1e2329] transition-all" title="Grid Settings" onClick={(e) => e.preventDefault()}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
             </svg>
           </button>
-          <button type="button" className="hover:text-[#1e2329] transition-colors cursor-pointer" title="Take Screenshot" onClick={(e) => e.preventDefault()}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-              <circle cx="12" cy="13" r="4"></circle>
+          <button type="button" className="p-1.5 rounded-md text-[#5e6673] hover:text-[#eaecef] hover:bg-[#1e2329] transition-all" title="Screenshot" onClick={(e) => e.preventDefault()}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
             </svg>
           </button>
         </div>
       </div>
 
+      {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
       
-      {/* Horizontal OHLC Data Strip (Dark Version) */}
+      {/* ── OHLC Crosshair Data HUD ──────────────────────────── */}
       {crosshairData && crosshairData.x !== undefined && (
-        <div className="absolute top-2 left-4 z-20 flex items-center gap-3 font-mono text-[11px] pointer-events-none select-none bg-transparent drop-shadow-md">
-          <span className="text-white font-bold tracking-widest whitespace-nowrap">
-            {(typeof crosshairData.time === 'number') 
-              ? new Date(crosshairData.time * 1000).toLocaleDateString('en-CA').replace(/-/g, '/') 
-              : String(crosshairData.time)}
-          </span>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-400">Open:</span>
-            <span className={`font-bold ${crosshairData.close >= crosshairData.open ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{crosshairData.open.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-400">High:</span>
-            <span className={`font-bold ${crosshairData.close >= crosshairData.open ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{crosshairData.high.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-400">Low:</span>
-            <span className={`font-bold ${crosshairData.close >= crosshairData.open ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{crosshairData.low.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-400">Close:</span>
-            <span className={`font-bold ${crosshairData.close >= crosshairData.open ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{crosshairData.close.toFixed(2)}</span>
-          </div>
+        <div className="absolute top-2.5 left-3 z-20 pointer-events-none select-none">
+          {/* Frosted glass container */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-[#0B0E11]/85 backdrop-blur-md rounded-lg px-3 py-1.5 border border-[#2b3139]/60 shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+            {/* Date */}
+            <span className="text-[#fcd535] font-mono font-bold text-[10px] tracking-widest">
+              {(typeof crosshairData.time === 'number') 
+                ? new Date(crosshairData.time * 1000).toLocaleDateString('en-CA').replace(/-/g, '/') 
+                : String(crosshairData.time)}
+            </span>
 
-          <div className="w-px h-3 bg-white/20 mx-1"></div>
+            <div className="w-px h-3 bg-[#2b3139]" />
 
-          {/* Dynamic Sub Indicators UI Map */}
-          {subIndicators.includes('MACD') && crosshairData.macd && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">MACD(12,26,9):</span>
-               <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
-                 {crosshairData.macd.MACD.toFixed(2)}
-               </span>
-             </div>
-          )}
-          {subIndicators.includes('RSI') && crosshairData.rsi && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">RSI(14):</span>
-               <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[#f6465d]' : crosshairData.rsi <= 30 ? 'text-[#0ecb81]' : 'text-[#fcd535]'}`}>
-                 {crosshairData.rsi.toFixed(2)}
-               </span>
-             </div>
-          )}
-          {subIndicators.includes('ATR') && crosshairData.atr && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">ATR(14):</span>
-               <span className="font-bold text-[#848e9c]">
-                 {crosshairData.atr.toFixed(2)}
-               </span>
-             </div>
-          )}
-          {subIndicators.includes('VOL') && crosshairData.volume !== undefined && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">VOL:</span>
-               <span className="font-bold text-[#fcd535]">
-                 {(crosshairData.volume).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-               </span>
-             </div>
-          )}
-          {subIndicators.includes('KDJ') && crosshairData.kdj && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">KDJ(9,3,3):</span>
-               <span className="font-bold text-[#fcd535]">{crosshairData.kdj.k.toFixed(2)}</span>
-             </div>
-          )}
-          {subIndicators.includes('WR') && crosshairData.wr && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">WR(14):</span>
-               <span className="font-bold text-[#f6465d]">{crosshairData.wr.toFixed(2)}</span>
-             </div>
-          )}
-          {subIndicators.includes('OBV') && crosshairData.obv !== undefined && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">OBV:</span>
-               <span className="font-bold text-[#848e9c]">{(crosshairData.obv / 1000).toFixed(1)}k</span>
-             </div>
-          )}
-          {subIndicators.includes('StochRSI') && crosshairData.stochRsi && (
-             <div className="flex items-center gap-1">
-               <span className="text-gray-400">StRSI(14,14):</span>
-               <span className="font-bold text-[#0ecb81]">{crosshairData.stochRsi.stochRSI.toFixed(2)}</span>
-             </div>
-          )}
+            {/* OHLC Values */}
+            {(['open', 'high', 'low', 'close'] as const).map((key) => {
+              const val = crosshairData[key];
+              const isUp = crosshairData.close >= crosshairData.open;
+              return (
+                <div key={key} className="flex items-center gap-1 text-[10px] font-mono">
+                  <span className="text-[#5e6673] uppercase font-medium">{key[0]}</span>
+                  <span className={`font-bold ${isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{val.toFixed(2)}</span>
+                </div>
+              );
+            })}
+
+            {/* Sub-Indicators */}
+            {subIndicators.includes('MACD') && crosshairData.macd && (
+              <>
+                <div className="w-px h-3 bg-[#2b3139]" />
+                <div className="flex items-center gap-1 text-[10px] font-mono">
+                  <span className="text-[#5e6673]">MACD</span>
+                  <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
+                </div>
+              </>
+            )}
+            {subIndicators.includes('RSI') && crosshairData.rsi && (
+              <div className="flex items-center gap-1 text-[10px] font-mono">
+                <span className="text-[#5e6673]">RSI</span>
+                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[#f6465d]' : crosshairData.rsi <= 30 ? 'text-[#0ecb81]' : 'text-[#fcd535]'}`}>{crosshairData.rsi.toFixed(1)}</span>
+              </div>
+            )}
+            {subIndicators.includes('ATR') && crosshairData.atr && (
+              <div className="flex items-center gap-1 text-[10px] font-mono">
+                <span className="text-[#5e6673]">ATR</span>
+                <span className="font-bold text-[#848e9c]">{crosshairData.atr.toFixed(2)}</span>
+              </div>
+            )}
+            {subIndicators.includes('VOL') && crosshairData.volume !== undefined && (
+              <div className="flex items-center gap-1 text-[10px] font-mono">
+                <span className="text-[#5e6673]">VOL</span>
+                <span className="font-bold text-[#fcd535]">{(crosshairData.volume).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              </div>
+            )}
+            {subIndicators.includes('KDJ') && crosshairData.kdj && (
+              <div className="flex items-center gap-1 text-[10px] font-mono">
+                <span className="text-[#5e6673]">KDJ</span>
+                <span className="font-bold text-[#2962FF]">{crosshairData.kdj.k.toFixed(1)}</span>
+              </div>
+            )}
+            {subIndicators.includes('WR') && crosshairData.wr && (
+              <div className="flex items-center gap-1 text-[10px] font-mono">
+                <span className="text-[#5e6673]">WR</span>
+                <span className="font-bold text-[#f6465d]">{crosshairData.wr.toFixed(1)}</span>
+              </div>
+            )}
+            {subIndicators.includes('OBV') && crosshairData.obv !== undefined && (
+              <div className="flex items-center gap-1 text-[10px] font-mono">
+                <span className="text-[#5e6673]">OBV</span>
+                <span className="font-bold text-[#848e9c]">{(crosshairData.obv / 1000).toFixed(1)}k</span>
+              </div>
+            )}
+            {subIndicators.includes('StochRSI') && crosshairData.stochRsi && (
+              <div className="flex items-center gap-1 text-[10px] font-mono">
+                <span className="text-[#5e6673]">StRSI</span>
+                <span className="font-bold text-[#0ecb81]">{crosshairData.stochRsi.stochRSI.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Watermark */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10">
-        <span className="text-[80px] md:text-[120px] font-black text-white/[0.03] tracking-[0.2em] transform -translate-y-4">MOBEEN</span>
+      {/* ── Brand Watermark ──────────────────────────────────── */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1]">
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[72px] md:text-[100px] font-black text-white/[0.015] tracking-[0.3em] uppercase">MOBEEN</span>
+          <span className="text-[10px] md:text-[12px] font-bold text-white/[0.03] tracking-[0.5em] uppercase">CryptoBot Terminal</span>
+        </div>
       </div>
 
-      {/* Live Candle Countdown Overlay (pinned to right axis) */}
+      {/* ── Live Candle Countdown (pinned to right axis) ──────── */}
       {candleCountdown && (
-        <div className="absolute right-[56px] bottom-[30px] z-20 pointer-events-none select-none flex flex-col items-end">
-          <div className="flex items-center gap-1.5 bg-[#1e2329]/90 backdrop-blur-sm border border-[#2b3139] px-2 py-1 rounded shadow-lg">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
-              <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+        <div className="absolute right-[58px] bottom-[30px] z-20 pointer-events-none select-none">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border backdrop-blur-sm shadow-lg ${candleCountdown.isUp ? 'bg-[#0ecb81]/8 border-[#0ecb81]/20' : 'bg-[#f6465d]/8 border-[#f6465d]/20'}`}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#0ecb81' : '#f6465d'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
             <span className={`text-[10px] font-mono font-bold ${candleCountdown.isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
               {candleCountdown.text}
@@ -799,27 +808,29 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
       )}
 
-      {/* Average Price Lines (Left Side Pills) */}
-      {avgPositions.buy > 0 && (
+      {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
+      {showAvgLines && avgPositions.buy > 0 && (
         <div 
-          className="absolute z-10 left-0 bg-[#0ecb81] text-[#0b0e11] text-[10px] font-bold font-mono px-2 py-0.5 rounded-r-full shadow-lg pointer-events-none transition-all duration-75 block flex items-center gap-1"
+          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#0ecb81]/90 text-[#0b0e11] text-[9px] font-bold font-mono px-2.5 py-[3px] rounded-r-lg shadow-[2px_0_12px_rgba(14,203,129,0.25)] pointer-events-none transition-all duration-100"
           style={{ top: avgPositions.buy, transform: 'translateY(-50%)' }}
         >
-          <span>BUY AVG</span>
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
+          <span className="tracking-wider">BUY</span>
           <span>{avgPositions.buyPrice.toFixed(2)}</span>
         </div>
       )}
-      {avgPositions.sell > 0 && (
+      {showAvgLines && avgPositions.sell > 0 && (
         <div 
-          className="absolute z-10 left-0 bg-[#f6465d] text-[#0b0e11] text-[10px] font-bold font-mono px-2 py-0.5 rounded-r-full shadow-lg pointer-events-none transition-all duration-75 block flex items-center gap-1"
+          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#f6465d]/90 text-[#0b0e11] text-[9px] font-bold font-mono px-2.5 py-[3px] rounded-r-lg shadow-[2px_0_12px_rgba(246,70,93,0.25)] pointer-events-none transition-all duration-100"
           style={{ top: avgPositions.sell, transform: 'translateY(-50%)' }}
         >
-          <span>SELL AVG</span>
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
+          <span className="tracking-wider">SELL</span>
           <span>{avgPositions.sellPrice.toFixed(2)}</span>
         </div>
       )}
 
-      {/* Drawing Layer (canvas overlay driven by ChartDrawingLayer) */}
+      {/* Drawing Layer */}
       <ChartDrawingLayer
         chartApi={chartRef.current}
         candleSeries={seriesRef.current}
