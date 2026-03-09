@@ -327,94 +327,58 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   }
 
   return (
-    <div className="bg-[#0b0e11] px-4 py-3 rounded-lg w-full max-w-[320px] mx-auto flex flex-col h-full text-[#eaecef]">
+    <div className="bg-[#0b0e11] border border-[#1e2329] rounded-xl px-3 sm:px-4 py-3 w-full max-w-[340px] mx-auto flex flex-col h-full text-[#eaecef] shadow-[0_0_30px_rgba(0,0,0,0.3)]">
       
       {/* Top Toggle: Spot vs Margin */}
-      <div className="flex justify-between items-center mb-3 pb-2 border-b border-[#2b3139]">
-        <span className="text-[13px] font-bold text-[#eaecef]">
-          {isSpotMargin ? 'Spot Margin Trading' : 'Spot Trading'}
+      <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-[#1e2329]">
+        <span className="text-[12px] sm:text-[13px] font-bold text-[#eaecef] tracking-tight">
+          {isSpotMargin ? 'Margin' : 'Spot'}<span className="text-[#5e6673] font-normal ml-1">Trading</span>
         </span>
-        <label className="flex items-center cursor-pointer group">
-          <span className="text-[#848e9c] text-xs mr-2 font-medium">Margin</span>
-          <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${isSpotMargin ? 'bg-[#fcd535]' : 'bg-[#474d57]'}`}>
-            <div className={`absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform duration-300 ${isSpotMargin ? 'translate-x-4' : ''}`}></div>
+        <label className="flex items-center cursor-pointer group gap-2">
+          <span className="text-[#5e6673] text-[10px] font-bold uppercase tracking-wider group-hover:text-[#848e9c] transition-colors">Margin</span>
+          <div className="relative">
+            <input type="checkbox" className="sr-only peer" checked={isSpotMargin} onChange={(e) => setIsSpotMargin(e.target.checked)} />
+            <div className="w-8 h-[18px] bg-[#2b3139] rounded-full peer-checked:bg-[#fcd535]/30 transition-colors" />
+            <div className="absolute top-[3px] left-[3px] w-3 h-3 bg-[#5e6673] rounded-full peer-checked:translate-x-3.5 peer-checked:bg-[#fcd535] transition-all shadow-sm" />
           </div>
-          <input type="checkbox" className="hidden" checked={isSpotMargin} onChange={(e) => setIsSpotMargin(e.target.checked)} />
         </label>
       </div>
 
       {/* Functional Pills (Margin Only) */}
       {isSpotMargin && (
-        <div className="flex gap-1.5 mb-2">
-          <button 
-            type="button"
-            onClick={() => setMarginMode(prev => prev === 'Cross' ? 'Isolated' : 'Cross')}
-            className="flex-1 bg-[#1e2329] hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[#fcd535] text-[10px] font-bold transition-colors whitespace-nowrap"
-          >
-            {marginMode}
-          </button>
-          <button 
-            type="button"
-            onClick={() => setIsLeverageModalOpen(true)}
-            className="flex-1 bg-[#1e2329] hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[#eaecef] text-[10px] font-bold transition-colors whitespace-nowrap"
-          >
-            {os.leverage}x
-          </button>
-          <button 
-            type="button"
-            onClick={() => updateOs({ autoBorrow: !os.autoBorrow })}
-            className={`flex-1 hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[10px] font-bold transition-colors whitespace-nowrap ${os.autoBorrow ? 'bg-[#fcd535] text-black' : 'bg-[#1e2329] text-[#eaecef]'}`}
-          >
-            Auto B.
-          </button>
-          <button 
-            type="button"
-            onClick={() => updateOs({ autoRepay: !os.autoRepay })}
-            className={`flex-1 hover:bg-[#2b3139] py-1.5 rounded-[6px] text-[10px] font-bold transition-colors whitespace-nowrap ${os.autoRepay ? 'bg-[#fcd535] text-black' : 'bg-[#1e2329] text-[#eaecef]'}`}
-          >
-            Auto R.
-          </button>
+        <div className="flex gap-1 mb-2.5">
+          <button type="button" onClick={() => setMarginMode(prev => prev === 'Cross' ? 'Isolated' : 'Cross')} className="flex-1 bg-[#181a20] hover:bg-[#1e2329] py-1.5 rounded-lg text-[#fcd535] text-[9px] sm:text-[10px] font-bold transition-all border border-[#2b3139] hover:border-[#fcd535]/20">{marginMode}</button>
+          <button type="button" onClick={() => setIsLeverageModalOpen(true)} className="flex-1 bg-[#181a20] hover:bg-[#1e2329] py-1.5 rounded-lg text-[#eaecef] text-[9px] sm:text-[10px] font-bold transition-all border border-[#2b3139]">{os.leverage}x</button>
+          <button type="button" onClick={() => updateOs({ autoBorrow: !os.autoBorrow })} className={`flex-1 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all border ${os.autoBorrow ? 'bg-[#fcd535]/15 border-[#fcd535]/30 text-[#fcd535]' : 'bg-[#181a20] border-[#2b3139] text-[#5e6673]'}`}>Borrow</button>
+          <button type="button" onClick={() => updateOs({ autoRepay: !os.autoRepay })} className={`flex-1 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-bold transition-all border ${os.autoRepay ? 'bg-[#fcd535]/15 border-[#fcd535]/30 text-[#fcd535]' : 'bg-[#181a20] border-[#2b3139] text-[#5e6673]'}`}>Repay</button>
         </div>
       )}
 
       {/* Action Toggle (Buy/Sell) - Sliding Pill */}
-      <div className="flex mb-3 relative h-10 rounded-[8px] bg-[#1e2329] p-1 shadow-inner">
-        {/* Sliding Background */}
+      <div className="flex mb-3 relative h-10 rounded-xl bg-[#181a20] p-1 border border-[#1e2329]">
         <div 
-          className="absolute top-1 bottom-1 w-[calc(50%-4px)] flex-1 rounded-[6px] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-[10px] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
           style={{
             left: os.mode === 'BUY' ? '4px' : 'calc(50%)',
-            backgroundImage: os.mode === 'BUY' ? 'linear-gradient(to bottom, #2ebd85, #22996a)' : 'linear-gradient(to bottom, #f6465d, #d13045)',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            backgroundImage: os.mode === 'BUY' ? 'linear-gradient(135deg, #2ebd85, #1fa06e)' : 'linear-gradient(135deg, #f6465d, #d13045)',
+            boxShadow: os.mode === 'BUY' ? '0 2px 12px rgba(46,189,133,0.3)' : '0 2px 12px rgba(246,70,93,0.3)'
           }}
         />
-        <button
-          type="button"
-          onClick={() => updateOs({ mode: 'BUY' })}
-          className={`flex-1 relative z-10 font-bold text-[13px] transition-colors duration-300 flex items-center justify-center rounded-md ${os.mode === 'BUY' ? 'text-white' : 'text-[#848e9c] hover:text-[#eaecef]'}`}
-        >
+        <button type="button" onClick={() => updateOs({ mode: 'BUY' })} className={`flex-1 relative z-10 font-bold text-[12px] sm:text-[13px] transition-colors duration-300 flex items-center justify-center rounded-[10px] gap-1 ${os.mode === 'BUY' ? 'text-white' : 'text-[#5e6673] hover:text-[#848e9c]'}`}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
           Buy
         </button>
-        <button
-          type="button"
-          onClick={() => updateOs({ mode: 'SELL' })}
-          className={`flex-1 relative z-10 font-bold text-[13px] transition-colors duration-300 flex items-center justify-center rounded-md ${os.mode === 'SELL' ? 'text-white' : 'text-[#848e9c] hover:text-[#eaecef]'}`}
-        >
+        <button type="button" onClick={() => updateOs({ mode: 'SELL' })} className={`flex-1 relative z-10 font-bold text-[12px] sm:text-[13px] transition-colors duration-300 flex items-center justify-center rounded-[10px] gap-1 ${os.mode === 'SELL' ? 'text-white' : 'text-[#5e6673] hover:text-[#848e9c]'}`}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
           Sell
         </button>
       </div>
 
       {/* Order Type Dropdown Trigger */}
       <div className="mb-3">
-        <button 
-          type="button"
-          onClick={() => setIsTypeModalOpen(true)}
-          className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-[#eaecef] bg-transparent hover:bg-white/5 px-2 py-1.5 rounded transition-colors"
-        >
-          <span className="border-b border-dashed border-[#848e9c]">
-            {os.orderType === 'STOP_LIMIT' ? 'Stop Limit' : os.orderType === 'OCO' ? 'OCO' : os.orderType.charAt(0) + os.orderType.slice(1).toLowerCase()}
-          </span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#848e9c" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        <button type="button" onClick={() => setIsTypeModalOpen(true)} className="w-full flex items-center justify-center gap-1.5 text-[11px] font-bold text-[#848e9c] hover:text-[#eaecef] bg-[#181a20] hover:bg-[#1e2329] px-3 py-2 rounded-lg transition-all border border-[#1e2329] hover:border-[#2b3139]">
+          <span className="text-[#eaecef]">{os.orderType === 'STOP_LIMIT' ? 'Stop Limit' : os.orderType === 'OCO' ? 'OCO' : os.orderType.charAt(0) + os.orderType.slice(1).toLowerCase()}</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </button>
       </div>
 
@@ -454,55 +418,53 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
 
           {/* Limit / Price Input */}
           {os.orderType === 'MARKET' ? (
-            <div className="bg-[#1e2329] rounded-[8px] flex items-center h-[34px] transition-colors border border-transparent opacity-60 cursor-not-allowed pr-2">
-              <input type="text" value="Market Price" disabled className="flex-1 bg-transparent text-[#eaecef] text-sm text-center focus:outline-none font-mono cursor-not-allowed" />
-              <span className="text-[#eaecef] text-xs font-medium">{quoteAsset}</span>
+            <div className="bg-[#181a20] rounded-lg flex items-center h-[36px] border border-[#1e2329] opacity-50 cursor-not-allowed pr-2 shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]">
+              <input type="text" value="Market Price" disabled className="flex-1 bg-transparent text-[#5e6673] text-xs sm:text-sm text-center focus:outline-none font-mono cursor-not-allowed" />
+              <span className="text-[#5e6673] text-[10px] font-bold">{quoteAsset}</span>
             </div>
           ) : (
-            <div className={`bg-[#1e2329] rounded-[8px] flex items-center justify-between h-[34px] transition-all duration-200 border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden`}>
-              {/* Nested Stepper - Extreme Left */}
-              <button type="button" onClick={() => stepPrice(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? 'limitPrice' : 'price', false)} className={`w-8 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 ${os.mode === 'BUY' ? 'hover:text-[#2ebd85]' : 'hover:text-[#f6465d]'} transition-colors shrink-0 bg-[#2b3139]/20`}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <div className={`bg-[#181a20] rounded-lg flex items-center justify-between h-[36px] transition-all border ${focusBorderClass} hover:border-[#2b3139] border-[#1e2329] overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]`}>
+              <button type="button" onClick={() => stepPrice(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? 'limitPrice' : 'price', false)} className={`w-8 h-full flex items-center justify-center text-[#5e6673] hover:bg-white/5 ${os.mode === 'BUY' ? 'hover:text-[#2ebd85]' : 'hover:text-[#f6465d]'} transition-colors shrink-0`}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
               
-              <span className="text-[#848e9c] text-xs pl-2 pr-1 whitespace-nowrap opacity-60 shrink-0 select-none">Price</span>
+              <span className="text-[#5e6673] text-[10px] pl-1 whitespace-nowrap font-bold select-none">Price</span>
               
               <input 
                 type="number" step="any" min="0" 
                 value={os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? os.limitPrice : os.price} 
                 onChange={(e) => os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? handleLimitPriceChange(e.target.value) : handlePriceChange(e.target.value)}
-                className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-right focus:outline-none font-mono placeholder-[#848e9c] pr-2" placeholder="0.00" required
+                className="flex-1 w-0 bg-transparent text-[#eaecef] text-xs sm:text-sm text-right focus:outline-none font-mono placeholder-[#2b3139] pr-1" placeholder="0.00" required
               />
               
-              <div className="flex items-center shrink-0 pr-2 gap-2">
+              <div className="flex items-center shrink-0 pr-1 gap-1">
                 {priceDelta && (
-                  <span className={`text-[10px] font-mono font-medium ${Number(priceDelta) > 0 ? 'text-[#0ecb81]' : Number(priceDelta) < 0 ? 'text-[#f6465d]' : 'text-[#848e9c]'}`}>
+                  <span className={`text-[9px] font-mono font-bold ${Number(priceDelta) > 0 ? 'text-[#0ecb81]' : Number(priceDelta) < 0 ? 'text-[#f6465d]' : 'text-[#5e6673]'}`}>
                     {Number(priceDelta) > 0 ? '+' : ''}{priceDelta}%
                   </span>
                 )}
                 {os.orderType !== 'STOP_LIMIT' && os.orderType !== 'OCO' ? (
-                  <button type="button" onClick={setBBO} className="text-[#eaecef] text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] hover:bg-white/10 transition-colors whitespace-nowrap bg-[#2b3139]/40">BBO</button>
+                  <button type="button" onClick={setBBO} className="text-[#eaecef] text-[9px] font-bold px-1.5 py-0.5 rounded-md hover:bg-white/10 transition-colors whitespace-nowrap bg-[#2b3139]/60 border border-[#2b3139]">BBO</button>
                 ) : (
-                  <span className="text-[#eaecef] text-xs font-medium">{quoteAsset}</span>
+                  <span className="text-[#5e6673] text-[10px] font-bold pr-1">{quoteAsset}</span>
                 )}
               </div>
 
-              {/* Nested Stepper - Extreme Right */}
-              <button type="button" onClick={() => stepPrice(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? 'limitPrice' : 'price', true)} className={`w-8 h-full flex items-center justify-center text-[#848e9c] hover:bg-white/5 ${os.mode === 'BUY' ? 'hover:text-[#2ebd85]' : 'hover:text-[#f6465d]'} transition-colors shrink-0 bg-[#2b3139]/20`}>
-                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <button type="button" onClick={() => stepPrice(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? 'limitPrice' : 'price', true)} className={`w-8 h-full flex items-center justify-center text-[#5e6673] hover:bg-white/5 ${os.mode === 'BUY' ? 'hover:text-[#2ebd85]' : 'hover:text-[#f6465d]'} transition-colors shrink-0`}>
+                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
             </div>
           )}
 
           {/* Amount Input */}
-          <div className={`bg-[#1e2329] rounded-[8px] flex items-center h-[34px] transition-colors border ${focusBorderClass} hover:border-[#5e6673] border-transparent overflow-hidden px-1`}>
-             <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap opacity-60 select-none">Amount</span>
+          <div className={`bg-[#181a20] rounded-lg flex items-center h-[36px] transition-all border ${focusBorderClass} hover:border-[#2b3139] border-[#1e2329] overflow-hidden px-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]`}>
+             <span className="text-[#5e6673] text-[10px] px-2 whitespace-nowrap font-bold select-none">Amt</span>
             <input 
               type="number" step="any" min="0" value={os.quantity} onChange={(e) => handleQuantityChange(e.target.value)}
-              className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-right focus:outline-none font-mono placeholder-[#848e9c] pr-2" placeholder="0.00" required
+              className="flex-1 w-0 bg-transparent text-[#eaecef] text-xs sm:text-sm text-right focus:outline-none font-mono placeholder-[#2b3139] pr-1" placeholder="0.00" required
             />
-            <button type="button" onClick={setMaxQuantity} className="text-[#fcd535] text-[10px] font-bold px-2 py-0.5 rounded-[4px] hover:bg-white/10 transition-colors whitespace-nowrap mr-2 border border-[#fcd535]/30 bg-[#fcd535]/10">MAX</button>
-            <span className="text-[#eaecef] text-xs pr-2 font-medium shrink-0">{baseAsset}</span>
+            <button type="button" onClick={setMaxQuantity} className="text-[#fcd535] text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all whitespace-nowrap border border-[#fcd535]/20 bg-[#fcd535]/8 hover:bg-[#fcd535]/15 mr-1">MAX</button>
+            <span className="text-[#5e6673] text-[10px] pr-2 font-bold shrink-0">{baseAsset}</span>
           </div>
         </div>
 
@@ -510,11 +472,11 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
         <div className="py-2 px-1 mt-5 mb-4 relative">
           <div className="relative w-full h-4 flex items-center">
             {/* Thin Light-Gray Background Track */}
-            <div className="absolute left-0 right-0 h-[2px] bg-[#2b3139] z-0"></div>
+            <div className="absolute left-0 right-0 h-[2px] bg-[#1e2329] z-0 rounded-full"></div>
             
             {/* Active Colored Track */}
             <div 
-              className="absolute left-0 h-[2px] z-0 transition-all duration-150"
+              className="absolute left-0 h-[2px] z-0 transition-all duration-150 rounded-full"
               style={{ width: `${balancePercentage}%`, backgroundColor: activeColor }}
             ></div>
 
@@ -558,13 +520,13 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
 
         {/* Total Input */}
         {os.orderType !== 'MARKET' && (
-          <div className={`bg-[#1e2329] border border-transparent rounded-[8px] h-[34px] flex items-center px-1 mb-2 transition-colors ${focusBorderClass} hover:border-[#5e6673] overflow-hidden`}>
-            <span className="text-[#848e9c] text-xs px-2 whitespace-nowrap opacity-60 select-none">Total</span>
+          <div className={`bg-[#181a20] border ${focusBorderClass} hover:border-[#2b3139] border-[#1e2329] rounded-lg h-[36px] flex items-center px-1 mb-2 transition-all overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)]`}>
+            <span className="text-[#5e6673] text-[10px] px-2 whitespace-nowrap font-bold select-none">Total</span>
             <input 
               type="number" step="any" min="0" value={os.total} onChange={(e) => handleTotalChange(e.target.value)}
-              className="flex-1 w-0 bg-transparent text-[#eaecef] text-sm text-right pr-2 focus:outline-none font-mono placeholder-[#848e9c]" placeholder="0.00" required
+              className="flex-1 w-0 bg-transparent text-[#eaecef] text-xs sm:text-sm text-right pr-1 focus:outline-none font-mono placeholder-[#2b3139]" placeholder="0.00" required
             />
-            <span className="text-[#eaecef] text-xs px-2 font-medium shrink-0">{quoteAsset}</span>
+            <span className="text-[#5e6673] text-[10px] px-2 font-bold shrink-0">{quoteAsset}</span>
           </div>
         )}
 
@@ -636,70 +598,69 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           </div>
         )}
 
-        {/* Asset & Liquidation Footer */}
-        <div className="flex flex-col gap-1.5 mb-4 text-[10px] mt-2 bg-transparent p-0 rounded-none border-none">
-          {/* Row: Available */}
-          <div className="flex justify-between items-center group">
-            <div className="flex items-center gap-1">
-              <span className="text-gray-500">Avbl</span>
-              <button type="button" className="text-[#fcd535] opacity-80 hover:opacity-100 transition-opacity" title="Transfer Funds">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="16 3 21 3 21 8"></polyline>
-                  <line x1="4" y1="14" x2="21" y2="3"></line>
-                  <polyline points="8 21 3 21 3 16"></polyline>
-                  <line x1="20" y1="10" x2="3" y2="21"></line>
-                </svg>
+        {/* Balance Stats Card */}
+        <div className="bg-[#181a20] rounded-lg border border-[#1e2329] px-3 py-2 mb-3 space-y-1.5">
+          <div className="flex justify-between items-center text-[10px]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#5e6673] font-medium">Avbl</span>
+              <button type="button" className="text-[#fcd535] opacity-70 hover:opacity-100 transition-opacity" title="Transfer Funds">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="14" x2="21" y2="3"/><polyline points="8 21 3 21 3 16"/><line x1="20" y1="10" x2="3" y2="21"/></svg>
               </button>
             </div>
-            <span className="text-white font-mono font-medium">{avbl.toFixed(2)} {os.mode === 'BUY' ? quoteAsset : baseAsset}</span>
+            <span className="text-[#eaecef] font-mono font-bold">{avbl.toFixed(2)} <span className="text-[#5e6673]">{os.mode === 'BUY' ? quoteAsset : baseAsset}</span></span>
           </div>
-          
-          {/* Row: Max */}
-          <div className="flex justify-between items-center">
-            <span className="text-gray-500">Max {os.mode === 'BUY' ? 'Buy' : 'Sell'}</span>
-            <span className="text-white font-mono font-medium">{maxQuantity.toFixed(4)} {baseAsset}</span>
+          <div className="w-full h-px bg-[#1e2329]" />
+          <div className="flex justify-between items-center text-[10px]">
+            <span className="text-[#5e6673] font-medium">Max {os.mode === 'BUY' ? 'Buy' : 'Sell'}</span>
+            <span className="text-[#eaecef] font-mono font-bold">{maxQuantity.toFixed(4)} <span className="text-[#5e6673]">{baseAsset}</span></span>
           </div>
-
-          {/* Row: Borrow (Mocked or calculated based on autoBorrow) */}
-          <div className="flex justify-between items-center">
-            <span className="text-gray-500">Borrow</span>
-            <span className="text-white font-mono font-medium">{os.autoBorrow && os.quantity > 0 && executionPrice > 0 ? (Math.max(0, (Number(os.quantity) * executionPrice) - avbl)).toFixed(2) : '0.00'} {quoteAsset}</span>
-          </div>
-
-          {/* Row: Liq. Price */}
+          {os.autoBorrow && (
+            <>
+              <div className="w-full h-px bg-[#1e2329]" />
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-[#5e6673] font-medium">Borrow</span>
+                <span className="text-[#fcd535] font-mono font-bold">{os.quantity > 0 && executionPrice > 0 ? (Math.max(0, (Number(os.quantity) * executionPrice) - avbl)).toFixed(2) : '0.00'} <span className="text-[#5e6673]">{quoteAsset}</span></span>
+              </div>
+            </>
+          )}
           {isSpotMargin && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500 hover:border-b border-gray-600 border-dashed cursor-help" title="Estimated Liquidation Price">Liq. Price</span>
-              <span className="text-[#fcd535] font-mono font-medium">
-                {os.leverage > 1 && os.quantity ? (os.mode === 'BUY' ? (executionPrice * 0.95).toFixed(2) : (executionPrice * 1.05).toFixed(2)) : '--'}
-              </span>
-            </div>
+            <>
+              <div className="w-full h-px bg-[#1e2329]" />
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-[#5e6673] font-medium">Liq. Price</span>
+                <span className="text-[#fcd535] font-mono font-bold">
+                  {os.leverage > 1 && os.quantity ? (os.mode === 'BUY' ? (executionPrice * 0.95).toFixed(2) : (executionPrice * 1.05).toFixed(2)) : '--'}
+                </span>
+              </div>
+            </>
           )}
         </div>
 
         {/* Advanced Settings Bottom (Margin Only) */}
         {isSpotMargin && (
-          <div className="mt-2 mb-4 space-y-1">
-            <label className="flex items-center justify-between cursor-pointer group bg-[#1e2329] p-2.5 rounded-lg border border-transparent hover:border-[#2b3139] transition-colors">
+          <div className="mb-3 space-y-1">
+            <label className="flex items-center justify-between cursor-pointer group bg-[#181a20] p-2.5 rounded-lg border border-[#1e2329] hover:border-[#2b3139] transition-all">
               <div className="flex flex-col">
-                <span className="text-[#eaecef] text-xs font-bold leading-tight">Auto Borrow</span>
-                <span className="text-[#848e9c] text-[10px] leading-tight mt-0.5">Automatically borrow isolated funds before order placement</span>
+                <span className="text-[#eaecef] text-[11px] font-bold">Auto Borrow</span>
+                <span className="text-[#5e6673] text-[9px] mt-0.5">Borrow funds before placement</span>
               </div>
-              <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ml-3 shrink-0 ${os.autoBorrow ? 'bg-[#fcd535]' : 'bg-[#474d57]'}`}>
-                <div className={`absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform duration-300 ${os.autoBorrow ? 'translate-x-4' : ''}`}></div>
+              <div className="relative ml-3 shrink-0">
+                <input type="checkbox" className="sr-only peer" checked={os.autoBorrow} onChange={(e) => updateOs({ autoBorrow: e.target.checked })} />
+                <div className="w-8 h-[18px] bg-[#2b3139] rounded-full peer-checked:bg-[#fcd535]/30 transition-colors" />
+                <div className="absolute top-[3px] left-[3px] w-3 h-3 bg-[#5e6673] rounded-full peer-checked:translate-x-3.5 peer-checked:bg-[#fcd535] transition-all" />
               </div>
-              <input type="checkbox" className="hidden" checked={os.autoBorrow} onChange={(e) => updateOs({ autoBorrow: e.target.checked })} />
             </label>
 
-            <label className="flex items-center justify-between cursor-pointer group bg-[#1e2329] p-2.5 rounded-lg border border-transparent hover:border-[#2b3139] transition-colors">
+            <label className="flex items-center justify-between cursor-pointer group bg-[#181a20] p-2.5 rounded-lg border border-[#1e2329] hover:border-[#2b3139] transition-all">
               <div className="flex flex-col">
-                <span className="text-[#eaecef] text-xs font-bold leading-tight">Auto Repay</span>
-                <span className="text-[#848e9c] text-[10px] leading-tight mt-0.5">Automatically repay isolation loan when order executes</span>
+                <span className="text-[#eaecef] text-[11px] font-bold">Auto Repay</span>
+                <span className="text-[#5e6673] text-[9px] mt-0.5">Repay loan on execution</span>
               </div>
-              <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ml-3 shrink-0 ${os.autoRepay ? 'bg-[#fcd535]' : 'bg-[#474d57]'}`}>
-                <div className={`absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform duration-300 ${os.autoRepay ? 'translate-x-4' : ''}`}></div>
+              <div className="relative ml-3 shrink-0">
+                <input type="checkbox" className="sr-only peer" checked={os.autoRepay} onChange={(e) => updateOs({ autoRepay: e.target.checked })} />
+                <div className="w-8 h-[18px] bg-[#2b3139] rounded-full peer-checked:bg-[#fcd535]/30 transition-colors" />
+                <div className="absolute top-[3px] left-[3px] w-3 h-3 bg-[#5e6673] rounded-full peer-checked:translate-x-3.5 peer-checked:bg-[#fcd535] transition-all" />
               </div>
-              <input type="checkbox" className="hidden" checked={os.autoRepay} onChange={(e) => updateOs({ autoRepay: e.target.checked })} />
             </label>
           </div>
         )}
@@ -707,18 +668,22 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
         {/* Execution Button */}
         <div className="mt-auto pt-2">
           {validationError && (
-            <div className="text-[10px] text-rose-500 text-center mb-1 font-medium animate-pulse">
+            <div className="text-[9px] text-[#f6465d] text-center mb-1.5 font-bold bg-[#f6465d]/8 border border-[#f6465d]/15 rounded-lg py-1 px-2">
               {validationError}
             </div>
           )}
           <button
             type="submit"
             disabled={isInvalid}
-            className="w-full py-[14px] rounded-[24px] font-bold text-white text-[13px] uppercase tracking-wide transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 active:scale-[0.98] shadow-lg shadow-black/20 text-shadow-sm"
+            className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-white text-[12px] sm:text-[13px] uppercase tracking-wider transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-2"
             style={{ 
-              backgroundImage: os.mode === 'BUY' ? 'linear-gradient(to bottom, #2ebd85, #22996a)' : 'linear-gradient(to bottom, #f6465d, #d13045)'
+              backgroundImage: os.mode === 'BUY' ? 'linear-gradient(135deg, #2ebd85, #1fa06e)' : 'linear-gradient(135deg, #f6465d, #d13045)',
+              boxShadow: os.mode === 'BUY' ? '0 4px 16px rgba(46,189,133,0.25)' : '0 4px 16px rgba(246,70,93,0.25)'
             }}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              {os.mode === 'BUY' ? <><path d="M7 17l9.2-9.2M7 7h10v10"/></> : <><path d="M17 7l-9.2 9.2M17 17H7V7"/></>}
+            </svg>
             {isSpotMargin ? 'Margin ' : ''}{os.mode === 'BUY' ? 'Buy' : 'Sell'} {baseAsset}
           </button>
         </div>
