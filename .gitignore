@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local SQLite Database
+shadow_orders.db
+*.sqlite
+*.db
