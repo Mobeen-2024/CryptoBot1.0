@@ -96,41 +96,44 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#0B0E11' }, // Binance Dark Theme
+        background: { 
+          type: ColorType.VerticalGradient, 
+          topColor: '#07090b', // Deep almost-black space
+          bottomColor: '#0b1622', // Subtle deep blue/cyber tint
+        },
         textColor: '#848e9c', // Standard gray text
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       grid: {
-        vertLines: { color: '#2b3139', style: 3, visible: true }, // Faint dotted vertical
-        horzLines: { color: '#2b3139', style: 3, visible: true }, // Faint dotted horizontal
+        vertLines: { color: 'rgba(255, 255, 255, 0.03)', style: 0, visible: true }, // Ultra-subtle solid grid
+        horzLines: { color: 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
       },
       crosshair: {
         mode: 1, // CrosshairMode.Normal allows free horizontal tracking
         horzLine: {
-          color: '#848e9c',
-          labelBackgroundColor: '#1e2329',
+          color: '#ffffff',
+          labelBackgroundColor: '#2962FF', // Vivid accent for crosshair value
           labelVisible: true,
           style: 3, // Dotted
         },
         vertLine: {
-          color: '#848e9c',
-          labelBackgroundColor: '#1e2329', // Dark pill for active time
-          labelVisible: true, // Show the exact timestamp/date pill on hover (X-Axis)
+          color: '#ffffff',
+          labelBackgroundColor: '#2962FF', // Vivid accent for time
+          labelVisible: true, 
           style: 3, // Dotted
         },
       },
       timeScale: {
-        timeVisible: true, // Show the native bottom axis Date instead
+        timeVisible: true,
         secondsVisible: false,
-        borderColor: '#2b3139', // Dark border
-        rightOffset: 5, // A right-side margin is implicitly maintained by Lightweight Charts width, but this creates some breathing room
+        borderColor: 'rgba(255, 255, 255, 0.05)', // Extremely subtle border
+        rightOffset: 10,
       },
       localization: {
         timeFormatter: (businessDayOrTimestamp: any) => {
           try {
             if (typeof businessDayOrTimestamp === 'number') {
-              // Lightweight charts provides timestamps in seconds
               const date = new Date(businessDayOrTimestamp * 1000);
               return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
             }
@@ -140,24 +143,26 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             }
             return String(businessDayOrTimestamp);
           } catch (e) {
-            return ''; // Prevent fatal React crash on formatter parse failure
+            return '';
           }
         },
       },
       rightPriceScale: {
-        borderColor: '#2b3139', // Dark border
+        borderColor: 'rgba(255, 255, 255, 0.05)',
       },
     });
 
     chartRef.current = chart;
 
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#0ecb81', // Solid up fill (emerald green)
-      downColor: '#f6465d', // Solid down fill (rose red)
-      borderVisible: false, // Ensures no extra outlining, strictly solid bodies
+      upColor: '#00E676', // Cyber Neon Green
+      downColor: '#FF1744', // Cyber Crimson
+      borderVisible: false, 
       wickVisible: true,
-      wickUpColor: '#0ecb81', // Thin vertical lines matching body
-      wickDownColor: '#f6465d',
+      wickUpColor: '#00E676', 
+      wickDownColor: '#FF1744',
+      lastValueVisible: false, // Hide native right scale current price 
+      priceLineVisible: true, // Restore native right scale current price line
     });
 
     seriesRef.current = candlestickSeries;
@@ -209,7 +214,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     emaSeriesRef.current = emaSeries;
 
     const smaSeries = chart.addSeries(LineSeries, {
-      color: '#0ecb81',
+      color: '#00E676',
       lineWidth: 2,
       crosshairMarkerVisible: false,
       lastValueVisible: false,
@@ -255,8 +260,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         return {
           time: d.time,
           value: st,
-          lineColor: trend === 1 ? '#0ecb81' : '#f6465d',
-          topColor: trend === 1 ? 'rgba(14, 203, 129, 0.15)' : 'rgba(246, 70, 93, 0.15)',
+          lineColor: trend === 1 ? '#00E676' : '#FF1744',
+          topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
           bottomColor: 'rgba(0, 0, 0, 0)',
         };
       });
@@ -271,7 +276,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       
       buyLineRef.current = candlestickSeries.createPriceLine({
         price: mockBuyPrice,
-        color: '#0ecb81',
+        color: '#00E676',
         lineWidth: 1,
         lineStyle: 2, // Dashed
         axisLabelVisible: false, // We will draw our own on the left
@@ -279,7 +284,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       sellLineRef.current = candlestickSeries.createPriceLine({
         price: mockSellPrice,
-        color: '#f6465d',
+        color: '#FF1744',
         lineWidth: 1,
         lineStyle: 2, // Dashed
         axisLabelVisible: false, // We will draw our own on the left
@@ -385,8 +390,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           const newStPoint = {
             time: t,
             value: st,
-            lineColor: trend === 1 ? '#0ecb81' : '#f6465d',
-            topColor: trend === 1 ? 'rgba(14, 203, 129, 0.15)' : 'rgba(246, 70, 93, 0.15)',
+            lineColor: trend === 1 ? '#00E676' : '#FF1744',
+            topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
             bottomColor: 'rgba(0, 0, 0, 0)',
           };
           supertrendSeriesRef.current.update(newStPoint);
@@ -432,8 +437,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           supertrendSeriesRef.current.update({
             time: t,
             value: st,
-            lineColor: trend === 1 ? '#0ecb81' : '#f6465d',
-            topColor: trend === 1 ? 'rgba(14, 203, 129, 0.15)' : 'rgba(246, 70, 93, 0.15)',
+            lineColor: trend === 1 ? '#00E676' : '#FF1744',
+            topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
             bottomColor: 'rgba(0, 0, 0, 0)',
           });
         }
@@ -570,8 +575,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           return {
             time: d.time,
             value: st,
-            lineColor: trend === 1 ? '#0ecb81' : '#f6465d',
-            topColor: trend === 1 ? 'rgba(14, 203, 129, 0.15)' : 'rgba(246, 70, 93, 0.15)',
+            lineColor: trend === 1 ? '#00E676' : '#FF1744',
+            topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
             bottomColor: 'rgba(0, 0, 0, 0)',
           };
         });
@@ -595,7 +600,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       if (!buyLineRef.current && buyP > 0) {
         buyLineRef.current = seriesRef.current.createPriceLine({
-          price: buyP, color: '#0ecb81', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+          price: buyP, color: '#00E676', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
         });
       } else if (buyLineRef.current && buyP > 0) {
         buyLineRef.current.applyOptions({ price: buyP });
@@ -603,7 +608,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       if (!sellLineRef.current && sellP > 0) {
         sellLineRef.current = seriesRef.current.createPriceLine({
-          price: sellP, color: '#f6465d', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+          price: sellP, color: '#FF1744', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
         });
       } else if (sellLineRef.current && sellP > 0) {
         sellLineRef.current.applyOptions({ price: sellP });
@@ -625,13 +630,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice]);
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#0B0E11] rounded-xl overflow-hidden border border-[#1e2329] shadow-[0_0_40px_rgba(0,0,0,0.4)]">
+    <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
+      {/* 2050 Gradient Overlay Glow */}
+      <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
+      
       {/* ═══════════════ CHART TOOLBAR ═══════════════ */}
-      <div className="flex items-center justify-between px-2 sm:px-3 py-1 sm:py-1.5 border-b border-[#1e2329] bg-[#0B0E11]">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/[0.03] bg-gradient-to-b from-white/[0.03] to-transparent relative z-10">
 
         {/* Avg Price Toggle + Inputs */}
-        <div className="hidden md:flex items-center gap-2">
-          <label className="flex items-center gap-1.5 cursor-pointer group select-none">
+        <div className="hidden md:flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer group select-none">
             <div className="relative">
               <input
                 type="checkbox"
@@ -639,31 +647,31 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 onChange={e => setShowAvgLines(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-7 h-4 bg-[#2b3139] rounded-full peer-checked:bg-[#fcd535]/30 transition-colors" />
-              <div className="absolute top-0.5 left-0.5 w-3 h-3 bg-[#5e6673] rounded-full peer-checked:translate-x-3 peer-checked:bg-[#fcd535] transition-all shadow-sm" />
+              <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
+              <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
             </div>
-            <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-[#5e6673] group-hover:text-[#848e9c] transition-colors">Avg</span>
+            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Avg</span>
           </label>
           {showAvgLines && (
-            <div className="flex items-center gap-1 animate-in fade-in duration-200">
-              <div className="flex items-center gap-1.5 bg-[#0ecb81]/5 border border-[#0ecb81]/15 rounded-lg px-2 py-1 group hover:border-[#0ecb81]/40 transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#0ecb81] opacity-60 group-hover:opacity-100 transition-opacity" />
-                <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-[#0ecb81]/60 group-hover:text-[#0ecb81] transition-colors">Buy</span>
+            <div className="flex items-center gap-2 animate-in slide-in-from-left-2 fade-in duration-300">
+              <div className="flex items-center gap-2 bg-[#00E676]/5 border border-[#00E676]/20 shadow-[0_0_15px_rgba(0,230,118,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#00E676]/50 focus-within:shadow-[0_0_20px_rgba(0,230,118,0.15)_inset] transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#00E676] shadow-[0_0_8px_#00E676]" />
+                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#00E676]/80 flex-shrink-0">Buy</span>
                 <input 
                   type="number" 
                   placeholder="—" 
-                  className="bg-transparent w-[62px] outline-none text-[10px] text-[#0ecb81] font-mono font-bold placeholder:text-[#0ecb81]/20 text-right" 
+                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#00E676] font-mono font-bold placeholder:text-[#00E676]/30 text-right selection:bg-[#00E676]/30" 
                   value={customBuy} 
                   onChange={e => setCustomBuy(e.target.value)} 
                 />
               </div>
-              <div className="flex items-center gap-1.5 bg-[#f6465d]/5 border border-[#f6465d]/15 rounded-lg px-2 py-1 group hover:border-[#f6465d]/40 transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#f6465d] opacity-60 group-hover:opacity-100 transition-opacity" />
-                <span className="text-[9px] uppercase font-mono tracking-widest font-bold text-[#f6465d]/60 group-hover:text-[#f6465d] transition-colors">Sell</span>
+              <div className="flex items-center gap-2 bg-[#FF1744]/5 border border-[#FF1744]/20 shadow-[0_0_15px_rgba(255,23,68,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#FF1744]/50 focus-within:shadow-[0_0_20px_rgba(255,23,68,0.15)_inset] transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#FF1744] shadow-[0_0_8px_#FF1744]" />
+                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#FF1744]/80 flex-shrink-0">Sell</span>
                 <input 
                   type="number" 
                   placeholder="—" 
-                  className="bg-transparent w-[62px] outline-none text-[10px] text-[#f6465d] font-mono font-bold placeholder:text-[#0ecb81]/20 text-right" 
+                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#FF1744] font-mono font-bold placeholder:text-[#FF1744]/30 text-right selection:bg-[#FF1744]/30" 
                   value={customSell} 
                   onChange={e => setCustomSell(e.target.value)} 
                 />
@@ -673,31 +681,35 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
 
         {/* Center: Drawing Tools */}
-        <div className="hidden md:flex items-center gap-0.5 bg-[#181a20] border border-[#2b3139] rounded-lg p-0.5">
+        <div className="hidden md:flex items-center gap-1 bg-white/[0.02] border border-white/[0.05] shadow-[0_4px_24px_rgba(0,0,0,0.2)] rounded-xl p-1 backdrop-blur-md">
           {([
-            { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select',          color: '#848e9c' },
+            { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select',          color: '#ffffff' },
             { id: 'trendline',  icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',      title: 'Trendline',       color: '#fcd535' },
-            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Support/Resist',  color: '#0ecb81' },
+            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Support/Resist',  color: '#00E676' },
             { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#2962FF' },
           ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
             <button
               key={tool.id}
               title={tool.title}
               onClick={() => setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool)}
-              className={`p-1.5 rounded-md transition-all duration-150 ${
+              className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 relative group/btn ${
                 activeTool === tool.id
-                  ? 'bg-[#2b3139] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-                  : 'hover:bg-[#2b3139]/50'
+                  ? 'bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                  : 'hover:bg-white/5'
               }`}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                stroke={activeTool === tool.id ? tool.color : '#5e6673'}
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {activeTool === tool.id && (
+                <div className="absolute inset-0 rounded-lg shadow-[0_0_12px_currentColor] opacity-30" style={{ color: tool.color }} />
+              )}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke={activeTool === tool.id ? tool.color : '#848e9c'}
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className="relative z-10 transition-colors group-hover/btn:drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
                 <path d={tool.icon}/>
               </svg>
             </button>
           ))}
-          <div className="w-px h-3.5 bg-[#2b3139] mx-0.5"/>
+          <div className="w-px h-4 bg-white/10 mx-1"/>
           <button
             title="Clear all drawings"
             onClick={() => {
@@ -705,22 +717,22 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               setActiveTool('none');
               window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
             }}
-            className="p-1.5 rounded-md text-[#5e6673] hover:text-[#f6465d] hover:bg-[#f6465d]/8 transition-all"
+            className="p-1.5 sm:p-2 rounded-lg text-[#848e9c] hover:text-[#FF1744] hover:bg-[#FF1744]/10 transition-all duration-300 group/clear"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover/clear:drop-shadow-[0_0_8px_#FF1744]">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
             </svg>
           </button>
         </div>
 
         {/* Right: Utility Actions */}
-        <div className="flex items-center gap-1">
-          <button type="button" className="p-1.5 rounded-md text-[#5e6673] hover:text-[#eaecef] hover:bg-[#1e2329] transition-all" title="Grid Settings" onClick={(e) => e.preventDefault()}>
+        <div className="flex items-center gap-1.5">
+          <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Grid Settings" onClick={(e) => e.preventDefault()}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
             </svg>
           </button>
-          <button type="button" className="p-1.5 rounded-md text-[#5e6673] hover:text-[#eaecef] hover:bg-[#1e2329] transition-all" title="Screenshot" onClick={(e) => e.preventDefault()}>
+          <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Screenshot" onClick={(e) => e.preventDefault()}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
             </svg>
@@ -733,26 +745,27 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       
       {/* ── OHLC Crosshair Data HUD ──────────────────────────── */}
       {crosshairData && crosshairData.x !== undefined && (
-        <div className="absolute top-1.5 sm:top-2.5 left-1.5 sm:left-3 z-20 pointer-events-none select-none max-w-[calc(100%-3rem)]">
-          {/* Frosted glass container */}
-          <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 sm:gap-y-1 bg-[#0B0E11]/85 backdrop-blur-md rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#2b3139]/60 shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
+        <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-20 pointer-events-none select-none max-w-[calc(100%-3rem)] animate-in fade-in slide-in-from-top-2 duration-300">
+          {/* Frosted glass container 2050 */}
+          <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 sm:gap-y-1.5 bg-[#000000]/60 backdrop-blur-xl rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]">
             {/* Date */}
-            <span className="text-[#fcd535] font-mono font-bold text-[8px] sm:text-[10px] tracking-widest">
+            <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] font-mono font-bold text-[9px] sm:text-[11px] tracking-widest uppercase">
               {(typeof crosshairData.time === 'number') 
-                ? new Date(crosshairData.time * 1000).toLocaleDateString('en-CA').replace(/-/g, '/') 
+                ? new Date(crosshairData.time * 1000).toLocaleDateString('en-CA').replace(/-/g, '.') 
                 : String(crosshairData.time)}
             </span>
 
-            <div className="w-px h-3 bg-[#2b3139]" />
+            <div className="w-px h-3.5 bg-white/10" />
 
             {/* OHLC Values */}
             {(['open', 'high', 'low', 'close'] as const).map((key) => {
               const val = crosshairData[key];
               const isUp = crosshairData.close >= crosshairData.open;
+              const colorClass = isUp ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]' : 'text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]';
               return (
-                <div key={key} className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] font-mono">
-                  <span className="text-[#5e6673] uppercase font-medium">{key[0]}</span>
-                  <span className={`font-bold ${isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{val.toFixed(2)}</span>
+                <div key={key} className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[11px] font-mono">
+                  <span className="text-[#848e9c] uppercase font-semibold tracking-wider">{key[0]}</span>
+                  <span className={`font-black ${colorClass}`}>{val.toFixed(2)}</span>
                 </div>
               );
             })}
@@ -760,64 +773,68 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             {/* Sub-Indicators */}
             {subIndicators.includes('MACD') && crosshairData.macd && (
               <>
-                <div className="w-px h-3 bg-[#2b3139]" />
-                <div className="flex items-center gap-1 text-[10px] font-mono">
-                  <span className="text-[#5e6673]">MACD</span>
-                  <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
+                <div className="w-px h-3.5 bg-white/10" />
+                <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                  <span className="text-[#848e9c]">MACD</span>
+                  <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]' : 'text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
                 </div>
               </>
             )}
             {subIndicators.includes('RSI') && crosshairData.rsi && (
-              <div className="flex items-center gap-1 text-[10px] font-mono">
-                <span className="text-[#5e6673]">RSI</span>
-                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[#f6465d]' : crosshairData.rsi <= 30 ? 'text-[#0ecb81]' : 'text-[#fcd535]'}`}>{crosshairData.rsi.toFixed(1)}</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#848e9c]">RSI</span>
+                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]' : crosshairData.rsi <= 30 ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]' : 'text-[#fcd535] drop-shadow-[0_0_8px_rgba(252,213,53,0.4)]'}`}>{crosshairData.rsi.toFixed(1)}</span>
               </div>
             )}
             {subIndicators.includes('ATR') && crosshairData.atr && (
-              <div className="flex items-center gap-1 text-[10px] font-mono">
-                <span className="text-[#5e6673]">ATR</span>
-                <span className="font-bold text-[#848e9c]">{crosshairData.atr.toFixed(2)}</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#848e9c]">ATR</span>
+                <span className="font-bold text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]">{crosshairData.atr.toFixed(2)}</span>
               </div>
             )}
             {subIndicators.includes('VOL') && crosshairData.volume !== undefined && (
-              <div className="flex items-center gap-1 text-[10px] font-mono">
-                <span className="text-[#5e6673]">VOL</span>
-                <span className="font-bold text-[#fcd535]">{(crosshairData.volume).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#848e9c]">VOL</span>
+                <span className="font-bold text-[#fcd535] drop-shadow-[0_0_8px_rgba(252,213,53,0.4)]">{(crosshairData.volume).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
               </div>
             )}
             {subIndicators.includes('KDJ') && crosshairData.kdj && (
-              <div className="flex items-center gap-1 text-[10px] font-mono">
-                <span className="text-[#5e6673]">KDJ</span>
-                <span className="font-bold text-[#2962FF]">{crosshairData.kdj.k.toFixed(1)}</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#848e9c]">KDJ</span>
+                <span className="font-bold text-[#2962FF] drop-shadow-[0_0_8px_rgba(41,98,255,0.4)]">{crosshairData.kdj.k.toFixed(1)}</span>
               </div>
             )}
             {subIndicators.includes('WR') && crosshairData.wr && (
-              <div className="flex items-center gap-1 text-[10px] font-mono">
-                <span className="text-[#5e6673]">WR</span>
-                <span className="font-bold text-[#f6465d]">{crosshairData.wr.toFixed(1)}</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#848e9c]">WR</span>
+                <span className="font-bold text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]">{crosshairData.wr.toFixed(1)}</span>
               </div>
             )}
             {subIndicators.includes('OBV') && crosshairData.obv !== undefined && (
-              <div className="flex items-center gap-1 text-[10px] font-mono">
-                <span className="text-[#5e6673]">OBV</span>
-                <span className="font-bold text-[#848e9c]">{(crosshairData.obv / 1000).toFixed(1)}k</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#848e9c]">OBV</span>
+                <span className="font-bold text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]">{(crosshairData.obv / 1000).toFixed(1)}k</span>
               </div>
             )}
             {subIndicators.includes('StochRSI') && crosshairData.stochRsi && (
-              <div className="flex items-center gap-1 text-[10px] font-mono">
-                <span className="text-[#5e6673]">StRSI</span>
-                <span className="font-bold text-[#0ecb81]">{crosshairData.stochRsi.stochRSI.toFixed(2)}</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                <span className="text-[#848e9c]">StRSI</span>
+                <span className="font-bold text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]">{crosshairData.stochRsi.stochRSI.toFixed(2)}</span>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ── Brand Watermark ──────────────────────────────────── */}
+      {/* ── Brand Watermark 2050 ─────────────────────────────── */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1]">
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[72px] md:text-[100px] font-black text-white/[0.015] tracking-[0.3em] uppercase">MOBEEN</span>
-          <span className="text-[10px] md:text-[12px] font-bold text-white/[0.03] tracking-[0.5em] uppercase">CryptoBot Terminal</span>
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-[72px] md:text-[110px] font-black tracking-[0.4em] uppercase bg-clip-text text-transparent bg-gradient-to-b from-white/[0.04] to-transparent">MOBEEN</span>
+          <div className="flex items-center gap-3">
+            <div className="h-px w-8 bg-gradient-to-r from-transparent to-white/10" />
+            <span className="text-[10px] md:text-[12px] font-bold text-white/[0.08] tracking-[0.8em] uppercase">CryptoBot Terminal</span>
+            <div className="h-px w-8 bg-gradient-to-l from-transparent to-white/10" />
+          </div>
         </div>
       </div>
 
@@ -827,17 +844,26 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           className="absolute right-[1px] z-20 pointer-events-none select-none transition-all duration-100 ease-out"
           style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
         >
-          {/* Price + Timer combined label */}
-          <div className={`flex items-center rounded-l-md overflow-hidden shadow-lg ${candleCountdown.isUp ? 'shadow-[#0ecb81]/10' : 'shadow-[#f6465d]/10'}`}>
-            {/* Timer section */}
-            <div className={`flex items-center gap-1 px-2 py-[3px] ${candleCountdown.isUp ? 'bg-[#0ecb81]/15 border-r border-[#0ecb81]/20' : 'bg-[#f6465d]/15 border-r border-[#f6465d]/20'}`}>
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#0ecb81' : '#f6465d'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+          {/* Price + Timer combined label with glassmorphism stack */}
+          <div className={`flex flex-col items-end rounded-l-md overflow-hidden backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-r-0 ${candleCountdown.isUp ? 'bg-[#00E676]/15 border-[#00E676]/30 shadow-[#00E676]/20' : 'bg-[#FF1744]/15 border-[#FF1744]/30 shadow-[#FF1744]/20'}`}>
+            
+            {/* Price section */}
+            <div className={`px-2 py-[2px] w-full text-right ${candleCountdown.isUp ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>
+              <span className="text-[10px] font-mono font-black tracking-widest drop-shadow-[0_0_8px_currentColor]">
+                {candleCountdown.price.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Timer section with separator */}
+            <div className={`flex items-center gap-1 px-2 py-[2px] w-full justify-end border-t ${candleCountdown.isUp ? 'border-[#00E676]/20 bg-[#00E676]/5' : 'border-[#FF1744]/20 bg-[#FF1744]/5'}`}>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#00E676' : '#FF1744'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-90 drop-shadow-[0_0_4px_currentColor]">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              <span className={`text-[9px] font-mono font-bold tracking-wide ${candleCountdown.isUp ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+              <span className={`text-[9px] font-mono font-bold tracking-widest drop-shadow-[0_0_4px_currentColor] ${candleCountdown.isUp ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>
                 {candleCountdown.text}
               </span>
             </div>
+
           </div>
         </div>
       )}
@@ -845,21 +871,21 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
       {showAvgLines && avgPositions.buy > 0 && (
         <div 
-          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#0ecb81]/90 text-[#0b0e11] text-[9px] font-bold font-mono px-2.5 py-[3px] rounded-r-lg shadow-[2px_0_12px_rgba(14,203,129,0.25)] pointer-events-none transition-all duration-100"
+          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#00E676]/90 text-[#07090b] text-[10px] font-bold font-mono px-3 py-[4px] rounded-r-lg shadow-[4px_0_16px_rgba(0,230,118,0.4)] pointer-events-none transition-all duration-100 backdrop-blur-sm"
           style={{ top: avgPositions.buy, transform: 'translateY(-50%)' }}
         >
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
-          <span className="tracking-wider">BUY</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
+          <span className="tracking-widest">BUY</span>
           <span>{avgPositions.buyPrice.toFixed(2)}</span>
         </div>
       )}
       {showAvgLines && avgPositions.sell > 0 && (
         <div 
-          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#f6465d]/90 text-[#0b0e11] text-[9px] font-bold font-mono px-2.5 py-[3px] rounded-r-lg shadow-[2px_0_12px_rgba(246,70,93,0.25)] pointer-events-none transition-all duration-100"
+          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#FF1744]/90 text-white text-[10px] font-bold font-mono px-3 py-[4px] rounded-r-lg shadow-[4px_0_16px_rgba(255,23,68,0.4)] pointer-events-none transition-all duration-100 backdrop-blur-sm"
           style={{ top: avgPositions.sell, transform: 'translateY(-50%)' }}
         >
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
-          <span className="tracking-wider">SELL</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
+          <span className="tracking-widest">SELL</span>
           <span>{avgPositions.sellPrice.toFixed(2)}</span>
         </div>
       )}

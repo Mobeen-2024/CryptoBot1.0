@@ -7,6 +7,7 @@ import ccxt from 'ccxt';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import WebSocketClient from 'ws';
 import { Logger } from './logger';
 import Database from 'better-sqlite3';
 import os from 'os';
@@ -14,7 +15,46 @@ import { EMA, MACD, RSI, BollingerBands, ATR, SMA, PSAR, WilliamsR, OBV, Stochas
 
 dotenv.config();
 
-export const pendingShadowOrders: any[] = [];
+const shadowDb = new Database('shadow_orders.db');
+shadowDb.exec(`
+  CREATE TABLE IF NOT EXISTS shadow_pending_orders (
+    id TEXT PRIMARY KEY,
+    symbol TEXT,
+    side TEXT,
+    type TEXT,
+    amount REAL,
+    limitPrice REAL,
+    stopPrice REAL,
+    marginMode TEXT,
+    baseAsset TEXT,
+    quoteAsset TEXT,
+    balanceAsset TEXT,
+    status TEXT
+  )
+`);
+
+export const pendingShadowOrders: any[] = shadowDb.prepare('SELECT * FROM shadow_pending_orders WHERE status = ?').all('open');
+
+export function addPendingShadowOrder(order: any) {
+    pendingShadowOrders.push(order);
+    const stmt = shadowDb.prepare(`
+        INSERT OR REPLACE INTO shadow_pending_orders 
+        (id, symbol, side, type, amount, limitPrice, stopPrice, marginMode, baseAsset, quoteAsset, balanceAsset, status)
+        VALUES (@id, @symbol, @side, @type, @amount, @limitPrice, @stopPrice, @marginMode, @baseAsset, @quoteAsset, @balanceAsset, @status)
+    `);
+    stmt.run({
+        id: order.id, symbol: order.symbol, side: order.side, type: order.type,
+        amount: order.amount, limitPrice: order.limitPrice || null, stopPrice: order.stopPrice || null,
+        marginMode: order.marginMode || null, baseAsset: order.baseAsset, quoteAsset: order.quoteAsset,
+        balanceAsset: order.balanceAsset, status: order.status
+    });
+}
+
+export function updatePendingShadowOrderStatus(id: string, status: string) {
+    const order = pendingShadowOrders.find((o: any) => o.id === id);
+    if (order) order.status = status;
+    shadowDb.prepare('UPDATE shadow_pending_orders SET status = ? WHERE id = ?').run(status, id);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +87,110 @@ async function startServer() {
 
   // Initialize Delta Neutral Bot
   const deltaNeutralBot = new DeltaNeutralBot(io);
+
+  // ─── Shadow Pending Order Price-Matching Engine ────────────────────
+  // Monitors live prices and fills pending shadow orders when targets are hit.
+  async function startPendingOrderEngine() {
+    if (pendingShadowOrders.length === 0) return;
+
+    // Collect unique symbols from pending orders
+    const symbols = [...new Set(pendingShadowOrders.map((o: any) => o.symbol.replace('/', '').toLowerCase()))];
+    const streams = symbols.map(s => `${s}@trade`).join('/');
+    const wsUrl = process.env.BINANCE_USE_TESTNET === 'true'
+      ? `wss://testnet.binance.vision/stream?streams=${streams}`
+      : `wss://stream.binance.com:9443/stream?streams=${streams}`;
+
+    const pendingWs = new WebSocketClient(wsUrl);
+
+    pendingWs.on('message', (raw: any) => {
+      try {
+        const payload = JSON.parse(raw.toString());
+        if (!payload.data) return;
+        const tradePrice = parseFloat(payload.data.p);
+        const tradeSymbol = payload.data.s; // e.g. BTCUSDT
+
+        // Scan pending orders for fills
+        for (let i = pendingShadowOrders.length - 1; i >= 0; i--) {
+          const order = pendingShadowOrders[i];
+          if (order.status !== 'open') continue;
+
+          const orderSymbolFlat = order.symbol.replace('/', '');
+          if (orderSymbolFlat !== tradeSymbol) continue;
+
+          let triggered = false;
+
+          if (order.type === 'limit') {
+            // Limit BUY fills when price drops to or below limit price
+            if (order.side === 'buy' && tradePrice <= order.limitPrice) triggered = true;
+            // Limit SELL fills when price rises to or above limit price
+            if (order.side === 'sell' && tradePrice >= order.limitPrice) triggered = true;
+          } else if (order.type === 'oco') {
+            // OCO: Take Profit leg (limit) or Stop Loss leg (stop)
+            if (order.side === 'sell') {
+              // Long position: TP triggers when price >= limitPrice, SL triggers when price <= stopPrice
+              if (order.limitPrice && tradePrice >= order.limitPrice) triggered = true;
+              if (order.stopPrice && tradePrice <= order.stopPrice) triggered = true;
+            } else {
+              // Short position: TP triggers when price <= limitPrice, SL triggers when price >= stopPrice
+              if (order.limitPrice && tradePrice <= order.limitPrice) triggered = true;
+              if (order.stopPrice && tradePrice >= order.stopPrice) triggered = true;
+            }
+          } else if (order.type === 'stop_limit' || order.type === 'stop_loss_limit') {
+            if (order.side === 'sell' && tradePrice <= order.stopPrice) triggered = true;
+            if (order.side === 'buy' && tradePrice >= order.stopPrice) triggered = true;
+          }
+
+          if (triggered) {
+            updatePendingShadowOrderStatus(order.id, 'filled');
+            const fillPrice = tradePrice;
+
+            Logger.info(`[SHADOW ENGINE] Pending order FILLED: ${order.type.toUpperCase()} ${order.side.toUpperCase()} ${order.amount} ${order.symbol} @ ${fillPrice}`);
+
+            // Update shadow balances
+            const parts = order.symbol.split('/');
+            const baseAsset = parts[0];
+            const quoteAsset = parts[1] || 'USDT';
+            tradeCopier.updateShadowBalance('master', baseAsset, quoteAsset, order.side, order.amount, fillPrice);
+
+            // Record in DB
+            const fakeReport = {
+              e: 'executionReport', E: Date.now(), s: orderSymbolFlat,
+              c: order.id, S: order.side.toUpperCase(), o: order.type.toUpperCase(),
+              f: 'GTC', q: order.amount.toString(), p: fillPrice.toString(),
+              P: '0', F: '0', g: -1, C: '', x: 'TRADE', X: 'FILLED', r: 'NONE',
+              i: Date.now(), l: order.amount.toString(), z: order.amount.toString(),
+              L: fillPrice.toString(), n: '0', T: Date.now(), t: Date.now(),
+              I: 123456, w: false, M: false, marginType: order.marginMode ? order.marginMode.toUpperCase() : 'SPOT',
+              O: Date.now(), Z: (order.amount * fillPrice).toString(),
+              Y: (order.amount * fillPrice).toString(), Q: '0'
+            };
+
+            tradeCopier.processSimulatedMasterTrade(fakeReport).catch((err: any) => Logger.error('[SHADOW ENGINE] Fill processing error:', err));
+
+            // Remove from array
+            pendingShadowOrders.splice(i, 1);
+          }
+        }
+      } catch (e) {
+        // Silently ignore parse errors on the price feed
+      }
+    });
+
+    pendingWs.on('error', (err: any) => Logger.error('[SHADOW ENGINE] WebSocket Error:', err));
+    pendingWs.on('close', () => {
+      // Reconnect if there are still pending orders
+      if (pendingShadowOrders.length > 0) {
+        setTimeout(() => startPendingOrderEngine(), 3000);
+      }
+    });
+  }
+
+  // Check for new pending orders periodically and start the engine
+  setInterval(() => {
+    if (pendingShadowOrders.some((o: any) => o.status === 'open')) {
+      startPendingOrderEngine();
+    }
+  }, 5000);
 
   app.use(cors());
   app.use(express.json());
@@ -90,6 +234,48 @@ async function startServer() {
       res.json({ status: 'ok', exchange: 'binance', sandbox: isSandbox });
     } catch (error) {
       res.status(500).json({ status: 'error', message: 'Internal server error' });
+    }
+  });
+
+  // ─── Leverage / Margin Type Endpoint ─────────────────────────────
+  app.post('/api/binance/leverage', async (req, res) => {
+    try {
+      const { symbol, leverage, marginType } = req.body;
+      if (!symbol || !leverage) {
+        return res.status(400).json({ error: 'symbol and leverage are required' });
+      }
+      const isShadow = process.env.BINANCE_SHADOW_MODE === 'true';
+      const ccxtSymbol = formatSymbol(symbol);
+
+      if (isShadow) {
+        Logger.info(`[SHADOW] Set leverage ${leverage}x and marginType ${marginType} for ${ccxtSymbol}`);
+        return res.json({ symbol: ccxtSymbol, leverage: Number(leverage), marginType: marginType || 'CROSS', simulated: true });
+      }
+
+      // Live — use futures exchange instance
+      const futuresExchange = new (ccxt as any).binance({
+        apiKey: process.env.BINANCE_API_KEY || '',
+        secret: (process.env.BINANCE_API_SECRET || process.env.BINANCE_SECRET_KEY) || '',
+        enableRateLimit: true,
+        options: { defaultType: 'future' }
+      });
+      if (process.env.BINANCE_USE_TESTNET === 'true') futuresExchange.setSandboxMode(true);
+
+      // Set margin type first (ISOLATED or CROSSED)
+      if (marginType) {
+        try {
+          await futuresExchange.setMarginMode(marginType.toLowerCase(), ccxtSymbol);
+        } catch (marginErr: any) {
+          // Binance throws if already set to this margin type — ignore that specific error
+          if (!marginErr.message?.includes('already')) throw marginErr;
+        }
+      }
+
+      const result = await futuresExchange.setLeverage(Number(leverage), ccxtSymbol);
+      Logger.info(`Leverage set: ${ccxtSymbol} → ${leverage}x (${marginType})`);
+      res.json({ symbol: ccxtSymbol, leverage: Number(leverage), marginType, result });
+    } catch (error: any) {
+      handleBinanceError(error, res, 'Failed to set leverage');
     }
   });
 
@@ -325,11 +511,6 @@ async function startServer() {
          ccxtParams.icebergQty = (Number(quantity) * 0.1).toFixed(4); 
       }
 
-      if (isIceberg) {
-         // Binance requires icebergQty. Mocking as a fraction of order, or 0 to hide.
-         ccxtParams.icebergQty = (Number(quantity) * 0.1).toFixed(4); 
-      }
-
       Logger.info(`${isShadow ? '[SHADOW] ' : ''}Placing order:`, { ccxtSymbol, side, type, quantity, price, ccxtParams });
 
       if (!isShadow && (!process.env.BINANCE_API_KEY || (!process.env.BINANCE_API_SECRET && !process.env.BINANCE_SECRET_KEY))) {
@@ -352,6 +533,15 @@ async function startServer() {
              const pendingOrderId = `sim_pending_${Date.now()}`;
              const computedType = (takeProfit || slTrigger) ? 'oco' : orderType;
              
+             // Cancel old pending shadow orders for the same symbol & side (e.g., replacing old TP/SL)
+             for (let reverseIdx = pendingShadowOrders.length - 1; reverseIdx >= 0; reverseIdx--) {
+                 const o = pendingShadowOrders[reverseIdx];
+                 if (o.symbol === ccxtSymbol && o.status === 'open' && o.side === orderSide) {
+                     updatePendingShadowOrderStatus(o.id, 'canceled');
+                     pendingShadowOrders.splice(reverseIdx, 1);
+                 }
+             }
+
              const pendingOrder = {
                  id: pendingOrderId, symbol: ccxtSymbol, side: orderSide, type: computedType, 
                  amount: amount, limitPrice: Number(takeProfit || price), 
@@ -360,7 +550,7 @@ async function startServer() {
                  status: 'open'
              };
 
-             pendingShadowOrders.push(pendingOrder);
+             addPendingShadowOrder(pendingOrder); // Use helper to add to DB and in-memory
              Logger.info(`[SHADOW] Placed Pending Order: ${pendingOrder.type} ${pendingOrder.symbol} (Limit: ${pendingOrder.limitPrice}, Stop: ${pendingOrder.stopPrice})`);
              return res.json(pendingOrder);
          }
@@ -537,7 +727,7 @@ async function startServer() {
       `).all() as any[];
       db.close();
 
-      const positions: Record<string, { symbol: string, netQuantity: number, totalCost: number, averageEntryPrice: number }> = {};
+      const positions: Record<string, { symbol: string, netQuantity: number, totalCost: number, averageEntryPrice: number, tpPrice?: number, slPrice?: number }> = {};
 
       trades.forEach(trade => {
          const { symbol, side, quantity, price } = trade;
@@ -573,7 +763,36 @@ async function startServer() {
 
       // Filter out zeroed positions (closed trades)
       const activePositions = Object.values(positions).filter(p => p.netQuantity > 0);
-      res.json(activePositions);
+
+      // Attach any open pending shadow orders as TP / SL targets
+      const augmentedPositions = activePositions.map(pos => {
+         const cleanPosSymbol = pos.symbol.replace('-ISOLATED', '').replace('-CROSS', '').replace('/', '');
+         const matchingOrders = pendingShadowOrders.filter((o: any) => o.status === 'open' && o.symbol.replace('/', '') === cleanPosSymbol);
+         
+         let tpPrice: number | undefined = undefined;
+         let slPrice: number | undefined = undefined;
+
+         for (const order of matchingOrders) {
+            if (order.type === 'limit' && order.limitPrice) {
+               tpPrice = order.limitPrice; // Crude check: Assume standalone limit pending is TP
+            } else if ((order.type === 'stop_limit' || order.type === 'stop_loss_limit') && order.stopPrice) {
+               slPrice = order.stopPrice;
+            } else if (order.type === 'oco') {
+               if (order.limitPrice) tpPrice = order.limitPrice;
+               if (order.stopPrice) slPrice = order.stopPrice;
+            }
+         }
+
+         Logger.info(`[DEBUG] Augmented Position ${pos.symbol}: TP=${tpPrice}, SL=${slPrice}. Open Pending Orders matched: ${matchingOrders.length}`);
+
+         return {
+            ...pos,
+            tpPrice,
+            slPrice
+         };
+      });
+
+      res.json(augmentedPositions);
 
     } catch (error: any) {
       Logger.error('Failed to fetch positions:', error);

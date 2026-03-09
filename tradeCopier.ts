@@ -478,9 +478,10 @@ export class TradeCopier {
     const masterTradeId = report.t.toString();
     const masterOrderId = report.i.toString();
     
-    // Check DB
-    const stmt = this.db.prepare('SELECT master_trade_id FROM copied_fills WHERE master_trade_id = ?');
-    const existing = stmt.get(masterTradeId);
+    // Check DB - only check non-master entries to avoid blocking slave copies
+    // when called from processSimulatedMasterTrade (which inserts the master row first)
+    const stmt = this.db.prepare('SELECT master_trade_id FROM copied_fills_v2 WHERE master_trade_id = ? AND slave_id != ?');
+    const existing = stmt.get(masterTradeId, 'master');
 
     if (existing) {
       return;
@@ -496,14 +497,16 @@ export class TradeCopier {
       // Try to find market in loaded markets
       // Note: CCXT stores markets by ID (e.g. BTCUSDT) in markets_by_id
       // We need to access the internal property safely
-      if (this.masterClient.markets_by_id && this.masterClient.markets_by_id[report.s]) {
+      if (typeof this.masterClient.markets_by_id === 'object' && this.masterClient.markets_by_id[report.s]?.symbol) {
         symbol = this.masterClient.markets_by_id[report.s].symbol;
       } else {
         // Fallback logic
-        if (!symbol.includes('/') && symbol.endsWith('USDT')) {
+        if (symbol && !symbol.includes('/') && symbol.endsWith('USDT')) {
           symbol = symbol.replace('USDT', '/USDT');
         }
       }
+
+      if (!symbol) symbol = 'BTC/USDT'; // Safety fallback
 
       const side = report.S.toLowerCase() as 'buy' | 'sell';
       const type = report.o.toLowerCase();
