@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -6,25 +6,139 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+/* ─── Root Variables ───────────────────────────────────────────── */
+:root {
+  --bg-primary: #0b0e11;
+  --bg-secondary: #181a20;
+  --bg-tertiary: #1e2329;
+  --bg-elevated: #252930;
+  --border-primary: #2b3139;
+  --border-hover: #3b4351;
+  --text-primary: #eaecef;
+  --text-secondary: #848e9c;
+  --text-muted: #5e6673;
+  --brand-gold: #fcd535;
+  --brand-gold-hover: #f0b90b;
+  --bull: #0ecb81;
+  --bear: #f6465d;
+  --accent-blue: #2962FF;
+}
+
+/* ─── Base ─────────────────────────────────────────────────────── */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
-  background-color: #050505;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
 }
 
+/* ─── Scrollbar Theme (WebKit) ─────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 99px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+*::-webkit-scrollbar { width: 5px; height: 5px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 99px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* ─── Trade Flash Animations ───────────────────────────────────── */
 @keyframes flash-buy {
-  0% { background-color: rgba(16, 185, 129, 0.25); }
+  0% { background-color: rgba(14, 203, 129, 0.25); }
   100% { background-color: transparent; }
 }
-
 @keyframes flash-sell {
-  0% { background-color: rgba(244, 63, 94, 0.25); }
+  0% { background-color: rgba(246, 70, 93, 0.25); }
   100% { background-color: transparent; }
 }
+.animate-flash-buy { animation: flash-buy 0.6s ease-out forwards; }
+.animate-flash-sell { animation: flash-sell 0.6s ease-out forwards; }
 
-.animate-flash-buy {
-  animation: flash-buy 0.6s ease-out forwards;
+/* ─── Glow Utility ─────────────────────────────────────────────── */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.glow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+.glow-dot-sm {
+  width: 4px; height: 4px; border-radius: 50%;
+  animation: glow-pulse 2s ease-in-out infinite;
 }
 
-.animate-flash-sell {
-  animation: flash-sell 0.6s ease-out forwards;
+/* ─── Skeleton Loading ─────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-elevated) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+/* ─── Input Focus Glow ─────────────────────────────────────────── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
+
+/* ─── Tab Pill Transitions ─────────────────────────────────────── */
+.tab-pill {
+  position: relative;
+  transition: color 0.2s, background 0.2s;
+}
+.tab-pill::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  transition: background 0.2s;
+}
+.tab-pill.active::after {
+  background: var(--brand-gold);
+}
+
+/* ─── Panel Surfaces ───────────────────────────────────────────── */
+.panel-surface {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+}
+.panel-surface-elevated {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+}
+.panel-inset {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}
+
+/* ─── Subtle Hover States ──────────────────────────────────────── */
+.hover-lift {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }

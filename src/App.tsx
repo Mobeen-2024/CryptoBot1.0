@@ -52,8 +52,8 @@ const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
   }, [interval]);
 
   return (
-    <span className="text-[10px] font-mono font-medium text-[#848e9c] bg-[#1e2329] px-1.5 py-0.5 rounded flex items-center gap-1 border border-[#2b3139]">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+    <span className="text-[10px] font-mono font-bold text-[#848e9c] bg-[#0b0e11] px-2 py-1 rounded-lg flex items-center gap-1.5 border border-[#2b3139]">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
       {timeLeft}
     </span>
   );
@@ -352,125 +352,139 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#050505] text-gray-200 font-sans selection:bg-indigo-500/30 selection:text-white flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-[#0b0e11] text-[#eaecef] font-sans selection:bg-[#fcd535]/20 selection:text-white flex flex-col">
       <Toaster 
         position="bottom-right" 
         toastOptions={{
-          className: 'bg-black/80 text-white font-mono text-xs border border-white/10 backdrop-blur-md',
-          success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-          error: { iconTheme: { primary: '#f43f5e', secondary: '#fff' } },
+          className: '!bg-[#181a20] !text-[#eaecef] !font-sans !text-xs !border !border-[#2b3139] !shadow-2xl !rounded-xl',
+          success: { iconTheme: { primary: '#0ecb81', secondary: '#0b0e11' } },
+          error: { iconTheme: { primary: '#f6465d', secondary: '#0b0e11' } },
         }} 
       />
-      {/* Header */}
-      <header className="border-b border-white/10 bg-black/40 backdrop-blur-md px-2 md:px-4 py-2 flex flex-col sm:flex-row items-center justify-between sticky top-0 z-50 gap-2 sm:gap-0">
-        <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-start">
-          <div className="flex items-center gap-2">
-            <Activity className="text-indigo-500 w-5 h-5" />
-            <h1 className="text-lg font-bold text-white tracking-tight">CryptoBot</h1>
-          </div>
 
-          <div className="hidden sm:block h-6 w-px bg-white/10"></div>
-
-          <div className="flex items-center gap-2 md:gap-4">
-            <CoinSelector symbol={symbol} setSymbol={setSymbol} />
-
-            <div className="flex items-center gap-2">
-              <span className={`font-mono font-bold text-lg ${priceChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-              <CandleCountdown interval={chartInterval} />
+      {/* ═══════════════════════════ HEADER ═══════════════════════════ */}
+      <header className="border-b border-[#2b3139] bg-[#181a20] px-3 md:px-5 py-0 flex items-center justify-between sticky top-0 z-50 h-14 shrink-0">
+        {/* Left: Logo + Pair + Price */}
+        <div className="flex items-center gap-3 md:gap-5 h-full">
+          {/* Logo */}
+          <div className="flex items-center gap-2 pr-4 border-r border-[#2b3139] h-full">
+            <div className="w-7 h-7 rounded-lg bg-[#fcd535] flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0b0e11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
-
-            {ticker24h && (
-              <div className="hidden md:flex items-center gap-4 text-xs font-mono ml-4">
-                <div className="flex flex-col">
-                  <span className="text-gray-500">24h Change</span>
-                  <span className={priceChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                    {priceChange >= 0 ? '+' : ''}{parseFloat(ticker24h.priceChangePercent).toFixed(2)}%
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500">24h High</span>
-                  <span className="text-white">{parseFloat(ticker24h.high).toLocaleString()}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500">24h Low</span>
-                  <span className="text-white">{parseFloat(ticker24h.low).toLocaleString()}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-gray-500">24h Vol(BTC)</span>
-                  <span className="text-white">{parseFloat(ticker24h.volume).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            )}
+            <span className="text-sm font-extrabold text-white tracking-tight hidden sm:block">CryptoBot<span className="text-[#fcd535]">.</span></span>
           </div>
+
+          {/* Pair Selector */}
+          <CoinSelector symbol={symbol} setSymbol={setSymbol} />
+
+          {/* Price Display */}
+          <div className="flex items-center gap-3">
+            <span className={`font-mono font-bold text-xl tracking-tight ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+              {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <CandleCountdown interval={chartInterval} />
+          </div>
+
+          {/* 24h Stats */}
+          {ticker24h && (
+            <div className="hidden xl:flex items-center gap-5 pl-4 border-l border-[#2b3139] h-full">
+              {[
+                { label: '24h Change', value: `${priceChange >= 0 ? '+' : ''}${parseFloat(ticker24h.priceChangePercent).toFixed(2)}%`, color: priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]' },
+                { label: '24h High', value: parseFloat(ticker24h.high).toLocaleString(), color: 'text-[#eaecef]' },
+                { label: '24h Low', value: parseFloat(ticker24h.low).toLocaleString(), color: 'text-[#eaecef]' },
+                { label: '24h Vol', value: parseFloat(ticker24h.volume).toLocaleString(undefined, { maximumFractionDigits: 0 }), color: 'text-[#eaecef]' },
+              ].map((s, i) => (
+                <div key={i} className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#5e6673] uppercase tracking-wider font-medium">{s.label}</span>
+                  <span className={`text-xs font-mono font-semibold ${s.color}`}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-white/10 pt-2 sm:pt-0">
-          {/* Emergency Management Controls */}
+        {/* Right: Controls + Status */}
+        <div className="flex items-center gap-3 h-full">
           <CopierControls />
 
-          <div className="flex items-center gap-2 text-xs font-mono ml-4">
-            <span className="text-gray-500">API</span>
-            <Circle className={`w-2 h-2 fill-current ${apiConnected ? 'text-emerald-500 animate-pulse' : 'text-rose-500'}`} />
+          {/* Wallet Balance Pill */}
+          <div className="hidden md:flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-3 py-1.5">
+            <Wallet className="w-3.5 h-3.5 text-[#fcd535]" />
+            <span className="text-xs font-mono font-bold text-[#eaecef]">${parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
+
+          {/* API Status */}
+          <div className="flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2.5 py-1.5">
+            <div className={`glow-dot-sm ${apiConnected ? 'bg-[#0ecb81]' : 'bg-[#f6465d]'}`} />
+            <span className="text-[10px] font-mono font-bold text-[#5e6673]">{apiConnected ? 'LIVE' : 'OFF'}</span>
+          </div>
+
+          {/* Sandbox Badge */}
+          {isSandbox && (
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[#fcd535] bg-[#fcd535]/10 px-2 py-1 rounded-md border border-[#fcd535]/20">Testnet</span>
+          )}
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-2 flex flex-col gap-2 min-h-0 overflow-y-auto overflow-x-hidden relative custom-scrollbar">
-        {/* Error Notification Overlay */}
+      {/* ═══════════════════════════ MAIN ═════════════════════════════ */}
+      <main className="flex-1 p-2 flex flex-col gap-2 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+
+        {/* Error Overlay */}
         {error && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="bg-rose-500/10 backdrop-blur-md border border-rose-500/20 p-4 rounded-lg shadow-2xl flex items-start gap-3">
-              <div className="bg-rose-500/20 p-2 rounded-full">
-                <Circle className="w-4 h-4 text-rose-500 fill-current" />
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md">
+            <div className="bg-[#181a20] border border-[#f6465d]/30 p-4 rounded-xl shadow-[0_8px_32px_rgba(246,70,93,0.15)] flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#f6465d]/15 flex items-center justify-center shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f6465d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-bold text-rose-500">{error.message}</h3>
-                {error.details && <p className="text-xs text-rose-200/70 mt-1 leading-relaxed">{error.details}</p>}
+                <h3 className="text-sm font-bold text-[#f6465d]">{error.message}</h3>
+                {error.details && <p className="text-xs text-[#848e9c] mt-1 leading-relaxed">{error.details}</p>}
                 {error.code === 'INVALID_API_KEY' && (
-                  <div className="mt-3 flex gap-2">
-                    <div className="text-[10px] bg-rose-500/20 px-2 py-1 rounded text-rose-200 font-mono">Check .env file</div>
-                    <div className="text-[10px] bg-rose-500/20 px-2 py-1 rounded text-rose-200 font-mono">Verify Testnet/Live</div>
+                  <div className="mt-2 flex gap-2">
+                    <span className="text-[10px] bg-[#f6465d]/10 border border-[#f6465d]/20 px-2 py-0.5 rounded text-[#f6465d] font-mono">Check .env</span>
+                    <span className="text-[10px] bg-[#f6465d]/10 border border-[#f6465d]/20 px-2 py-0.5 rounded text-[#f6465d] font-mono">Verify Keys</span>
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => setError(null)}
-                className="text-rose-500/50 hover:text-rose-500 transition-colors"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <button onClick={() => setError(null)} className="text-[#5e6673] hover:text-[#eaecef] transition-colors p-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
           </div>
         )}
 
-        {/* TOP ROW: Chart & Order Panel */}
+        {/* ─── TOP ROW: Chart + Order Panels ──────────────────────── */}
         <div className="flex flex-col lg:flex-row gap-2 shrink-0 items-stretch">
-          {/* Primary Chart Area */}
-          <div className="h-[550px] lg:h-auto lg:flex-[3] bg-white/5 backdrop-blur-md rounded-md border border-white/10 flex flex-col relative overflow-hidden shrink-0 w-full">
-            <div className="p-1 border-b border-white/10 flex items-center justify-between bg-black/20 z-10 shrink-0">
-              <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono bg-black/40 px-2 py-1 rounded border border-white/5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                LIVE
+          
+          {/* Chart Panel */}
+          <div className="h-[550px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full">
+            {/* Chart Toolbar */}
+            <div className="px-3 py-1.5 border-b border-[#2b3139] flex items-center justify-between bg-[#181a20] shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 text-[10px] text-[#0ecb81] font-mono font-bold bg-[#0ecb81]/10 px-2 py-0.5 rounded-full border border-[#0ecb81]/20">
+                  <div className="glow-dot-sm bg-[#0ecb81]" />
+                  LIVE
+                </div>
+                <span className="text-[10px] text-[#5e6673] font-mono hidden sm:block">{symbol} · Binance Spot</span>
               </div>
 
               <div className="flex gap-2 items-center">
+                {/* Indicator Button */}
                 <button 
                   onClick={() => setIsIndicatorModalOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-gray-400 hover:text-[#fcd535] bg-black/40 hover:bg-[#fcd535]/10 rounded border border-white/10 hover:border-[#fcd535]/30 transition-colors uppercase tracking-wider"
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#848e9c] hover:text-[#fcd535] bg-[#0b0e11] hover:bg-[#fcd535]/10 rounded-lg border border-[#2b3139] hover:border-[#fcd535]/30 transition-all uppercase tracking-wider"
                 >
                   <LineChart className="w-3 h-3" />
                   <span className="hidden sm:inline">Indicators</span>
                 </button>
-                <div className="flex bg-black/40 rounded border border-white/10 p-0.5">
-                  {['1m', '5m', '15m', '1h', '4h', '1d', '3d', '1w', '1M'].map((i) => (
+                {/* Interval Selector */}
+                <div className="flex bg-[#0b0e11] rounded-lg border border-[#2b3139] p-0.5">
+                  {['1m', '5m', '15m', '1h', '4h', '1d', '1w'].map((i) => (
                     <button
                       key={i}
                       type="button"
                       onClick={(e) => { e.preventDefault(); setChartInterval(i); }}
-                      className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors ${chartInterval === i ? 'bg-white/20 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                      className={`px-2 py-1 text-[10px] font-mono font-bold rounded-md transition-all ${chartInterval === i ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_0_8px_rgba(252,213,53,0.2)]' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
                     >
                       {i}
                     </button>
@@ -478,8 +492,9 @@ export default function App() {
                 </div>
               </div>
             </div>
+            {/* Chart Canvas Wrapper */}
             <div className="flex-1 w-full min-h-0 relative overflow-hidden">
-              <div className="absolute inset-2">
+              <div className="absolute inset-1.5">
                 {marketData.length > 0 ? (
                   <Chart 
                     data={marketData} 
@@ -489,30 +504,34 @@ export default function App() {
                     subIndicators={subIndicators}
                   />
                 ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 font-mono text-sm">
-                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                    Loading Chart Data...
+                  <div className="h-full flex flex-col items-center justify-center gap-3">
+                    <div className="skeleton w-[80%] h-4" />
+                    <div className="skeleton w-[60%] h-4" />
+                    <div className="skeleton w-[70%] h-4" />
+                    <span className="text-[#5e6673] text-xs font-mono mt-2">Loading market data…</span>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Right Configuration Panels (Master & Slave) */}
+          {/* ─── Order Panels (Master + Slave) ───────────────────── */}
           <div className="flex flex-col md:flex-row gap-2 w-full lg:w-[650px] shrink-0">
             
-            {/* Master Account Panel */}
-            <div className="flex flex-col gap-2 flex-1 min-w-[320px]">
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-bold uppercase tracking-wider text-center py-1 rounded-md mb-1 shrink-0">
-                Main Account
+            {/* Master Account */}
+            <div className="flex flex-col gap-2 flex-1 min-w-[300px]">
+              <div className="flex items-center justify-center gap-2 bg-[#0ecb81]/8 border border-[#0ecb81]/20 text-[#0ecb81] text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-lg">
+                <div className="glow-dot-sm bg-[#0ecb81]" />
+                Master Account
               </div>
               <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(balance)} baseBalance={parseFloat(baseBalance)} onPlaceOrder={handlePlaceOrder} />
             </div>
 
-            {/* Slave Account Panel */}
-            <div className="flex flex-col gap-2 flex-1 min-w-[320px]">
-              <div className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold uppercase tracking-wider text-center py-1 rounded-md mb-1 shrink-0">
-                Sub-Account (Slave)
+            {/* Slave Account */}
+            <div className="flex flex-col gap-2 flex-1 min-w-[300px]">
+              <div className="flex items-center justify-center gap-2 bg-[#2962FF]/8 border border-[#2962FF]/20 text-[#2962FF] text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-lg">
+                <div className="glow-dot-sm bg-[#2962FF]" />
+                Sub-Account
               </div>
               <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(slaveBalance)} baseBalance={parseFloat(slaveBaseBalance)} onPlaceOrder={handlePlaceOrder} />
             </div>
@@ -520,70 +539,36 @@ export default function App() {
           </div>
         </div>
 
-        {/* BOTTOM ROW: Tabbed Terminal Data */}
-        <div className="flex flex-col shrink-0 bg-white/5 backdrop-blur-md rounded-md border border-white/10 overflow-hidden min-h-[300px]">
-          {/* Tabs Header */}
-          <div className="flex border-b border-white/10 bg-black/20 shrink-0 overflow-x-auto custom-scrollbar">
-            <button
-              type="button"
-              onClick={() => setActiveTab('positions')}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'positions' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-            >
-              <Briefcase className="w-3.5 h-3.5" />
-              Active Positions
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('analytics')}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'analytics' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-            >
-              <LineChart className="w-3.5 h-3.5" />
-              Analytics & PnL
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('history')}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'history' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-            >
-              <History className="w-3.5 h-3.5" />
-              Trade History
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('ai')}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'ai' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-            >
-              <Bot className="w-3.5 h-3.5" />
-              AI Analysis
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('database')}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'database' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-            >
-                <Database className="w-3.5 h-3.5" />
-              Database
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('delta')}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'delta' ? 'text-indigo-400 border-indigo-500 bg-white/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-            >
-              <Activity className="w-3.5 h-3.5" />
-              Strategy Engine
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('bot')}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'bot' ? 'text-[#fcd535] border-[#fcd535] bg-[#fcd535]/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M7 10.5C7 9.12 8.12 8 9.5 8S12 9.12 12 10.5 10.88 13 9.5 13 7 11.88 7 10.5z"/><path d="M14.5 8h3M14.5 11h3"/></svg>
-              Bot Manager
-            </button>
+        {/* ─── BOTTOM ROW: Tabbed Terminal ────────────────────────── */}
+        <div className="flex flex-col shrink-0 panel-surface overflow-hidden min-h-[300px]">
+          {/* Tab Bar */}
+          <div className="flex border-b border-[#2b3139] bg-[#181a20] shrink-0 overflow-x-auto custom-scrollbar px-1">
+            {([
+              { id: 'positions', icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Positions' },
+              { id: 'analytics', icon: <LineChart className="w-3.5 h-3.5" />, label: 'Analytics' },
+              { id: 'history', icon: <History className="w-3.5 h-3.5" />, label: 'History' },
+              { id: 'ai', icon: <Bot className="w-3.5 h-3.5" />, label: 'AI Analysis' },
+              { id: 'database', icon: <Database className="w-3.5 h-3.5" />, label: 'Database' },
+              { id: 'delta', icon: <Activity className="w-3.5 h-3.5" />, label: 'Strategy' },
+              { id: 'bot', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, label: 'Bot Manager' },
+            ] as { id: typeof activeTab; icon: React.ReactNode; label: string }[]).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'text-[#fcd535] border-[#fcd535] bg-[#fcd535]/5'
+                    : 'text-[#5e6673] border-transparent hover:text-[#848e9c] hover:bg-[#1e2329]'
+                }`}
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
           </div>
 
-          {/* Tab Content Area */}
-          <div className="flex-1 overflow-hidden p-1 bg-black/10">
+          {/* Tab Content */}
+          <div className="flex-1 overflow-hidden bg-[#0b0e11]">
             {activeTab === 'positions' && <CurrentPositions />}
             {activeTab === 'analytics' && <PerformanceChart />}
             {activeTab === 'history' && <RecentTrades trades={recentTrades} />}
