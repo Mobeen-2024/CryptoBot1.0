@@ -10,8 +10,11 @@ import { fileURLToPath } from 'url';
 import { Logger } from './logger';
 import Database from 'better-sqlite3';
 import os from 'os';
+import { EMA, MACD, RSI, BollingerBands, ATR, SMA, PSAR, WilliamsR, OBV, StochasticRSI, Stochastic } from 'technicalindicators';
 
 dotenv.config();
+
+export const pendingShadowOrders: any[] = [];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -173,8 +176,63 @@ async function startServer() {
       const { symbol, interval, limit } = req.query;
       const ccxtSymbol = formatSymbol(symbol as string);
       // Use public exchange for market data
-      const ohlcv = await publicExchange.fetchOHLCV(ccxtSymbol, interval as string, undefined, Number(limit) || 500);
-      res.json(ohlcv);
+      const limitVal = Number(limit) === 5 ? 1000 : Number(limit) || 1000;
+      const ohlcv = await publicExchange.fetchOHLCV(ccxtSymbol, interval as string, undefined, limitVal);
+      
+      const close = ohlcv.map((d: any[]) => Number(d[4]));
+      const high = ohlcv.map((d: any[]) => Number(d[2]));
+      const low = ohlcv.map((d: any[]) => Number(d[3]));
+      const volume = ohlcv.map((d: any[]) => Number(d[5]));
+      
+      // Bill Williams Alligator (Typical Price)
+      const typical = ohlcv.map((d: any[]) => (Number(d[2]) + Number(d[3]) + Number(d[4])) / 3);
+      const jaw = SMA.calculate({ period: 13, values: typical });
+      const teeth = SMA.calculate({ period: 8, values: typical });
+      const lips = SMA.calculate({ period: 5, values: typical });
+      
+      // Alligator shift: SMA(period P) output index j maps to candle i = j + (P-1)
+      // To project it S bars forward, assign it to candle i' = j + (P-1) + S
+      // => j = i' - (P-1) - S, valid when i' >= (P-1) + S
+      const alligator = ohlcv.map((_, i) => ({
+         jaw:   i >= (13-1) + 8 ? jaw[i - (13-1) - 8]     : null, // i >= 20
+         teeth: i >= (8-1)  + 5 ? teeth[i - (8-1)  - 5]   : null, // i >= 12
+         lips:  i >= (5-1)  + 3 ? lips[i  - (5-1)  - 3]   : null, // i >= 7
+      }));
+      
+      const sma = SMA.calculate({ period: 20, values: close });
+      const ema200 = EMA.calculate({ period: 200, values: close });
+      const rsi = RSI.calculate({ period: 14, values: close });
+      const macd = MACD.calculate({ 
+        fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, 
+        SimpleMAOscillator: false, SimpleMASignal: false, values: close 
+      });
+      const boll = BollingerBands.calculate({ period: 20, stdDev: 2, values: close });
+      const atr = ATR.calculate({ period: 14, high, low, close });
+
+      const sar = PSAR.calculate({ step: 0.02, max: 0.2, high, low });
+      const wr = WilliamsR.calculate({ period: 14, high, low, close });
+      const obv = OBV.calculate({ close, volume });
+      const stochRsi = StochasticRSI.calculate({ rsiPeriod: 14, stochasticPeriod: 14, kPeriod: 3, dPeriod: 3, values: close });
+      const stoch = Stochastic.calculate({ period: 9, signalPeriod: 3, high, low, close });
+      const kdj = stoch.map(s => ({ k: s.k, d: s.d, j: 3 * s.k - 2 * s.d }));
+
+      res.json({ 
+        klines: ohlcv, 
+        indicators: { 
+          sma,
+          ema200, 
+          rsi, 
+          macd, 
+          boll, 
+          atr,
+          sar,
+          wr,
+          obv,
+          stochRsi,
+          kdj,
+          alligator
+        } 
+      });
     } catch (error: any) {
       handleBinanceError(error, res, 'Failed to fetch klines');
     }
@@ -267,11 +325,9 @@ async function startServer() {
          ccxtParams.icebergQty = (Number(quantity) * 0.1).toFixed(4); 
       }
 
-      if (takeProfit && slTrigger) {
-         // OCO is handled by passing stopPrice alongside limit price in ccxt, or explicitly calling createOrder('oco')
-         // We inject specific Binance fields just in case
-         ccxtParams.takeProfitPrice = Number(takeProfit);
-         ccxtParams.stopPrice = Number(slTrigger);
+      if (isIceberg) {
+         // Binance requires icebergQty. Mocking as a fraction of order, or 0 to hide.
+         ccxtParams.icebergQty = (Number(quantity) * 0.1).toFixed(4); 
       }
 
       Logger.info(`${isShadow ? '[SHADOW] ' : ''}Placing order:`, { ccxtSymbol, side, type, quantity, price, ccxtParams });
@@ -286,19 +342,36 @@ async function startServer() {
       const orderType = type.toLowerCase();
       
       if (isShadow) {
+         const parts = ccxtSymbol.split('/');
+         const baseAsset = parts[0];
+         const quoteAsset = parts[1] || 'USDT';
+         let balanceAsset = quoteAsset;
+         if (orderSide === 'sell') balanceAsset = baseAsset;
+
+         if (orderType !== 'market' || takeProfit || slTrigger) {
+             const pendingOrderId = `sim_pending_${Date.now()}`;
+             const computedType = (takeProfit || slTrigger) ? 'oco' : orderType;
+             
+             const pendingOrder = {
+                 id: pendingOrderId, symbol: ccxtSymbol, side: orderSide, type: computedType, 
+                 amount: amount, limitPrice: Number(takeProfit || price), 
+                 stopPrice: Number(slTrigger || stopPrice),
+                 marginMode, baseAsset, quoteAsset, balanceAsset,
+                 status: 'open'
+             };
+
+             pendingShadowOrders.push(pendingOrder);
+             Logger.info(`[SHADOW] Placed Pending Order: ${pendingOrder.type} ${pendingOrder.symbol} (Limit: ${pendingOrder.limitPrice}, Stop: ${pendingOrder.stopPrice})`);
+             return res.json(pendingOrder);
+         }
+
          let executePrice = Number(price);
-         if (orderType === 'market' || !executePrice) {
+         if (!executePrice) {
             const ticker = await publicExchange.fetchTicker(ccxtSymbol);
             executePrice = ticker.last || 0;
          }
 
-         const parts = ccxtSymbol.split('/');
-         const baseAsset = parts[0];
-         const quoteAsset = parts[1] || 'USDT';
-
-         // Verify Master Balance before allowing internal shadow order
-         let balanceAsset = quoteAsset;
-         if (orderSide === 'sell') balanceAsset = baseAsset;
+         // `balanceAsset` was determined above for both pending and market shadow orders
          
          const shadowBalance = await tradeCopier.getBalance(publicExchange, balanceAsset, 'master');
          const orderValue = orderSide === 'buy' ? (amount * executePrice) : amount;
@@ -369,13 +442,30 @@ async function startServer() {
           ccxtParams.stopPrice = Number(stopPrice);
           order = await authenticatedExchange.createOrder(ccxtSymbol, 'limit', orderSide, amount, Number(limitPrice), ccxtParams);
         } else if (orderType === 'oco') {
-          // Send OCO if user selected it
+          // Explicit OCO logic
           ccxtParams.stopPrice = Number(stopPrice);
-          ccxtParams.stopLimitPrice = Number(limitPrice);
+          if (limitPrice) ccxtParams.stopLimitPrice = Number(limitPrice);
           order = await authenticatedExchange.createOrder(ccxtSymbol, 'limit', orderSide, amount, Number(price), ccxtParams);
-          // Note: Full standard OCO across all pairs might require a raw authenticatedExchange.sapiPostMarginOrderOco() call depending on CCXT version.
         } else {
           order = await authenticatedExchange.createOrder(ccxtSymbol, orderType, orderSide, amount, price ? Number(price) : undefined, ccxtParams);
+        }
+
+        // Auto-attach OCO (TP/SL) immediately after filling the main entry order
+        if (takeProfit && slTrigger && (orderType === 'market' || orderType === 'limit')) {
+           const tpSlSide = orderSide === 'buy' ? 'sell' : 'buy';
+           const tpSlParams: any = {
+              stopPrice: Number(slTrigger),
+              stopLimitPrice: slLimit ? Number(slLimit) : Number(slTrigger)
+           };
+           Logger.info('Attaching TP/SL OCO to successful entry order', { ccxtSymbol, tpSlSide, amount, takeProfit, tpSlParams });
+           try {
+             // Binance CCXT OCO: createOrder(symbol, 'limit', side, amount, price, { stopPrice, stopLimitPrice })
+             // where `price` is the Take Profit limit leg, and `stopPrice` is the Stop Loss trigger leg.
+             await authenticatedExchange.createOrder(ccxtSymbol, 'limit', tpSlSide, amount, Number(takeProfit), tpSlParams);
+           } catch (tpErr: any) {
+             Logger.error('Failed to attach TP/SL OCO', tpErr);
+             // Note: Returning main order success even if trailing OCO fails, but logging error.
+           }
         }
       }
 

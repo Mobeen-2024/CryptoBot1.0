@@ -12,6 +12,7 @@ import { CurrentPositions } from './components/CurrentPositions';
 import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
+import { IndicatorModal } from './components/IndicatorModal';
 import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Briefcase, LineChart, History, Bot, Database } from 'lucide-react';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
 import toast, { Toaster } from 'react-hot-toast';
@@ -80,6 +81,11 @@ export default function App() {
   const [error, setError] = useState<{ message: string, details?: string, code?: string } | null>(null);
 
   const [activeTab, setActiveTab] = useState<'positions' | 'analytics' | 'history' | 'ai' | 'database' | 'delta'>('positions');
+
+  // Indicator Management State
+  const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
+  const [mainIndicator, setMainIndicator] = useState<string | null>('SUPER');
+  const [subIndicators, setSubIndicators] = useState<string[]>(['MACD', 'RSI', 'VOL']);
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -172,20 +178,50 @@ export default function App() {
   useEffect(() => {
     const fetchHistoricalData = async () => {
       try {
-        const response = await fetch(`/api/binance/klines?symbol=${symbol}&interval=${chartInterval}&limit=500`);
-        const data = await response.json();
+        const response = await fetch(`/api/binance/klines?symbol=${symbol}&interval=${chartInterval}&limit=1000`);
+        const result = await response.json();
+
+        // Handle both old and new backend responses gracefully
+        const data = result.klines || result;
+        const ind = result.indicators || {};
 
         if (!Array.isArray(data)) {
           console.error('Historical data format error:', data);
           return;
         }
 
-        const formattedData = data.map((d: any) => ({
+        const emaOffset = data.length - (ind.ema200?.length || 0);
+        const rsiOffset = data.length - (ind.rsi?.length || 0);
+        const macdOffset = data.length - (ind.macd?.length || 0);
+        const bollOffset = data.length - (ind.boll?.length || 0);
+        const atrOffset = data.length - (ind.atr?.length || 0);
+        const smaOffset = data.length - (ind.sma?.length || 0);
+        const sarOffset = data.length - (ind.sar?.length || 0);
+        const wrOffset = data.length - (ind.wr?.length || 0);
+        const obvOffset = data.length - (ind.obv?.length || 0);
+        const stochRsiOffset = data.length - (ind.stochRsi?.length || 0);
+        const kdjOffset = data.length - (ind.kdj?.length || 0);
+
+        const formattedData = data.map((d: any, i: number) => ({
           time: d[0] / 1000,
           open: parseFloat(d[1]),
           high: parseFloat(d[2]),
           low: parseFloat(d[3]),
           close: parseFloat(d[4]),
+          volume: parseFloat(d[5] || 0),
+          ema200: i >= emaOffset ? ind.ema200[i - emaOffset] : undefined,
+          rsi: i >= rsiOffset ? ind.rsi[i - rsiOffset] : undefined,
+          macd: i >= macdOffset ? ind.macd[i - macdOffset] : undefined,
+          boll: i >= bollOffset ? ind.boll[i - bollOffset] : undefined,
+          atr: i >= atrOffset ? ind.atr[i - atrOffset] : undefined,
+          sma: i >= smaOffset ? ind.sma[i - smaOffset] : undefined,
+          sar: i >= sarOffset ? ind.sar[i - sarOffset] : undefined,
+          wr: i >= wrOffset ? ind.wr[i - wrOffset] : undefined,
+          obv: i >= obvOffset ? ind.obv[i - obvOffset] : undefined,
+          stochRsi: i >= stochRsiOffset ? ind.stochRsi[i - stochRsiOffset] : undefined,
+          kdj: i >= kdjOffset ? ind.kdj[i - kdjOffset] : undefined,
+          // Alligator is already index-aligned to klines (same length)
+          alligator: ind.alligator ? ind.alligator[i] : undefined,
         }));
 
         setMarketData(formattedData);
@@ -419,23 +455,38 @@ export default function App() {
                 LIVE
               </div>
 
-              <div className="flex bg-black/40 rounded border border-white/10 p-0.5">
-                {['1m', '5m', '15m', '1h', '4h', '1d', '3d', '1w', '1M'].map((i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setChartInterval(i); }}
-                    className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors ${chartInterval === i ? 'bg-white/20 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    {i}
-                  </button>
-                ))}
+              <div className="flex gap-2 items-center">
+                <button 
+                  onClick={() => setIsIndicatorModalOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-gray-400 hover:text-[#fcd535] bg-black/40 hover:bg-[#fcd535]/10 rounded border border-white/10 hover:border-[#fcd535]/30 transition-colors uppercase tracking-wider"
+                >
+                  <LineChart className="w-3 h-3" />
+                  <span className="hidden sm:inline">Indicators</span>
+                </button>
+                <div className="flex bg-black/40 rounded border border-white/10 p-0.5">
+                  {['1m', '5m', '15m', '1h', '4h', '1d', '3d', '1w', '1M'].map((i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setChartInterval(i); }}
+                      className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors ${chartInterval === i ? 'bg-white/20 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                      {i}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex-1 w-full min-h-0 relative overflow-hidden">
               <div className="absolute inset-2">
                 {marketData.length > 0 ? (
-                  <Chart data={marketData} symbol={symbol} chartInterval={chartInterval} />
+                  <Chart 
+                    data={marketData} 
+                    symbol={symbol} 
+                    chartInterval={chartInterval} 
+                    mainIndicator={mainIndicator}
+                    subIndicators={subIndicators}
+                  />
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-500 font-mono text-sm">
                     <RefreshCw className="w-4 h-4 animate-spin mr-2" />
@@ -532,8 +583,18 @@ export default function App() {
             {activeTab === 'delta' && <DeltaNeutralPanel symbol={symbol} />}
           </div>
         </div>
-
       </main>
+
+      <IndicatorModal 
+        isOpen={isIndicatorModalOpen}
+        onClose={() => setIsIndicatorModalOpen(false)}
+        selectedMain={mainIndicator}
+        selectedSub={subIndicators}
+        onApply={(main, sub) => {
+          setMainIndicator(main);
+          setSubIndicators(sub);
+        }}
+      />
     </div>
   );
 }

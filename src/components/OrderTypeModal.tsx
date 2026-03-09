@@ -43,18 +43,18 @@ export const OrderTypeModal: React.FC<OrderTypeModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-[200] flex justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex justify-center md:items-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div 
-        className="bg-[#1e2329] w-full max-w-sm absolute bottom-0 rounded-t-[20px] shadow-2xl flex flex-col font-sans animate-in slide-in-from-bottom border-t border-white/10"
+        className="bg-[#1e2329] w-full max-w-sm absolute bottom-0 md:relative md:bottom-auto rounded-t-[20px] md:rounded-[20px] shadow-2xl flex flex-col font-sans animate-in slide-in-from-bottom md:zoom-in-95 border-t md:border border-white/10"
         onClick={e => e.stopPropagation()}
       >
         {/* Handle */}
-        <div className="w-full flex justify-center py-3 pb-1">
+        <div className="w-full flex justify-center py-3 pb-1 md:hidden">
           <div className="w-8 h-1 bg-[#474d57] rounded-full"></div>
         </div>
 
         {/* Header */}
-        <div className="px-5 pb-2 pt-2 flex justify-between items-center border-b border-white/5">
+        <div className="px-5 pb-2 pt-2 md:pt-5 flex justify-between items-center border-b border-white/5">
           <h2 className="text-white text-base font-bold">Select Order Type</h2>
           <button onClick={onClose} className="text-[#848e9c] p-1">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>

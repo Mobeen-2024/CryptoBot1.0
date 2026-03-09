@@ -321,11 +321,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
 
   if (os.showTPSL) {
     if (!tpPrice && !slPrice) {
-      // If TP/SL is checked but neither is filled, it's technically invalid state for "placing a TP/SL order"
-      // but maybe we just ignore it? 
-      // The original code set isInvalid = true. Let's keep it but maybe add a message.
       isInvalid = true;
-      // validationError = 'Set TP or SL'; // Optional: might be too noisy if they are just toggling it
+      validationError = 'Set Take Profit or Stop Loss';
     }
   }
 
@@ -838,6 +835,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
         onClose={() => setIsLeverageModalOpen(false)}
         initialLeverage={os.leverage}
         marginMode={marginMode}
+        availableBalance={balance}
         onConfirm={(newLev) => {
           updateOs({ leverage: newLev });
           setIsLeverageModalOpen(false);

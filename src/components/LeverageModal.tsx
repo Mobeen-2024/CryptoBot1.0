@@ -6,6 +6,7 @@ interface LeverageModalProps {
   initialLeverage: number;
   onConfirm: (leverage: number) => void;
   marginMode: 'Cross' | 'Isolated';
+  availableBalance: number;
 }
 
 export const LeverageModal: React.FC<LeverageModalProps> = ({ 
@@ -13,7 +14,8 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
   onClose, 
   initialLeverage, 
   onConfirm,
-  marginMode
+  marginMode,
+  availableBalance
 }) => {
   const [leverage, setLeverage] = useState(initialLeverage);
   const steps = [1, 3, 5, 7, 10];
@@ -35,18 +37,18 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
   const sliderPercentage = (leverage - 1) / (10 - 1) * 100;
 
   return (
-    <div className="fixed inset-0 z-[200] flex justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex justify-center md:items-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div 
-        className="bg-[#1e2329] w-full max-w-sm absolute bottom-0 rounded-t-[20px] shadow-2xl flex flex-col font-sans animate-in slide-in-from-bottom border-t border-white/10"
+        className="bg-[#1e2329] w-full max-w-sm absolute bottom-0 md:relative md:bottom-auto rounded-t-[20px] md:rounded-[20px] shadow-2xl flex flex-col font-sans animate-in slide-in-from-bottom md:zoom-in-95 border-t md:border border-white/10"
         onClick={e => e.stopPropagation()}
       >
         {/* Handle */}
-        <div className="w-full flex justify-center py-3">
+        <div className="w-full flex justify-center py-3 md:hidden">
           <div className="w-8 h-1 bg-[#474d57] rounded-full"></div>
         </div>
 
         {/* Header */}
-        <div className="px-5 pb-4 flex justify-between items-center">
+        <div className="px-5 pb-4 md:pt-6 flex justify-between items-center">
           <h2 className="text-white text-lg font-bold">Adjust {marginMode} Max Leverage</h2>
           {/* Yellow switch mock */}
           <div className="w-8 h-4 bg-[#fcd535] rounded-full relative cursor-pointer opacity-80 overflow-hidden">
@@ -81,7 +83,7 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
           <div className="relative w-full h-[2px] bg-[#2b3139] flex items-center mb-6">
             {/* Active Track */}
             <div 
-              className="absolute left-0 h-[2px] bg-[#fcd535]" 
+              className={`absolute left-0 h-[2px] transition-colors ${leverage >= 8 ? 'bg-rose-500' : leverage >= 5 ? 'bg-[#fcd535]' : 'bg-[#2ebd85]'}`}
               style={{ width: `${sliderPercentage}%` }}
             ></div>
 
@@ -90,6 +92,17 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
               const posPercent = ((stepNode - 1) / 9) * 100;
               const isPast = leverage >= stepNode;
               const isCurrent = leverage === stepNode;
+              
+              let currentBorder = 'border-[#2ebd85]';
+              let pastBg = 'bg-[#2ebd85]';
+              
+              if (leverage >= 8) {
+                currentBorder = 'border-rose-500';
+                pastBg = 'bg-rose-500';
+              } else if (leverage >= 5) {
+                currentBorder = 'border-[#fcd535]';
+                pastBg = 'bg-[#fcd535]';
+              }
               
               return (
                 <div 
@@ -105,10 +118,10 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
                       className={`w-3.5 h-3.5 flex items-center justify-center transition-colors`}
                       style={{ transform: 'rotate(45deg)' }}
                     >
-                      <div className={`w-full h-full border-[2px] ${isCurrent ? 'border-[#fcd535] bg-[#1e2329]' : isPast ? 'border-transparent bg-[#fcd535]' : 'border-[#474d57] bg-[#1e2329]'}`}></div>
+                      <div className={`w-full h-full border-[2px] ${isCurrent ? `${currentBorder} bg-[#1e2329]` : isPast ? `border-transparent ${pastBg}` : 'border-[#474d57] bg-[#1e2329]'}`}></div>
                     </div>
                   </div>
-                  <div className="absolute text-[#848e9c] text-xs font-mono -left-1 top-4">{stepNode}x</div>
+                  <div className={`absolute text-xs font-mono -left-1 top-4 transition-colors ${isCurrent ? 'text-white font-bold' : 'text-[#848e9c]'}`}>{stepNode}x</div>
                 </div>
               );
             })}
@@ -124,20 +137,25 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
         <div className="px-5 pb-5 mt-auto bg-[#181a20] pt-4 border-t border-[#2b3139] rounded-b-[20px]">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-[#848e9c]">Max Borrowable</span>
-            <span className="text-xs text-[#848e9c] font-mono">Approx. {(1000 * leverage).toLocaleString()} USDT</span>
+            <span className="text-sm text-[#eaecef] font-bold font-mono">Approx. {(availableBalance * leverage).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</span>
           </div>
           
-          <div className="mb-4">
-            <p className="text-[12px] text-[#848e9c] leading-tight">
-              Selecting higher leverage such as [10x] increases your liquidation risk. Always manage your risk level. <span className="text-[#fcd535] cursor-pointer hover:underline">Learn More</span>
+          <div className="mb-4 bg-black/20 p-3 rounded-lg border border-white/5">
+            <p className={`text-[12px] leading-relaxed ${leverage >= 8 ? 'text-rose-400 font-medium' : leverage >= 5 ? 'text-amber-400 font-medium' : 'text-[#848e9c]'}`}>
+              {leverage >= 8 ? 
+                `High Risk Warning: Selecting ${leverage}x leverage significantly increases liquidation probability. Ensure strict margin maintenance.` : 
+               leverage >= 5 ? 
+                `Moderate Risk: ${leverage}x leverage amplifies volatility. Carefully manage your stop losses.` : 
+                `Standard Risk: Normal margin borrow limits active. Always manage your risk level.`
+              } <span className="text-[#fcd535] cursor-pointer hover:underline text-[11px] font-normal ml-1">Learn More</span>
             </p>
           </div>
 
           <button 
             onClick={() => onConfirm(leverage)}
-            className="w-full bg-[#fcd535] text-black font-bold py-3.5 rounded-[12px] hover:brightness-110 active:scale-[0.98] transition-all text-sm uppercase tracking-wide"
+            className={`w-full font-bold py-3.5 rounded-[12px] hover:brightness-110 active:scale-[0.98] transition-all text-sm uppercase tracking-wide border-transparent border shadow-lg ${leverage >= 8 ? 'bg-rose-500/20 text-rose-500 border-rose-500/50 hover:bg-rose-500 hover:text-white' : 'bg-[#fcd535] text-black'}`}
           >
-            Confirm
+            Confirm {leverage}x Leverage
           </button>
         </div>
       </div>
