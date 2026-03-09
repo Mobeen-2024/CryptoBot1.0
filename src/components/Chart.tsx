@@ -8,9 +8,10 @@ interface ChartProps {
   chartInterval: string;
   mainIndicator?: string | null;
   subIndicators?: string[];
+  trades?: any[];
 }
 
-export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainIndicator, subIndicators = [] }) => {
+export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainIndicator, subIndicators = [], trades = [] }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<any>(null);
@@ -63,6 +64,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     priceY: number;
     price: number;
   } | null>(null);
+
+  const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
+  const htmlMarkersRef = useRef<any[]>([]);
 
   // Helper to parse interval into ms
   const getIntervalMs = (interval: string) => {
@@ -168,30 +172,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     seriesRef.current = candlestickSeries;
     candlestickSeries.setData(data);
 
-    // Add Dummy Buy/Sell Markers for demonstration
-    if (data.length > 30) {
-      const markers = [
-        {
-          time: data[data.length - 25].time,
-          position: 'belowBar',
-          color: '#10b981',
-          shape: 'square',
-          text: 'B',
-        },
-        {
-          time: data[data.length - 10].time,
-          position: 'aboveBar',
-          color: '#f43f5e',
-          shape: 'square',
-          text: 'S',
-        }
-      ] as any[];
-      try {
-        (candlestickSeries as any).setMarkers(markers);
-      } catch (err) {
-        console.warn('Failed to set demonstration markers:', err);
-      }
-    }
+    // Dummy markers removed. Will be set by trades useEffect.
 
     const supertrendSeries = chart.addSeries(AreaSeries, {
       lineType: 2, // LineType.WithSteps
@@ -325,9 +306,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${chartInterval}`;
     const ws = new WebSocket(wsUrl);
 
-    // Render loop for tracking Y-Coordinates of Price Lines on the left axis
     let animationFrameId: number;
     const syncPills = () => {
+      // Sync Price Average Lines
       if (seriesRef.current && buyLineRef.current && sellLineRef.current) {
         const series = seriesRef.current;
         setAvgPositions(prev => {
@@ -343,6 +324,48 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           return prev;
         });
       }
+
+      // Sync HTML Trade Markers
+      if (seriesRef.current && chartRef.current && htmlMarkersRef.current.length > 0) {
+        const timeScale = chartRef.current.timeScale();
+        const series = seriesRef.current;
+        
+        htmlMarkersRef.current.forEach(m => {
+          const el = document.getElementById(`trade-marker-${m.id}`);
+          if (el) {
+            const x = timeScale.timeToCoordinate(m.time);
+            // Buy marker goes below the candle Low, Sell marker goes above the High
+            const y = series.priceToCoordinate(m.isBuy ? m.low : m.high);
+
+            if (x !== null && y !== null) {
+              const xPos = x - 10; // Center the 20px wide marker
+              
+              // Anchor logic (CRITICAL for pixel perfect alignment):
+              // The main container div is `w-5 h-5` (20x20px).
+              // The `y` coordinate is the Exact Pixel of the Candle Wick (High or Low).
+              
+              // BUY MARKER (Placed Below):
+              // - The top of the CSS triangle pointer is geometrically at `-5px` from the top of the container.
+              // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `+5px` DOWN away from `y`.
+              // - Therefore: yPos = y + 5
+              
+              // SELL MARKER (Placed Above):
+              // - The bottom of the CSS triangle pointer is geometrically at `+25px` from the top of the container (20px body + 5px pointer).
+              // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `-25px` UP away from `y`.
+              // - Therefore: yPos = y - 25
+              
+              const yPos = m.isBuy ? y + 5 : y - 25;
+
+              el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+              el.style.opacity = '1';
+              // Pointer events block scroll/zoom, so we use pointer-events-none inside the container anyway
+            } else {
+              el.style.opacity = '0';
+            }
+          }
+        });
+      }
+
       animationFrameId = requestAnimationFrame(syncPills);
     };
     syncPills();
@@ -629,8 +652,68 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
   }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice]);
 
+  // Calculate custom HTML markers
+  useEffect(() => {
+    if (!data || data.length === 0 || !trades || trades.length === 0) return;
+
+    const uniqueMap = new Map();
+
+    trades.forEach((trade) => {
+      const tradeTimeSec = Math.floor(trade.timestamp / 1000);
+      let closestBar = null;
+      for (let i = data.length - 1; i >= 0; i--) {
+        if (data[i].time <= tradeTimeSec) {
+          closestBar = data[i];
+          break;
+        }
+      }
+
+      if (closestBar) {
+        const sideCln = trade.side?.trim().toUpperCase();
+        if (sideCln !== 'BUY' && sideCln !== 'SELL') return; // Ensure we only map valid trades
+        
+        const isBuy = sideCln === 'BUY';
+        const timeKey = `${String(closestBar.time)}_${isBuy ? 'BUY' : 'SELL'}`;
+        
+        const tradeDetail = {
+          id: trade.master_trade_id,
+          type: sideCln,
+          price: trade.price,
+          quantity: trade.quantity,
+          total: trade.price * trade.quantity,
+          fee: (trade.price * trade.quantity * 0.001) // mock 0.1% fee if absent
+        };
+
+        if (uniqueMap.has(timeKey)) {
+          const ex = uniqueMap.get(timeKey);
+          ex.trades.push(tradeDetail);
+        } else {
+          uniqueMap.set(timeKey, {
+            id: `${trade.master_trade_id}_${trade.timestamp}_${sideCln}`,
+            time: closestBar.time,
+            isBuy: isBuy,
+            high: closestBar.high,
+            low: closestBar.low,
+            text: isBuy ? 'B' : 'S',
+            trades: [tradeDetail]
+          });
+        }
+      }
+    });
+
+    const finalHtmlMarkers = Array.from(uniqueMap.values());
+    htmlMarkersRef.current = finalHtmlMarkers;
+    setHtmlMarkers(finalHtmlMarkers);
+
+    // Ensure we unmount native markers if they existed
+    if (seriesRef.current) {
+      try { seriesRef.current.setMarkers([]); } catch(e) {}
+    }
+  }, [data, trades]);
+
   return (
     <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
+      
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
       
@@ -742,7 +825,78 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
-      
+        
+        {/* HTML Markers Overlay Layer */}
+        <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
+          {htmlMarkers.map((m) => (
+            <div
+              key={m.id}
+              id={`trade-marker-${m.id}`}
+              className="absolute top-0 left-0 w-5 h-5 flex justify-center items-center opacity-0 will-change-transform font-mono font-bold text-[10px] text-white pointer-events-auto group drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+              style={{ transition: 'opacity 0.15s ease' }}
+            >
+              {/* Sci-Fi Radar Ping Effect */}
+              <div className={`absolute -inset-1 rounded-full animate-ping opacity-20 ${
+                m.isBuy ? 'bg-[#00E676]' : 'bg-[#FF1744]'
+              }`} style={{ animationDuration: '2s' }} />
+
+              {/* Pointer Triangles */}
+              {m.isBuy ? (
+                <div className="absolute left-1/2 -top-[5px] -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-[#00E676] z-0" />
+              ) : (
+                <div className="absolute left-1/2 -bottom-[5px] -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-[#FF1744] z-0" />
+              )}
+
+              {/* Main Rounded Box Backend */}
+              <div 
+                className={`absolute inset-0 border border-white/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)] backdrop-blur-2xl flex justify-center items-center z-10 transition-transform duration-300 group-hover:scale-110 ${
+                  m.isBuy 
+                    ? 'bg-gradient-to-br from-[#00E676] to-[#008f4c] rounded-md'
+                    : 'bg-gradient-to-br from-[#FF1744] to-[#b30026] rounded-md'
+                }`}
+              >
+                <div className="relative w-full h-full flex justify-center items-center">
+                  {/* Core Letter */}
+                  <span className="relative z-20 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] text-[10px] font-black tracking-tighter">
+                    {m.text}
+                  </span>
+                  
+                  {/* Cyberpunk Core Highlight */}
+                  <div className="absolute inset-[20%] bg-[radial-gradient(circle,rgba(255,255,255,0.6)_0%,transparent_70%)] mix-blend-overlay rounded-full blur-[1px] pointer-events-none z-10" />
+                </div>
+              </div>
+
+              {/* Modern Tooltip Box (Rendered exactly adjacent) */}
+              <div className="absolute top-1/2 -translate-y-1/2 left-full ml-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100] w-64 max-h-[300px] overflow-y-auto custom-scrollbar">
+                <div className="relative rounded-lg border border-white/20 bg-black/80 backdrop-blur-3xl p-3 shadow-[0_10px_30px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col gap-2">
+                  <div className="text-[11px] font-black text-white/50 border-b border-white/10 pb-1.5 uppercase tracking-widest">
+                    {new Date(m.time * 1000).toLocaleString()}
+                  </div>
+                  {m.trades.map((t, idx) => (
+                    <div key={idx} className="flex flex-col gap-1 border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                      <div className="flex justify-between items-center text-[10px] font-mono">
+                        <span className={t.type === 'BUY' ? 'text-[#00E676]' : 'text-[#FF1744]'}>{t.type} @ {Number(t.price).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-mono">
+                        <span className="text-white/40">Amount</span>
+                        <span className="text-white">{Number(t.quantity).toFixed(4)} <span className="text-white/40">{symbol.replace('USDT','')}</span></span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-mono">
+                        <span className="text-white/40">Total</span>
+                        <span className="text-white font-bold">{Number(t.total).toFixed(2)} <span className="text-white/40">USDT</span></span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-mono">
+                        <span className="text-white/40">Fee</span>
+                        <span className="text-white/60">{Number(t.fee).toFixed(4)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
       {/* ── OHLC Crosshair Data HUD ──────────────────────────── */}
       {crosshairData && crosshairData.x !== undefined && (
         <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-20 pointer-events-none select-none max-w-[calc(100%-3rem)] animate-in fade-in slide-in-from-top-2 duration-300">

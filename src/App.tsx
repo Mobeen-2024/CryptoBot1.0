@@ -67,6 +67,7 @@ export default function App() {
   const [priceChange, setPriceChange] = useState<number>(0);
   const [balance, setBalance] = useState<string>('0.00');
   const [baseBalance, setBaseBalance] = useState<string>('0.00');
+  const [userTrades, setUserTrades] = useState<any[]>([]);
   
   // Secondary Account State (Mocked or Future implementation)
   const [slaveBalance, setSlaveBalance] = useState<string>('1500.00');
@@ -144,6 +145,12 @@ export default function App() {
 
   useEffect(() => {
     refreshBalance();
+    
+    // Fetch historical user trades
+    fetch('/api/backend/trades')
+      .then(res => res.json())
+      .then(data => setUserTrades(data || []))
+      .catch(err => console.error('Failed to fetch user trades:', err));
 
     // Replace HTTP Polling with WebSockets for real-time portfolio updates
     const socket = io();
@@ -513,6 +520,7 @@ export default function App() {
                     chartInterval={chartInterval} 
                     mainIndicator={mainIndicator}
                     subIndicators={subIndicators}
+                    trades={userTrades.filter((t: any) => t.symbol.replace('/', '') === symbol.replace('/', ''))}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center gap-3">

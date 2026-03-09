@@ -484,6 +484,11 @@ export function CurrentPositions() {
                         -{pct}%
                       </button>
                     ))}
+                    <button onClick={() => setSlPrice(tpslModal.entryPrice.toFixed(4))}
+                      className="flex-[1.5] py-1.5 rounded-lg bg-[#5e6673]/10 hover:bg-[#eaecef]/20 text-[#eaecef] text-[10px] font-bold font-mono transition-all border border-[#5e6673]/30 hover:border-[#eaecef]/50"
+                      title="Set Stop Loss to exact Entry Price (Risk-Free)">
+                      Break Even
+                    </button>
                   </div>
                 </div>
 
