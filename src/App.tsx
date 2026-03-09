@@ -13,6 +13,7 @@ import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
 import { IndicatorModal } from './components/IndicatorModal';
+import { BotPanel } from './components/BotPanel';
 import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Briefcase, LineChart, History, Bot, Database } from 'lucide-react';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
 import toast, { Toaster } from 'react-hot-toast';
@@ -80,7 +81,7 @@ export default function App() {
   const [lastRefreshed, setLastRefreshed] = useState(Date.now());
   const [error, setError] = useState<{ message: string, details?: string, code?: string } | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'positions' | 'analytics' | 'history' | 'ai' | 'database' | 'delta'>('positions');
+  const [activeTab, setActiveTab] = useState<'positions' | 'analytics' | 'history' | 'ai' | 'database' | 'delta' | 'bot'>('positions');
 
   // Indicator Management State
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
@@ -571,6 +572,14 @@ export default function App() {
               <Activity className="w-3.5 h-3.5" />
               Strategy Engine
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('bot')}
+              className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap ${activeTab === 'bot' ? 'text-[#fcd535] border-[#fcd535] bg-[#fcd535]/5' : 'text-gray-500 border-transparent hover:text-gray-300'}`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M7 10.5C7 9.12 8.12 8 9.5 8S12 9.12 12 10.5 10.88 13 9.5 13 7 11.88 7 10.5z"/><path d="M14.5 8h3M14.5 11h3"/></svg>
+              Bot Manager
+            </button>
           </div>
 
           {/* Tab Content Area */}
@@ -581,6 +590,7 @@ export default function App() {
             {activeTab === 'ai' && <AIAgentPanel marketData={marketData} symbol={symbol} />}
             {activeTab === 'database' && <DatabasePanel />}
             {activeTab === 'delta' && <DeltaNeutralPanel symbol={symbol} />}
+            {activeTab === 'bot' && <BotPanel />}
           </div>
         </div>
       </main>
