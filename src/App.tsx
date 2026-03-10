@@ -87,8 +87,8 @@ export default function App() {
 
   // Indicator Management State
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
-  const [mainIndicator, setMainIndicator] = useState<string | null>('SUPER');
-  const [subIndicators, setSubIndicators] = useState<string[]>(['MACD', 'RSI', 'VOL']);
+  const [mainIndicator, setMainIndicator] = useState<string | null>(null);
+  const [subIndicators, setSubIndicators] = useState<string[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
 

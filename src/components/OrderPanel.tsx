@@ -43,6 +43,109 @@ type OrderState = {
   isIceberg: boolean;
 };
 
+  // Neon Cyber Elements Components
+  const CyberInput = ({ label, suffix, value, onChange, placeholder, disabled, stepBtn, type = 'number', customPaddingRight, align = 'right', mode = 'BUY' }: any) => {
+    const focusBorderClass = mode === 'BUY' ? 'focus-within:border-[#10b981] focus-within:shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'focus-within:border-[#ef4444] focus-within:shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+    const [localValue, setLocalValue] = React.useState<string | number>(value);
+    const [isFocused, setIsFocused] = React.useState(false);
+    const previousValueRef = React.useRef(value);
+    
+    // Sync external value changes to local state if the parent pushed a change we didn't initiate
+    React.useEffect(() => {
+      if (value !== previousValueRef.current) {
+        setLocalValue(value);
+        previousValueRef.current = value;
+      }
+    }, [value]);
+
+    const handleBlur = () => {
+      setIsFocused(false);
+      let finalVal = localValue;
+      if (typeof localValue === 'string' && localValue.trim() !== '') {
+        let parsed = localValue.toLowerCase().trim();
+        // Intelligent Parsing: k = 1000, m = 1000000
+        if (parsed.endsWith('k')) parsed = (parseFloat(parsed) * 1000).toString();
+        else if (parsed.endsWith('m')) parsed = (parseFloat(parsed) * 1000000).toString();
+        
+        // Intelligent Parsing: Math expressions
+        try {
+          if (/[+\-*/]/.test(parsed) && /^[0-9+\-*\/. ()]+$/.test(parsed)) {
+            parsed = Function(`"use strict";return (${parsed})`)().toString();
+          }
+        } catch (e) {}
+
+        const finalNum = parseFloat(parsed);
+        if (!isNaN(finalNum)) {
+          finalVal = finalNum;
+        } else {
+          finalVal = '';
+        }
+      }
+      
+      setLocalValue(finalVal);
+      previousValueRef.current = finalVal;
+      onChange({ target: { value: finalVal } });
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      setLocalValue(raw);
+      // Real-time update if it's a simple number or empty
+      if (raw === '' || (!isNaN(Number(raw)) && !raw.endsWith('.'))) {
+        const numVal = raw === '' ? '' : Number(raw);
+        previousValueRef.current = numVal;
+        onChange({ target: { value: numVal } });
+      }
+    };
+
+    const inputType = type === 'number' ? 'text' : type; // Use text to allow 'k', 'm', and '+'
+
+    return (
+    <div className={`relative group h-11 w-full bg-[#0d0f13] border border-white/5 rounded-lg overflow-hidden transition-all duration-300 ${disabled ? 'opacity-50 cursor-not-allowed' : focusBorderClass}`}>
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider group-focus-within:text-cyan-400 transition-colors drop-shadow-[0_0_2px_rgba(6,182,212,0)] group-focus-within:drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]">{label}</span>
+      </div>
+      
+      {stepBtn && (
+        <button type="button" onClick={() => stepBtn(false)} className="absolute inset-y-0 left-[48px] px-2 flex items-center justify-center text-gray-600 hover:text-cyan-400 transition-all z-20 active:scale-75 hover:scale-110">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      )}
+
+      <input 
+        type={inputType} 
+        value={localValue === '' ? '' : localValue} 
+        onChange={handleChange} 
+        onBlur={handleBlur}
+        onFocus={() => setIsFocused(true)}
+        disabled={disabled} 
+        placeholder={placeholder}
+        style={{ 
+          paddingRight: customPaddingRight ? customPaddingRight : (suffix ? `${suffix.length * 8 + 24}px` : '12px'),
+          paddingLeft: stepBtn ? '80px' : '56px',
+          textAlign: align
+        }}
+        className={`w-full h-full bg-transparent text-white text-[13px] focus:outline-none font-mono placeholder-gray-700 z-0 relative transition-all ${isFocused ? 'drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]' : ''}`}
+      />
+
+      {stepBtn && (
+        <button type="button" onClick={() => stepBtn(true)} className="absolute inset-y-0 right-[40px] px-2 flex items-center justify-center text-gray-600 hover:text-cyan-400 transition-all z-20 active:scale-75 hover:scale-110">
+           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      )}
+
+      {suffix && (
+        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
+          <span className="text-[10px] font-bold text-gray-500 group-focus-within:text-white transition-colors">{suffix}</span>
+        </div>
+      )}
+
+      {/* 2035 Active Scanner Line Effect */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-cyan-400 group-focus-within:w-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(6,182,212,1)] opacity-0 group-focus-within:opacity-100"></div>
+    </div>
+  )};
+
+
 export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, balance, baseBalance, onPlaceOrder }) => {
   const baseAsset = symbol.replace('USDT', '');
   const quoteAsset = 'USDT';
@@ -218,6 +321,18 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
       slLimit: os.showTPSL && os.slLimit ? Number(os.slLimit) : undefined,
       isIceberg: os.isIceberg
     });
+    
+    // Clear fields upon submission
+    updateOs({
+      quantity: '',
+      total: '',
+      stopPrice: '',
+      limitPrice: '',
+      takeProfit: '',
+      slTrigger: '',
+      slLimit: ''
+    });
+
     setShowConfirmModal(false);
   };
 
@@ -320,106 +435,6 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
     }
   }
 
-  // Neon Cyber Elements Components
-  const CyberInput = ({ label, suffix, value, onChange, placeholder, disabled, stepBtn, type = 'number', customPaddingRight, align = 'right' }: any) => {
-    const [localValue, setLocalValue] = React.useState<string | number>(value);
-    const [isFocused, setIsFocused] = React.useState(false);
-    const previousValueRef = React.useRef(value);
-    
-    // Sync external value changes to local state if the parent pushed a change we didn't initiate
-    React.useEffect(() => {
-      if (value !== previousValueRef.current) {
-        setLocalValue(value);
-        previousValueRef.current = value;
-      }
-    }, [value]);
-
-    const handleBlur = () => {
-      setIsFocused(false);
-      let finalVal = localValue;
-      if (typeof localValue === 'string' && localValue.trim() !== '') {
-        let parsed = localValue.toLowerCase().trim();
-        // Intelligent Parsing: k = 1000, m = 1000000
-        if (parsed.endsWith('k')) parsed = (parseFloat(parsed) * 1000).toString();
-        else if (parsed.endsWith('m')) parsed = (parseFloat(parsed) * 1000000).toString();
-        
-        // Intelligent Parsing: Math expressions
-        try {
-          if (/[+\-*/]/.test(parsed) && /^[0-9+\-*\/. ()]+$/.test(parsed)) {
-            parsed = Function(`"use strict";return (${parsed})`)().toString();
-          }
-        } catch (e) {}
-
-        const finalNum = parseFloat(parsed);
-        if (!isNaN(finalNum)) {
-          finalVal = finalNum;
-        } else {
-          finalVal = '';
-        }
-      }
-      
-      setLocalValue(finalVal);
-      previousValueRef.current = finalVal;
-      onChange({ target: { value: finalVal } });
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = e.target.value;
-      setLocalValue(raw);
-      // Real-time update if it's a simple number or empty
-      if (raw === '' || (!isNaN(Number(raw)) && !raw.endsWith('.'))) {
-        const numVal = raw === '' ? '' : Number(raw);
-        previousValueRef.current = numVal;
-        onChange({ target: { value: numVal } });
-      }
-    };
-
-    const inputType = type === 'number' ? 'text' : type; // Use text to allow 'k', 'm', and '+'
-
-    return (
-    <div className={`relative group h-11 w-full bg-[#0d0f13] border border-white/5 rounded-lg overflow-hidden transition-all duration-300 ${disabled ? 'opacity-50 cursor-not-allowed' : focusBorderClass}`}>
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider group-focus-within:text-cyan-400 transition-colors drop-shadow-[0_0_2px_rgba(6,182,212,0)] group-focus-within:drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]">{label}</span>
-      </div>
-      
-      {stepBtn && (
-        <button type="button" onClick={() => stepBtn(false)} className="absolute inset-y-0 left-[48px] px-2 flex items-center justify-center text-gray-600 hover:text-cyan-400 transition-all z-20 active:scale-75 hover:scale-110">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-      )}
-
-      <input 
-        type={inputType} 
-        value={localValue === '' ? '' : localValue} 
-        onChange={handleChange} 
-        onBlur={handleBlur}
-        onFocus={() => setIsFocused(true)}
-        disabled={disabled} 
-        placeholder={placeholder}
-        style={{ 
-          paddingRight: customPaddingRight ? customPaddingRight : (suffix ? `${suffix.length * 8 + 24}px` : '12px'),
-          paddingLeft: stepBtn ? '80px' : '56px',
-          textAlign: align
-        }}
-        className={`w-full h-full bg-transparent text-white text-[13px] focus:outline-none font-mono placeholder-gray-700 z-0 relative transition-all ${isFocused ? 'drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]' : ''}`}
-      />
-
-      {stepBtn && (
-        <button type="button" onClick={() => stepBtn(true)} className="absolute inset-y-0 right-[40px] px-2 flex items-center justify-center text-gray-600 hover:text-cyan-400 transition-all z-20 active:scale-75 hover:scale-110">
-           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-      )}
-
-      {suffix && (
-        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none z-10">
-          <span className="text-[10px] font-bold text-gray-500 group-focus-within:text-white transition-colors">{suffix}</span>
-        </div>
-      )}
-
-      {/* 2035 Active Scanner Line Effect */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-cyan-400 group-focus-within:w-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(6,182,212,1)] opacity-0 group-focus-within:opacity-100"></div>
-    </div>
-  )};
 
   return (
     <div className="bg-[#0a0a0c]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-4 w-full max-w-[360px] mx-auto flex flex-col h-full text-white shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
@@ -508,15 +523,15 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           
           {/* Stop Trigger */}
           {(os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO') && (
-             <CyberInput label="Stop" suffix={quoteAsset} value={os.stopPrice} onChange={(e: any) => updateOs({ stopPrice: e.target.value ? Number(e.target.value) : '' })} placeholder="0.00" />
+             <CyberInput mode={os.mode} label="Stop" suffix={quoteAsset} value={os.stopPrice} onChange={(e: any) => updateOs({ stopPrice: e.target.value ? Number(e.target.value) : '' })} placeholder="0.00" />
           )}
 
   {/* Limit / Market Price */}
           {os.orderType === 'MARKET' ? (
-             <CyberInput label="Price" suffix={quoteAsset} value="Market" disabled={true} type="text" />
+             <CyberInput mode={os.mode} label="Price" suffix={quoteAsset} value="Market" disabled={true} type="text" />
           ) : (
              <div className="relative">
-                <CyberInput 
+                <CyberInput mode={os.mode} 
                   label="Price" 
                   suffix={os.orderType !== 'STOP_LIMIT' && os.orderType !== 'OCO' ? null : quoteAsset} 
                   value={os.orderType === 'STOP_LIMIT' || os.orderType === 'OCO' ? os.limitPrice : os.price} 
@@ -541,7 +556,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
 
           {/* Quantity */}
           <div className="relative">
-             <CyberInput 
+             <CyberInput mode={os.mode} 
                label="Amount" 
                suffix={baseAsset} 
                value={os.quantity} 
@@ -597,7 +612,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
          {/* Total Output */}
          {os.orderType !== 'MARKET' && (
            <div className="mb-4">
-             <CyberInput label="Total" suffix={quoteAsset} value={os.total} onChange={(e: any) => handleTotalChange(e.target.value)} placeholder="0.00" customPaddingRight="50px" />
+             <CyberInput mode={os.mode} label="Total" suffix={quoteAsset} value={os.total} onChange={(e: any) => handleTotalChange(e.target.value)} placeholder="0.00" customPaddingRight="50px" />
            </div>
          )}
 
@@ -617,8 +632,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
               
               <div className={`overflow-hidden transition-all duration-300 ease-in-out ${os.showTPSL ? 'max-h-60 mt-3 opacity-100' : 'max-h-0 opacity-0 mt-0'}`}>
                  <div className="space-y-2 border-l-2 border-cyan-500/20 pl-3">
-                    <CyberInput label="TP" suffix={quoteAsset} value={os.takeProfit} onChange={(e: any) => updateOs({ takeProfit: e.target.value ? Number(e.target.value) : '' })} placeholder="0.00" />
-                    <CyberInput label="SL Trigger" suffix={quoteAsset} value={os.slTrigger} onChange={(e: any) => updateOs({ slTrigger: e.target.value ? Number(e.target.value) : '' })} placeholder="0.00" />
+                    <CyberInput mode={os.mode} label="TP" suffix={quoteAsset} value={os.takeProfit} onChange={(e: any) => updateOs({ takeProfit: e.target.value ? Number(e.target.value) : '' })} placeholder="0.00" />
+                    <CyberInput mode={os.mode} label="SL Trigger" suffix={quoteAsset} value={os.slTrigger} onChange={(e: any) => updateOs({ slTrigger: e.target.value ? Number(e.target.value) : '' })} placeholder="0.00" />
                  </div>
               </div>
             </div>
