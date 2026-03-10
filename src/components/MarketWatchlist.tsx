@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Activity, TrendingUp, TrendingDown, Radio } from 'lucide-react';
 
 interface WatchlistItem {
   symbol: string;
@@ -52,70 +53,122 @@ export const MarketWatchlist: React.FC<{ onSelectSymbol?: (s: string) => void; a
   };
 
   const SortIcon = ({ col }: { col: typeof sortBy }) => (
-    <svg className={`w-2.5 h-2.5 inline-block ml-0.5 transition-colors ${sortBy === col ? 'text-cyan-400' : 'text-gray-700'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <svg className={`w-2.5 h-2.5 inline-block ml-0.5 transition-colors ${sortBy === col ? 'text-[#00f0ff]' : 'text-gray-600'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
       {sortDir === -1 || sortBy !== col ? <polyline points="6 9 12 15 18 9" /> : <polyline points="18 15 12 9 6 15" />}
     </svg>
   );
 
   return (
-    <div className="flex flex-col h-full bg-[#0b0e11] overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-[#0d1117] shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-white">Market Watchlist</span>
+    <div className="flex flex-col h-full bg-[#05070a]/90 backdrop-blur-3xl overflow-hidden relative">
+      
+      {/* Background Cyber-Grid Array */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,240,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,240,255,0.02)_1px,transparent_1px)] bg-[size:30px_30px] opacity-30 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#00f0ff]/5 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#bc13fe]/5 blur-3xl rounded-full pointer-events-none" />
+
+      {/* Cyber Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#00f0ff]/10 bg-black/40 shrink-0 relative z-10 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+             <Radio className="w-4 h-4 text-[#00f0ff] animate-pulse" />
+             <div className="absolute inset-0 bg-[#00f0ff] blur-md opacity-30 animate-pulse" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">Global Market Array</span>
+            <span className="text-[8px] font-mono text-[#00f0ff]/60 tracking-widest leading-none">REALTIME_TELEMETRY</span>
+          </div>
         </div>
-        <span className="text-[9px] font-mono text-gray-600">{items.size}/{WATCH_SYMBOLS.length} LIVE</span>
+        <div className="flex items-center gap-2">
+           <span className="flex h-2 w-2 relative">
+             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#39ff14] opacity-75"></span>
+             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#39ff14]"></span>
+           </span>
+           <span className="text-[9px] font-mono font-bold text-[#39ff14]/80 tracking-widest">{items.size}/{WATCH_SYMBOLS.length} STREAMING</span>
+        </div>
       </div>
 
-      {/* Column headers */}
-      <div className="grid grid-cols-5 px-4 py-1.5 text-[9px] uppercase tracking-widest text-gray-600 font-bold border-b border-white/5 shrink-0">
-        <button onClick={() => toggleSort('symbol')} className="text-left hover:text-gray-400 transition-colors">Pair <SortIcon col="symbol" /></button>
+      {/* Column Headers */}
+      <div className="grid grid-cols-[3fr_2fr_2fr_3fr] gap-2 px-4 py-2 text-[9px] uppercase tracking-[0.2em] text-[#00f0ff]/50 font-black border-b border-[#00f0ff]/5 bg-black/20 shrink-0 relative z-10">
+        <button onClick={() => toggleSort('symbol')} className="text-left hover:text-[#00f0ff] transition-colors focus:outline-none">Pair <SortIcon col="symbol" /></button>
         <span className="text-right">Price</span>
-        <button onClick={() => toggleSort('change')} className="text-right hover:text-gray-400 transition-colors">24h% <SortIcon col="change" /></button>
-        <span className="text-right hidden sm:block">High</span>
-        <button onClick={() => toggleSort('volume')} className="text-right hover:text-gray-400 transition-colors">Volume <SortIcon col="volume" /></button>
+        <button onClick={() => toggleSort('change')} className="text-right hover:text-[#00f0ff] transition-colors flex justify-end focus:outline-none">24h% <SortIcon col="change" /></button>
+        <button onClick={() => toggleSort('volume')} className="text-right hover:text-[#00f0ff] transition-colors hidden sm:block focus:outline-none">Volume <SortIcon col="volume" /></button>
       </div>
 
       {/* Rows */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 p-2 space-y-1">
         {WATCH_SYMBOLS.filter(s => !items.has(s)).map(s => (
-          <div key={s} className="grid grid-cols-5 items-center px-4 py-2 border-b border-white/[0.03]">
-            <span className="text-[11px] font-mono text-gray-600">{s.replace('USDT', '')}/USDT</span>
+          <div key={s} className="grid grid-cols-[3fr_2fr_2fr_3fr] gap-2 items-center px-3 py-2.5 rounded-lg border border-white/[0.02] bg-white/[0.01]">
+            <span className="text-[11px] font-mono text-gray-700 tracking-wider animate-pulse">{s.replace('USDT', '')}/USDT</span>
             <span className="text-right text-[11px] font-mono text-gray-700">—</span>
             <span className="text-right text-[11px] text-gray-700">—</span>
             <span className="text-right text-[11px] text-gray-700 hidden sm:block">—</span>
-            <span className="text-right text-[11px] text-gray-700">—</span>
           </div>
         ))}
+        
         {sorted.map(item => {
           const isActive = activeSymbol === item.symbol;
           const isUp = item.change24h >= 0;
           const base = item.symbol.replace('USDT', '');
+          
+          // Calculate high/low range indicator
+          const range = item.high - item.low;
+          const currentPos = range === 0 ? 0.5 : (item.price - item.low) / range;
+          
           return (
             <div
               key={item.symbol}
               onClick={() => onSelectSymbol?.(item.symbol)}
-              className={`grid grid-cols-5 items-center px-4 py-2 border-b border-white/[0.03] cursor-pointer transition-all hover:bg-white/[0.03] ${isActive ? 'bg-cyan-500/5 border-l-2 border-l-cyan-500' : ''}`}
+              className={`group grid grid-cols-[3fr_2fr_2fr_3fr] gap-2 items-center px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-300 relative overflow-hidden ${
+                isActive 
+                  ? 'bg-[#00f0ff]/10 border border-[#00f0ff]/30 shadow-[0_0_20px_rgba(0,240,255,0.1)] scale-[1.02] my-1' 
+                  : 'bg-black/40 border border-white/[0.05] hover:bg-white/[0.05] hover:border-white/[0.1]'
+              }`}
             >
-              <div className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[8px] font-black bg-white/5 text-gray-300`}>{base.slice(0,2)}</div>
+              {isActive && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00f0ff] shadow-[0_0_10px_#00f0ff]" />
+              )}
+              {/* Scanline hover effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.05] to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
+
+              <div className="flex items-center gap-2.5 relative z-10">
+                <div className={`w-7 h-7 rounded bg-black/50 border flex items-center justify-center transition-colors ${isActive ? 'border-[#00f0ff]/50 fill-[#00f0ff]' : 'border-white/[0.1]'}`}>
+                  {isUp ? <TrendingUp className={`w-3.5 h-3.5 ${isActive ? 'text-[#00f0ff]' : 'text-[#39ff14]'}`} /> : <TrendingDown className={`w-3.5 h-3.5 ${isActive ? 'text-[#00f0ff]' : 'text-[#ff073a]'}`} />}
+                </div>
                 <div>
-                  <div className="text-[11px] font-mono font-bold text-white">{base}<span className="text-gray-600 font-normal">/USDT</span></div>
+                  <div className={`text-[12px] font-black tracking-widest transition-colors ${isActive ? 'text-white' : 'text-gray-300'}`}>
+                    {base}<span className={`text-[9px] ${isActive ? 'text-[#00f0ff]/80' : 'text-gray-600'}`}>/USDT</span>
+                  </div>
+                  <div className="text-[8px] font-mono text-gray-500 tracking-[0.2em] uppercase hidden sm:block">Volume Tracker</div>
                 </div>
               </div>
-              <span className={`text-[11px] font-mono font-semibold text-right ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: item.price < 1 ? 6 : 2 })}
-              </span>
-              <span className={`text-[11px] font-mono text-right font-bold ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+
+              <div className="flex flex-col items-end justify-center relative z-10">
+                <span className={`text-[12px] font-black font-mono transition-colors ${isUp ? 'text-[#39ff14]' : 'text-[#ff073a]'} ${isActive ? 'drop-shadow-[0_0_8px_currentColor]' : ''}`}>
+                  {item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: item.price < 1 ? 6 : 2 })}
+                </span>
+                {/* Micro range indicator */}
+                <div className="w-full max-w-[50px] h-1 bg-black/60 rounded-full mt-1 overflow-hidden relative border border-white/5">
+                  <div 
+                     className="absolute top-0 bottom-0 bg-white/30 rounded-full transition-all duration-500"
+                     style={{ left: `${Math.max(0, currentPos * 100 - 2)}%`, width: '4px' }}
+                  />
+                  <div 
+                     className={`absolute top-0 bottom-0 opacity-50 transition-all duration-500 ${isUp ? 'bg-[#39ff14]' : 'bg-[#ff073a]'}`}
+                     style={{ right: 0, left: `${currentPos * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <span className={`text-[11px] font-black font-mono text-right flex items-center justify-end gap-1 relative z-10 ${isUp ? 'text-[#39ff14]' : 'text-[#ff073a]'}`}>
                 {isUp ? '+' : ''}{item.change24h.toFixed(2)}%
               </span>
-              <span className="text-[11px] font-mono text-gray-400 text-right hidden sm:block">
-                {item.high.toLocaleString(undefined, { maximumFractionDigits: item.high < 1 ? 4 : 2 })}
-              </span>
-              <span className="text-[11px] font-mono text-gray-400 text-right">
-                ${item.volume >= 1e9 ? `${(item.volume / 1e9).toFixed(2)}B` : item.volume >= 1e6 ? `${(item.volume / 1e6).toFixed(1)}M` : `${(item.volume / 1e3).toFixed(0)}K`}
-              </span>
+
+              <div className="text-[11px] font-mono text-[#00f0ff]/70 font-bold text-right hidden sm:flex flex-col items-end relative z-10">
+                 ${item.volume >= 1e9 ? `${(item.volume / 1e9).toFixed(2)}B` : item.volume >= 1e6 ? `${(item.volume / 1e6).toFixed(2)}M` : `${(item.volume / 1e3).toFixed(1)}K`}
+                 <span className="text-[8px] text-gray-500 font-sans tracking-widest uppercase">24H VOL</span>
+              </div>
+              
             </div>
           );
         })}
