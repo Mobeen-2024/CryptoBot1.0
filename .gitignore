@@ -11,3 +11,4 @@ coverage/
 shadow_orders.db
 *.sqlite
 *.db
+trades.db
