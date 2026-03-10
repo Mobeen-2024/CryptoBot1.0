@@ -141,19 +141,21 @@ export function CurrentPositions() {
   );
 
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded border border-white/10 overflow-hidden flex flex-col h-full">
-      <div className="p-2 border-b border-white/10 flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-          <Briefcase className="w-4 h-4 text-indigo-500" />
-          Active Positions
-        </h2>
-        <span className="text-[10px] text-gray-500 font-mono bg-black/40 px-2 py-0.5 rounded">REAL-TIME PNL</span>
+    <div className="bg-[#0b0e11] overflow-hidden flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-[#181a20] shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" />
+          <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Active Positions</h2>
+          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">{positions.length}</span>
+        </div>
+        <span className="text-[9px] text-gray-500 font-mono tracking-widest">REAL-TIME PNL</span>
       </div>
-      
-      <div className="flex-1 overflow-y-auto p-2 space-y-3 custom-scrollbar">
+
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
         {positions.map((pos) => {
           let displaySymbol = pos.symbol;
-          let marginTag = 'Cross 10x'; // Default fallback
+          let marginTag = 'Cross 10x';
           if (pos.symbol.includes('-ISOLATED')) {
             displaySymbol = pos.symbol.replace('-ISOLATED', '');
             marginTag = 'Isolated 10x';
@@ -166,109 +168,140 @@ export function CurrentPositions() {
           const currentValue = pos.netQuantity * livePrc;
           const pnl = currentValue - pos.totalCost;
           const roi = (pos.totalCost > 0) ? (pnl / pos.totalCost) * 100 : 0;
-          
           const isProfit = pnl >= 0;
+          const base = displaySymbol.replace('/', '').replace('USDT', '');
 
           return (
-            <div key={pos.symbol} className="bg-[#1e2329] rounded-[8px] p-1 border border-transparent hover:border-[#2b3139] transition-colors relative overflow-hidden group flex flex-col xl:flex-row xl:items-center xl:gap-8 min-w-[max-content] xl:min-w-0">
-              {/* Left Green Indicator line for LONG */}
-              <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500 rounded-l-md opacity-70" />
-              
-              {/* Card Header */}
-              <div className="flex items-center justify-between mb-3 pl-2 xl:mb-0 xl:w-[200px] xl:shrink-0">
-                <div className="flex items-center gap-2">
+            <div key={pos.symbol} className="bg-[#1e2329] rounded-lg border border-transparent hover:border-[#2b3139] transition-colors relative overflow-hidden">
+              {/* Left accent bar */}
+              <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500 rounded-l-lg opacity-80" />
+
+              {/* ── MOBILE LAYOUT (hidden on xl+) ── */}
+              <div className="xl:hidden p-3 pl-4">
+                {/* Top row: pair + PNL */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-emerald-500/15 flex items-center justify-center text-[9px] font-black text-emerald-400">{base.slice(0,2)}</div>
+                    <div>
+                      <div className="text-[12px] font-bold text-white font-mono">{displaySymbol}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[8px] font-bold text-emerald-400 bg-emerald-500/10 px-1 rounded">LONG</span>
+                        <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/10 px-1 rounded">{marginTag}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-[14px] font-bold font-mono ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</div>
+                    <div className={`text-[10px] font-mono ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</div>
+                  </div>
+                </div>
+                {/* Mid row: entry / mark / cost */}
+                <div className="grid grid-cols-3 gap-1 mb-2 bg-black/20 rounded-lg p-2">
+                  <div>
+                    <div className="text-[9px] text-gray-600 uppercase tracking-wide">Entry</div>
+                    <div className="text-[10px] font-mono text-gray-300">{pos.averageEntryPrice.toFixed(2)}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[9px] text-gray-600 uppercase tracking-wide">Mark</div>
+                    <div className="text-[10px] font-mono text-yellow-400 font-bold">{livePrc.toFixed(2)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[9px] text-gray-600 uppercase tracking-wide">Size</div>
+                    <div className="text-[10px] font-mono text-gray-300">{pos.netQuantity.toFixed(4)}</div>
+                  </div>
+                </div>
+                {/* TP/SL row */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-gray-600">TP</span>
+                    <span className="text-[10px] font-mono text-emerald-400">{pos.tpPrice ? pos.tpPrice.toFixed(2) : '—'}</span>
+                    <span className="text-[9px] text-gray-700">/</span>
+                    <span className="text-[9px] text-gray-600">SL</span>
+                    <span className="text-[10px] font-mono text-rose-400">{pos.slPrice ? pos.slPrice.toFixed(2) : '—'}</span>
+                  </div>
+                  <span className="text-[9px] font-mono text-gray-600">${pos.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                </div>
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <button onClick={() => { setTpslModal({ symbol: pos.symbol, quantity: Math.abs(pos.netQuantity), mode: pos.netQuantity > 0 ? 'SELL' : 'BUY', entryPrice: pos.averageEntryPrice, totalCost: pos.totalCost }); setTpPrice(pos.tpPrice ? pos.tpPrice.toString() : ''); setSlPrice(pos.slPrice ? pos.slPrice.toString() : ''); }}
+                    className="flex-1 py-1.5 rounded bg-[#2b3139] hover:bg-[#474d57] text-yellow-400 text-[10px] font-bold transition-colors">TP / SL</button>
+                  <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
+                    className="flex-1 py-1.5 rounded bg-[#2b3139] hover:bg-rose-500/80 text-rose-400 hover:text-white text-[10px] font-bold transition-colors">Close</button>
+                </div>
+              </div>
+
+              {/* ── DESKTOP LAYOUT (hidden below xl) ── */}
+              <div className="hidden xl:flex xl:items-center xl:gap-8 p-2 pl-4">
+                {/* Symbol + margin tag */}
+                <div className="flex items-center gap-2 w-[200px] shrink-0">
                   <div className="w-5 h-5 bg-emerald-500/20 rounded flex items-center justify-center text-emerald-500 font-bold text-[10px]">B</div>
                   <h3 className="font-bold text-[#eaecef] text-sm tracking-wide">{displaySymbol}</h3>
                   {marginTag && (
                     <span className="text-[10px] text-[#fcd535] bg-[#fcd535]/10 px-1.5 py-0.5 rounded font-mono border border-[#fcd535]/20">{marginTag}</span>
                   )}
                 </div>
-                <button className="text-[#848e9c] hover:text-white transition-colors xl:hidden">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-                </button>
-              </div>
 
-              {/* 4-Column Data Grid */}
-              <div className="grid grid-cols-2 gap-y-3 gap-x-2 pl-2 mb-3 xl:flex xl:flex-1 xl:justify-between xl:items-center xl:mb-0 xl:pl-0">
-                
-                {/* Column 1: PNL & ROI */}
-                <div className="flex flex-col xl:w-1/4">
-                  <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max cursor-help">Unrealized PNL (USDT)</span>
-                  <span className={`text-base font-bold font-mono ${isProfit ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
-                    {pnl >= 0 ? '+' : ''}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                  <span className={`text-[11px] font-mono font-medium ${isProfit ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
-                    {isProfit ? '+' : ''}{roi.toFixed(2)}%
-                  </span>
-                </div>
-
-                {/* Column 2: Size & Realized */}
-                <div className="flex flex-col xl:w-1/4 xl:items-start text-right xl:text-left">
-                  <span className="text-[#848e9c] text-[10px] mb-0.5 ml-auto xl:ml-0 border-b border-dashed border-[#848e9c]/50 w-max cursor-help">Realized PNL</span>
-                  <span className="text-[13px] font-bold font-mono text-[#eaecef]">0.00</span>
-                  <div className="mt-1 flex flex-col xl:flex-row xl:items-center xl:gap-2 ml-auto xl:ml-0 border-b-0 border-transparent border-dashed">
-                    <span className="text-[#848e9c] text-[10px]">Size:</span>
-                    <span className="text-[11px] font-mono text-[#eaecef]">{pos.netQuantity.toString()}</span>
-                  </div>
-                </div>
-
-                {/* Column 3: TP/SL Targets */}
-                <div className="flex flex-col xl:w-1/4 xl:items-start">
-                  <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max cursor-help">Take Profit / Stop Loss</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[12px] font-bold font-mono text-[#0ecb81]">
-                      {pos.tpPrice ? pos.tpPrice.toFixed(4) : '-'}
+                {/* 4-Column Data */}
+                <div className="flex flex-1 justify-between items-center">
+                  {/* PNL */}
+                  <div className="flex flex-col w-1/4">
+                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Unrealized PNL (USDT)</span>
+                    <span className={`text-base font-bold font-mono ${isProfit ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                      {pnl >= 0 ? '+' : ''}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    <span className="text-[#5e6673] text-[10px]">&frasl;</span>
-                    <span className="text-[12px] font-bold font-mono text-[#f6465d]">
-                      {pos.slPrice ? pos.slPrice.toFixed(4) : '-'}
-                    </span>
+                    <span className={`text-[11px] font-mono font-medium ${isProfit ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</span>
+                  </div>
+                  {/* Size */}
+                  <div className="flex flex-col w-1/4">
+                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Realized PNL</span>
+                    <span className="text-[13px] font-bold font-mono text-[#eaecef]">0.00</span>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-[#848e9c] text-[10px]">Size:</span>
+                      <span className="text-[11px] font-mono text-[#eaecef]">{pos.netQuantity.toString()}</span>
+                    </div>
+                  </div>
+                  {/* TP/SL */}
+                  <div className="flex flex-col w-1/4">
+                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Take Profit / Stop Loss</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[12px] font-bold font-mono text-[#0ecb81]">{pos.tpPrice ? pos.tpPrice.toFixed(4) : '-'}</span>
+                      <span className="text-[#5e6673] text-[10px]">&frasl;</span>
+                      <span className="text-[12px] font-bold font-mono text-[#f6465d]">{pos.slPrice ? pos.slPrice.toFixed(4) : '-'}</span>
+                    </div>
+                  </div>
+                  {/* Cost & Entry */}
+                  <div className="flex flex-col w-1/4">
+                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Cost (USDT)</span>
+                    <span className="text-[13px] font-bold font-mono text-[#eaecef]">{pos.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-[#848e9c] text-[10px]">Entry / Mark:</span>
+                      <span className="text-[11px] font-mono text-[#eaecef]">{pos.averageEntryPrice.toFixed(2)} / <span className="text-[#fcd535]">{livePrc.toFixed(2)}</span></span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Column 4: Cost & Entry */}
-                <div className="flex flex-col text-right xl:text-left xl:w-1/4">
-                  <span className="text-[#848e9c] text-[10px] mb-0.5 ml-auto xl:ml-0 border-b border-dashed border-[#848e9c]/50 w-max cursor-help">Cost (USDT)</span>
-                  <span className="text-[13px] font-bold font-mono text-[#eaecef]">{pos.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <div className="mt-1 flex flex-col xl:flex-row xl:items-center xl:gap-2 ml-auto xl:ml-0 border-b-0 border-transparent border-dashed">
-                    <span className="text-[#848e9c] text-[10px]">Entry / Mark:</span>
-                    <span className="text-[11px] font-mono text-[#eaecef]">{pos.averageEntryPrice.toFixed(2)} / <span className="text-[#fcd535]">{livePrc.toFixed(2)}</span></span>
-                  </div>
+                {/* 3 Action Buttons */}
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => { const currentLev = parseInt(marginTag?.match(/\d+/)?.[0] || '10'); setLeverageValue(currentLev); setMarginType(pos.symbol.includes('-ISOLATED') ? 'ISOLATED' : 'CROSS'); setLeverageModal({ symbol: pos.symbol, totalCost: pos.totalCost }); }}
+                    className="bg-[#2b3139] hover:bg-[#474d57] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
+                    Adjust Leverage
+                  </button>
+                  <button onClick={() => { setTpslModal({ symbol: pos.symbol, quantity: Math.abs(pos.netQuantity), mode: pos.netQuantity > 0 ? 'SELL' : 'BUY', entryPrice: pos.averageEntryPrice, totalCost: pos.totalCost }); setTpPrice(pos.tpPrice ? pos.tpPrice.toString() : ''); setSlPrice(pos.slPrice ? pos.slPrice.toString() : ''); }}
+                    className="bg-[#2b3139] hover:bg-[#474d57] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
+                    Stop Profit &amp; Loss
+                  </button>
+                  <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
+                    className="bg-[#2b3139] hover:bg-[#f6465d] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
+                    Close Position
+                  </button>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 pl-2 mt-2 xl:flex xl:mt-0 xl:shrink-0 xl:gap-3">
-                <button
-                  onClick={() => {
-                    const currentLev = parseInt(marginTag?.match(/\d+/)?.[0] || '10');
-                    setLeverageValue(currentLev);
-                    setMarginType(pos.symbol.includes('-ISOLATED') ? 'ISOLATED' : 'CROSS');
-                    setLeverageModal({ symbol: pos.symbol, totalCost: pos.totalCost });
-                  }}
-                  className="bg-[#2b3139] hover:bg-[#474d57] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors text-center w-full xl:w-auto">
-                  Adjust Leverage
-                </button>
-                <button onClick={() => {
-                   setTpslModal({ 
-                     symbol: pos.symbol, 
-                     quantity: Math.abs(pos.netQuantity), 
-                     mode: pos.netQuantity > 0 ? 'SELL' : 'BUY',
-                     entryPrice: pos.averageEntryPrice,
-                     totalCost: pos.totalCost
-                   });
-                   setTpPrice(pos.tpPrice ? pos.tpPrice.toString() : '');
-                   setSlPrice(pos.slPrice ? pos.slPrice.toString() : '');
-                }} className="bg-[#2b3139] hover:bg-[#474d57] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors text-center w-full xl:w-auto">
-                  Stop Profit & Loss
-                </button>
-                <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)} className="bg-[#2b3139] hover:bg-[#f6465d] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors text-center w-full xl:w-auto">
-                  Close Position
-                </button>
               </div>
             </div>
           );
         })}
       </div>
+
 
       {/* â”€â”€â”€ TP/SL Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {tpslModal && (() => {
