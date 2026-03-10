@@ -9,9 +9,10 @@ interface ChartProps {
   mainIndicator?: string | null;
   subIndicators?: string[];
   trades?: any[];
+  openOrders?: any[];
 }
 
-export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainIndicator, subIndicators = [], trades = [] }) => {
+export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainIndicator, subIndicators = [], trades = [], openOrders = [] }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<any>(null);
@@ -29,6 +30,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   const buyLineRef = useRef<any>(null);
   const sellLineRef = useRef<any>(null);
+  const openOrderLinesRef = useRef<Map<string, any>>(new Map());
 
   const [avgPositions, setAvgPositions] = useState({ buy: -100, sell: -100, buyPrice: 0, sellPrice: 0 });
   const [customBuy, setCustomBuy] = useState<string>('');
@@ -711,6 +713,75 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
   }, [data, trades]);
 
+  // Sync Open Orders to Price Lines
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+
+    const currentLineMap = openOrderLinesRef.current;
+    const activeIds = new Set<string>();
+
+    openOrders.forEach(order => {
+      // Handle OCO orders having two targets: limitPrice and stopPrice
+      if (order.type === 'oco') {
+        const createLine = (price: number, label: string) => {
+           const lineId = `${order.id}-${label}`;
+           activeIds.add(lineId);
+           if (!currentLineMap.has(lineId)) {
+             const isBuy = order.side === 'buy';
+             // For OCO: TP is limitPrice and SL is stopPrice. Direction flips based on side.
+             const styleColor = (isBuy && label.includes('Buy')) || (!isBuy && label.includes('Profit')) ? '#00E676' : '#FF1744';
+
+             const line = series.createPriceLine({
+               price: price,
+               color: styleColor,
+               lineWidth: 2,
+               lineStyle: 1, // Dotted
+               axisLabelVisible: true,
+               title: label,
+             });
+             currentLineMap.set(lineId, line);
+           }
+        };
+
+        if (order.limitPrice) createLine(order.limitPrice, order.side === 'buy' ? 'Limit Buy' : 'Take Profit');
+        if (order.stopPrice) createLine(order.stopPrice, order.side === 'buy' ? 'Stop Buy' : 'Stop Loss');
+
+      } else {
+        // Standard Limit / Stop Orders
+        const targetPrice = order.limitPrice || order.stopPrice;
+        if (targetPrice) {
+          activeIds.add(order.id);
+          if (!currentLineMap.has(order.id)) {
+            const isBuy = order.side === 'buy';
+            let labelTitle = isBuy ? 'Limit Buy' : 'Limit Sell';
+            if (order.type.includes('stop')) labelTitle = isBuy ? 'Stop Buy' : 'Stop Sell';
+            if (order.type.includes('take_profit')) labelTitle = 'Take Profit';
+
+            const line = series.createPriceLine({
+              price: targetPrice,
+              color: isBuy ? '#00E676' : '#FF1744',
+              lineWidth: 2,
+              lineStyle: 1, // Dotted
+              axisLabelVisible: true,
+              title: labelTitle,
+            });
+            currentLineMap.set(order.id, line);
+          }
+        }
+      }
+    });
+
+    // Remove filled or cancelled orders
+    currentLineMap.forEach((line, key) => {
+      if (!activeIds.has(key)) {
+        try { series.removePriceLine(line); } catch (e) {}
+        currentLineMap.delete(key);
+      }
+    });
+
+  }, [openOrders, seriesRef.current]);
+
   return (
     <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
       
@@ -897,83 +968,59 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           ))}
         </div>
 
-      {/* ── OHLC Crosshair Data HUD ──────────────────────────── */}
+      {/* ── OHLC Floating Hover HUD ──────────────────────────── */}
       {crosshairData && crosshairData.x !== undefined && (
-        <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-20 pointer-events-none select-none max-w-[calc(100%-3rem)] animate-in fade-in slide-in-from-top-2 duration-300">
-          {/* Frosted glass container 2050 */}
-          <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 sm:gap-y-1.5 bg-[#000000]/60 backdrop-blur-xl rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]">
-            {/* Date */}
-            <span className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] font-mono font-bold text-[9px] sm:text-[11px] tracking-widest uppercase">
+        <div 
+          className="absolute z-20 pointer-events-none select-none"
+          style={{
+            left: `${crosshairData.x > 150 ? crosshairData.x - 125 : crosshairData.x + 15}px`,
+            top: `${Math.max(10, (seriesRef.current?.priceToCoordinate(crosshairData.high) || crosshairData.y) - 10)}px`,
+          }}
+        >
+          {/* Cyberpunk Floating Card */}
+          <div className="flex flex-col gap-1.5 bg-[#0b1622]/95 backdrop-blur-2xl rounded-lg p-2.5 border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] w-[115px]">
+            {/* Header / Date */}
+            <div className="text-white/60 text-[9px] font-black tracking-widest uppercase border-b border-white/10 pb-1.5 mb-0.5 text-center">
               {(typeof crosshairData.time === 'number') 
-                ? new Date(crosshairData.time * 1000).toLocaleDateString('en-CA').replace(/-/g, '.') 
+                ? new Date(crosshairData.time * 1000).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
                 : String(crosshairData.time)}
-            </span>
-
-            <div className="w-px h-3.5 bg-white/10" />
+            </div>
 
             {/* OHLC Values */}
             {(['open', 'high', 'low', 'close'] as const).map((key) => {
               const val = crosshairData[key];
               const isUp = crosshairData.close >= crosshairData.open;
-              const colorClass = isUp ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]' : 'text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]';
+              const colorClass = isUp ? 'text-[#00E676] drop-shadow-[0_0_4px_rgba(0,230,118,0.4)]' : 'text-[#FF1744] drop-shadow-[0_0_4px_rgba(255,23,68,0.4)]';
+              
               return (
-                <div key={key} className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[11px] font-mono">
-                  <span className="text-[#848e9c] uppercase font-semibold tracking-wider">{key[0]}</span>
-                  <span className={`font-black ${colorClass}`}>{val.toFixed(2)}</span>
+                <div key={key} className="flex justify-between items-center text-[10px] font-mono leading-tight">
+                  <span className="text-[#848e9c] font-bold tracking-wider capitalize">{key}</span>
+                  <span className={`font-black ${key === 'close' ? colorClass : 'text-white'}`}>
+                    {val.toFixed(2)}
+                  </span>
                 </div>
               );
             })}
 
-            {/* Sub-Indicators */}
+            {/* Volume */}
+            {crosshairData.volume !== undefined && (
+               <div className="flex justify-between items-center text-[10px] font-mono leading-tight border-t border-white/5 pt-1.5 mt-0.5">
+                 <span className="text-[#848e9c] font-bold tracking-wider capitalize">Vol</span>
+                 <span className="font-bold text-[#fcd535]">{crosshairData.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+               </div>
+            )}
+            
+            {/* Optional Sub-Indicators (if active and data exists) */}
             {subIndicators.includes('MACD') && crosshairData.macd && (
-              <>
-                <div className="w-px h-3.5 bg-white/10" />
-                <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                  <span className="text-[#848e9c]">MACD</span>
-                  <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]' : 'text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
-                </div>
-              </>
+              <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
+                <span className="text-[#848e9c] font-bold tracking-wider">MACD</span>
+                <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
+              </div>
             )}
             {subIndicators.includes('RSI') && crosshairData.rsi && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-[#848e9c]">RSI</span>
-                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]' : crosshairData.rsi <= 30 ? 'text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]' : 'text-[#fcd535] drop-shadow-[0_0_8px_rgba(252,213,53,0.4)]'}`}>{crosshairData.rsi.toFixed(1)}</span>
-              </div>
-            )}
-            {subIndicators.includes('ATR') && crosshairData.atr && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-[#848e9c]">ATR</span>
-                <span className="font-bold text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]">{crosshairData.atr.toFixed(2)}</span>
-              </div>
-            )}
-            {subIndicators.includes('VOL') && crosshairData.volume !== undefined && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-[#848e9c]">VOL</span>
-                <span className="font-bold text-[#fcd535] drop-shadow-[0_0_8px_rgba(252,213,53,0.4)]">{(crosshairData.volume).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            {subIndicators.includes('KDJ') && crosshairData.kdj && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-[#848e9c]">KDJ</span>
-                <span className="font-bold text-[#2962FF] drop-shadow-[0_0_8px_rgba(41,98,255,0.4)]">{crosshairData.kdj.k.toFixed(1)}</span>
-              </div>
-            )}
-            {subIndicators.includes('WR') && crosshairData.wr && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-[#848e9c]">WR</span>
-                <span className="font-bold text-[#FF1744] drop-shadow-[0_0_8px_rgba(255,23,68,0.4)]">{crosshairData.wr.toFixed(1)}</span>
-              </div>
-            )}
-            {subIndicators.includes('OBV') && crosshairData.obv !== undefined && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-[#848e9c]">OBV</span>
-                <span className="font-bold text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]">{(crosshairData.obv / 1000).toFixed(1)}k</span>
-              </div>
-            )}
-            {subIndicators.includes('StochRSI') && crosshairData.stochRsi && (
-              <div className="flex items-center gap-1.5 text-[11px] font-mono">
-                <span className="text-[#848e9c]">StRSI</span>
-                <span className="font-bold text-[#00E676] drop-shadow-[0_0_8px_rgba(0,230,118,0.4)]">{crosshairData.stochRsi.stochRSI.toFixed(2)}</span>
+              <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
+                <span className="text-[#848e9c] font-bold tracking-wider">RSI</span>
+                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[#FF1744]' : crosshairData.rsi <= 30 ? 'text-[#00E676]' : 'text-[#fcd535]'}`}>{crosshairData.rsi.toFixed(1)}</span>
               </div>
             )}
           </div>

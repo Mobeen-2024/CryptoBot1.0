@@ -68,6 +68,7 @@ export default function App() {
   const [balance, setBalance] = useState<string>('0.00');
   const [baseBalance, setBaseBalance] = useState<string>('0.00');
   const [userTrades, setUserTrades] = useState<any[]>([]);
+  const [openOrders, setOpenOrders] = useState<any[]>([]);
   
   // Secondary Account State (Mocked or Future implementation)
   const [slaveBalance, setSlaveBalance] = useState<string>('1500.00');
@@ -152,6 +153,17 @@ export default function App() {
       .then(data => setUserTrades(data || []))
       .catch(err => console.error('Failed to fetch user trades:', err));
 
+    const fetchOpenOrders = () => {
+      fetch('/api/backend/openOrders')
+        .then(res => res.json())
+        .then(data => setOpenOrders(data || []))
+        .catch(err => console.error('Failed to fetch open orders:', err));
+    };
+
+    fetchOpenOrders();
+    // Poll open orders every 5 seconds to keep chart lines updated when orders fill
+    const openOrdersInterval = setInterval(fetchOpenOrders, 5000);
+
     // Replace HTTP Polling with WebSockets for real-time portfolio updates
     const socket = io();
 
@@ -166,6 +178,7 @@ export default function App() {
 
     return () => {
       socket.disconnect();
+      clearInterval(openOrdersInterval);
     };
   }, [symbol]);
 
@@ -521,6 +534,7 @@ export default function App() {
                     mainIndicator={mainIndicator}
                     subIndicators={subIndicators}
                     trades={userTrades.filter((t: any) => t.symbol.replace('/', '') === symbol.replace('/', ''))}
+                    openOrders={openOrders.filter((o: any) => o.symbol.replace('/', '') === symbol.replace('/', ''))}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center gap-3">

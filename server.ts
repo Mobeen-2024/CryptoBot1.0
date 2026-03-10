@@ -715,6 +715,17 @@ async function startServer() {
     }
   });
 
+  // Open / Pending Orders Endpoint
+  app.get('/api/backend/openOrders', (req, res) => {
+    try {
+      const openOrders = pendingShadowOrders.filter((o: any) => o.status === 'open');
+      res.json(openOrders);
+    } catch (error: any) {
+      Logger.error('Failed to fetch open orders:', error);
+      res.status(500).json({ error: 'Failed to fetch open orders data' });
+    }
+  });
+
   // Current Positions Endpoint (Aggregated PnL Calculation)
   app.get('/api/backend/positions', (req, res) => {
     try {
