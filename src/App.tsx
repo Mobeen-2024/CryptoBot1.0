@@ -14,6 +14,8 @@ import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
 import { IndicatorModal } from './components/IndicatorModal';
 import { BotPanel } from './components/BotPanel';
+import { MarketWatchlist } from './components/MarketWatchlist';
+import { OpenOrdersPanel } from './components/OpenOrdersPanel';
 import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Briefcase, LineChart, History, Bot, Database } from 'lucide-react';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
 import toast, { Toaster } from 'react-hot-toast';
@@ -611,6 +613,22 @@ export default function App() {
             {activeTab === 'bot' && <BotPanel />}
           </div>
         </div>
+
+        {/* ─── BOTTOM ROW: Watchlist + Open Orders ───────────────── */}
+        <div className="flex flex-col lg:flex-row gap-2 shrink-0">
+
+          {/* Market Watchlist */}
+          <div className="flex-1 panel-surface overflow-hidden min-h-[320px]">
+            <MarketWatchlist onSelectSymbol={setSymbol} activeSymbol={symbol} />
+          </div>
+
+          {/* Open Orders */}
+          <div className="lg:w-[480px] shrink-0 panel-surface overflow-hidden min-h-[320px]">
+            <OpenOrdersPanel symbol={symbol} />
+          </div>
+
+        </div>
+
       </main>
 
       <IndicatorModal 
