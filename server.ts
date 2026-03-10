@@ -13,7 +13,7 @@ import Database from 'better-sqlite3';
 import os from 'os';
 import { EMA, MACD, RSI, BollingerBands, ATR, SMA, PSAR, WilliamsR, OBV, StochasticRSI, Stochastic } from 'technicalindicators';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const shadowDb = new Database('shadow_orders.db');
 shadowDb.exec(`
@@ -176,7 +176,14 @@ async function startServer() {
       }
     });
 
-    pendingWs.on('error', (err: any) => Logger.error('[SHADOW ENGINE] WebSocket Error:', err));
+    let _lastShadowWsErr = 0;
+    pendingWs.on('error', (err: any) => {
+      const now = Date.now();
+      if (now - _lastShadowWsErr > 60_000) {
+        _lastShadowWsErr = now;
+        Logger.warn(`[SHADOW ENGINE] WS unavailable (${err.message}) — will retry`);
+      }
+    });
     pendingWs.on('close', () => {
       // Reconnect if there are still pending orders
       if (pendingShadowOrders.length > 0) {
