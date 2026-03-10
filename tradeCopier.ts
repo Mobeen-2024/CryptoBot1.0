@@ -6,7 +6,7 @@ import Database from 'better-sqlite3';
 import { Logger } from './logger';
 import { Server as SocketIOServer } from 'socket.io';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 interface ExecutionReport {
   e: string; // Event type
@@ -342,7 +342,8 @@ export class TradeCopier {
           throw new Error('CCXT methods not found');
         }
       } catch (ccxtError: any) {
-        Logger.warn(`Trade Copier: CCXT method failed (${ccxtError.message}). Switching to Axios fallback.`);
+        const cleanMsg = (ccxtError.message || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+        Logger.warn(`Trade Copier: CCXT method failed (${cleanMsg}). Switching to Axios fallback.`);
         
         const apiKey = process.env.BINANCE_API_KEY;
         if (!apiKey) throw new Error('BINANCE_API_KEY is missing');

@@ -3,7 +3,7 @@ import { Logger } from '../../logger.js';
 import dotenv from 'dotenv';
 import { Server as SocketIOServer } from 'socket.io';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 export interface BotState {
   isActive: boolean;
