@@ -72,20 +72,21 @@ export const CoinSelector: React.FC<CoinSelectorProps> = ({ symbol, setSymbol })
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 bg-transparent text-white focus:outline-none hover:text-indigo-400 transition-colors text-left"
+        className="flex items-center gap-3 bg-transparent text-white focus:outline-none hover:text-[#00f0ff] transition-all text-left group"
       >
         <div className="flex flex-col">
-          <div className="flex items-center gap-2 font-bold text-xl">
-            {symbol.replace('USDT', '/USDT')}
-            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          <div className="flex items-center gap-2 font-black text-xl tracking-widest drop-shadow-[0_0_8px_rgba(0,240,255,0.3)]">
+            {symbol.replace('USDT', '')}
+            <span className="text-[#00f0ff]/50 text-sm font-mono tracking-normal">/USDT</span>
+            <ChevronDown className={`w-4 h-4 text-[#00f0ff] transition-transform duration-300 ${isOpen ? 'rotate-180 drop-shadow-[0_0_5px_#00f0ff]' : ''}`} />
           </div>
           {selectedCoin && (
-            <div className="flex gap-2 text-[11px] font-mono mt-0.5">
-              <span className={parseFloat(selectedCoin.priceChangePercent) >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                ${parseFloat(selectedCoin.lastPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+            <div className="flex gap-2 text-[10px] uppercase font-mono mt-0.5 tracking-widest font-bold">
+              <span className={parseFloat(selectedCoin.priceChangePercent) >= 0 ? 'text-[#39ff14]' : 'text-[#ff073a]'}>
+                {parseFloat(selectedCoin.lastPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
               </span>
               <span className="text-gray-500 flex items-center gap-1">
-                Vol {formatVolume(selectedCoin.quoteVolume)}
+                VOL_{formatVolume(selectedCoin.quoteVolume)}
               </span>
             </div>
           )}
@@ -93,60 +94,64 @@ export const CoinSelector: React.FC<CoinSelectorProps> = ({ symbol, setSymbol })
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 sm:left-auto right-auto sm:right-0 mt-3 w-[calc(100vw-32px)] sm:w-80 bg-[#151619]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden flex flex-col max-h-[400px]">
-          <div className="p-2 border-b border-white/10 bg-black/40">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input 
-                type="text"
-                placeholder="Search coin (e.g. BTC)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-md pl-9 pr-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-gray-600"
-                autoFocus
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-1 custom-scrollbar">
-            <div className="flex justify-between px-3 py-1 text-[9px] text-gray-500 uppercase tracking-wider">
-              <span>Asset</span>
-              <div className="flex gap-4 text-right">
-                <span className="w-16">Price</span>
-                <span className="w-12">Change</span>
+        <>
+          <div className="fixed inset-0 z-[100] sm:hidden bg-black/50 backdrop-blur-sm" onClick={() => setIsOpen(false)} />
+          <div className="fixed top-20 left-4 right-4 z-[101] sm:absolute sm:top-full sm:left-0 sm:right-auto sm:mt-2 sm:w-[350px] bg-[#05070a]/95 backdrop-blur-2xl border border-[#00f0ff]/20 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[80vh] sm:max-h-[400px]">
+            <div className="p-3 border-b border-white/5 bg-black/40 relative z-10">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#00f0ff]" />
+                <input 
+                  type="text"
+                  placeholder="SEARCH_NODE (E.G. BTC)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded text-xs pl-9 pr-3 py-2.5 text-white font-mono focus:outline-none focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.1)] transition-colors placeholder:text-gray-600 uppercase tracking-widest"
+                  autoFocus
+                />
               </div>
             </div>
-            {filteredCoins.length > 0 ? (
-              filteredCoins.map(c => {
-                const change = parseFloat(c.priceChangePercent);
-                const isPositive = change >= 0;
-                return (
-                  <button
-                    key={c.symbol}
-                    onClick={() => {
-                      setSymbol(c.symbol);
-                      setIsOpen(false);
-                      setSearchQuery('');
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm font-mono rounded-md transition-colors flex justify-between items-center ${c.symbol === symbol ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-300 hover:bg-white/5'}`}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-bold">{c.symbol.replace('USDT', '')}</span>
-                      <span className="text-[10px] text-gray-500">Vol {formatVolume(c.quoteVolume)}</span>
-                    </div>
-                    <div className="flex gap-4 text-right items-center">
-                      <span className="w-16">{parseFloat(c.lastPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
-                      <span className={`w-12 text-xs ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {isPositive ? '+' : ''}{change.toFixed(2)}%
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="p-4 text-center text-gray-500 text-sm font-mono">No coins found</div>
-            )}
+            <div className="flex-1 overflow-y-auto p-2 custom-scrollbar relative z-10">
+              <div className="flex justify-between px-3 py-2 text-[9px] text-[#00f0ff]/50 uppercase font-black tracking-widest border-b border-[#00f0ff]/10 mb-1">
+                <span>Asset_Symbol</span>
+                <div className="flex gap-3 text-right">
+                  <span className="w-20 min-w-[80px] text-right">Valuation</span>
+                  <span className="w-16 min-w-[64px] text-right">24H_Dlt</span>
+                </div>
+              </div>
+              {filteredCoins.length > 0 ? (
+                filteredCoins.map(c => {
+                  const change = parseFloat(c.priceChangePercent);
+                  const isPositive = change >= 0;
+                  return (
+                    <button
+                      key={c.symbol}
+                      onClick={() => {
+                        setSymbol(c.symbol);
+                        setIsOpen(false);
+                        setSearchQuery('');
+                      }}
+                      className={`w-full text-left px-3 py-2.5 my-0.5 rounded transition-all flex justify-between items-center group relative overflow-hidden ${c.symbol === symbol ? 'bg-[#00f0ff]/10 text-white border border-[#00f0ff]/30 box-glow' : 'text-gray-400 hover:bg-white/5 border border-transparent hover:border-white/10 hover:text-white'}`}
+                    >
+                      {c.symbol === symbol && <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(0,240,255,0.05),transparent)] animate-[shimmer_2s_infinite]" />}
+                      <div className="flex flex-col relative z-10">
+                        <span className="font-black tracking-widest">{c.symbol.replace('USDT', '')}</span>
+                        <span className="text-[8px] uppercase tracking-widest text-[#00f0ff]/50">VOL_{formatVolume(c.quoteVolume)}</span>
+                      </div>
+                      <div className="flex gap-3 text-right items-center font-bold relative z-10 flex-shrink-0">
+                        <span className="w-20 min-w-[80px] text-right">{parseFloat(c.lastPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</span>
+                        <span className={`w-16 min-w-[64px] text-right text-[10px] tracking-widest ${isPositive ? 'text-[#39ff14]' : 'text-[#ff073a]'}`}>
+                          {isPositive ? '+' : ''}{change.toFixed(2)}%
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="p-4 text-center text-gray-500 text-xs font-mono tracking-widest uppercase">No matching nodes</div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
