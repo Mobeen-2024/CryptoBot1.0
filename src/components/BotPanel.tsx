@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Cpu, Network, Zap, Crosshair, Box, ShieldCheck, Activity, Terminal, X, Play, Square, Settings2, Trash2, Plus, Database, Server } from 'lucide-react';
+import { Cpu, Network, Zap, Crosshair, Box, ShieldCheck, Activity, Terminal, X, Play, Square, Settings2, Trash2, Plus, Database, Server, BrainCircuit } from 'lucide-react';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -307,6 +308,23 @@ const BotCard: React.FC<{
           <Stat label="PHASE CYCLES" value={bot.currentCycle} color="#bc13fe" sub="EXECUTIONS" />
         </div>
 
+        {/* Neural Activity Sparkline */}
+        <div className="h-10 mb-4 bg-black/50 rounded-lg border border-white/[0.02] flex items-center justify-center overflow-hidden relative group cursor-crosshair">
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-[#00f0ff]/5 transition-opacity pointer-events-none" />
+          <ResponsiveContainer width="100%" height="100%">
+             <AreaChart data={Array.from({ length: 20 }, (_, i) => ({ v: isRunning ? Math.sin(Date.now() / 1000 + i) * 10 + 20 : 10 }))}>
+                <defs>
+                   <linearGradient id={`grad-${bot.id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={isRunning ? '#39ff14' : '#848e9c'} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={isRunning ? '#39ff14' : '#848e9c'} stopOpacity={0} />
+                   </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="v" stroke={isRunning ? '#39ff14' : '#848e9c'} strokeWidth={1} fill={`url(#grad-${bot.id})`} isAnimationActive={false} />
+             </AreaChart>
+          </ResponsiveContainer>
+          <div className="absolute top-1 left-2 text-[7px] font-mono text-gray-600 tracking-widest pointer-events-none">PERFORMANCE_MATRIX</div>
+        </div>
+
         {/* Action Button */}
         <div className="mt-auto pt-4 border-t border-white/[0.05]">
           <button
@@ -387,10 +405,22 @@ export const BotPanel: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             {view === 'bots' ? (
-              <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }}
-                className="bg-[#bc13fe]/10 hover:bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30 hover:border-[#bc13fe] text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded box-glow-purple flex items-center gap-2 transition-all">
-                <Plus className="w-4 h-4" /> Initialize Node
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => {
+                  const genBot = { ...defaultBot(), id: uid(), name: 'AI_OPTIMIZED_' + Math.floor(Math.random()*999), type: 'GRID' as any, strategy: 'LONG' as any, pair: 'ETHUSDT', orderVolume: 250, takeProfit: 3.5, signal: 'MACD' as any, createdAt: Date.now() };
+                  if (accessPoints.length > 0) genBot.accessPointId = accessPoints[0].id;
+                  setEditingBot(genBot); setShowBotModal(true);
+                  toast.success('AI Synergy Config Synthesized', { iconTheme: {primary: '#00f0ff', secondary: '#0a0d14'}, style: { background: '#0a0d14', color: '#00f0ff', border: '1px solid rgba(0,240,255,0.2)' } });
+                }}
+                  className="bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/30 hover:border-[#00f0ff] text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded box-glow flex items-center gap-2 transition-all overflow-hidden group relative">
+                  <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[#00f0ff]/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+                  <BrainCircuit className="w-4 h-4 animate-pulse" /> Auto-Deploy AI
+                </button>
+                <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }}
+                  className="bg-[#bc13fe]/10 hover:bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30 hover:border-[#bc13fe] text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded box-glow-purple flex items-center gap-2 transition-all">
+                  <Plus className="w-4 h-4" /> Initialize Node
+                </button>
+              </div>
             ) : (
               <button onClick={() => setShowAPModal(true)}
                 className="bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/30 hover:border-[#00f0ff] text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded box-glow flex items-center gap-2 transition-all">
@@ -433,11 +463,32 @@ export const BotPanel: React.FC = () => {
                  <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }} className="px-6 py-2 border border-[#bc13fe]/50 text-[#bc13fe] text-[10px] tracking-widest uppercase font-black rounded box-glow-purple hover:bg-[#bc13fe]/10 transition-all">Construct Node</button>
                </div>
             ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-                 {bots.map(b => (
-                    <BotCard key={b.id} bot={b} ap={accessPoints.find(a => a.id === b.accessPointId)} onToggle={toggleBot} onEdit={b => {setEditingBot(b); setShowBotModal(true)}} onDelete={id => setBots(p => p.filter(x => x.id !== id))} />
-                 ))}
+               <>
+                 <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 mb-6">
+                   {bots.map(b => (
+                      <BotCard key={b.id} bot={b} ap={accessPoints.find(a => a.id === b.accessPointId)} onToggle={toggleBot} onEdit={b => {setEditingBot(b); setShowBotModal(true)}} onDelete={id => setBots(p => p.filter(x => x.id !== id))} />
+                   ))}
+                 </div>
+               
+               {/* Terminal Event Log */}
+               <div className="bg-[#05070a] border border-[#00f0ff]/20 rounded-xl p-4 relative overflow-hidden h-40 flex flex-col pointer-events-none">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#00f0ff]/5 blur-3xl rounded-full" />
+                 <h4 className="flex items-center gap-2 text-[10px] font-mono text-[#00f0ff] uppercase tracking-[0.2em] mb-3 shrink-0"><Terminal className="w-3.5 h-3.5" /> Neural Execution Feed</h4>
+                 <div className="flex-1 overflow-hidden relative flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#05070a] via-transparent to-transparent z-10 pointer-events-none" />
+                    <div className="space-y-1 font-mono text-[10px] sm:text-[11px] font-bold text-[#848e9c]">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="flex gap-4">
+                          <span className="text-[#5e6673]">[{new Date(Date.now() - i * 15000).toISOString().split('T')[1].slice(0,8)}]</span>
+                          <span className={`${i === 0 ? 'text-[#39ff14]' : i === 1 ? 'text-[#00f0ff]' : ''}`}>
+                            {i % 3 === 0 ? '> SYNC_PING OK: LATENCY 14ms (OPTIMAL)' : i % 2 === 0 ? '> ARRAY_SWEEP: 0 ANOMALIES DETECTED' : '> ANALYZING MARKET DEVIATION VECTORS...'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                 </div>
                </div>
+               </>
             )}
           </>
         )}
