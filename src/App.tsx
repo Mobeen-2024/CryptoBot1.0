@@ -552,8 +552,6 @@ export default function App() {
 
           {/* ─── Right Column: Telemetry + Order Panels ───────────────────── */}
           <div className="flex flex-col gap-2 w-full lg:w-[650px] shrink-0 z-10">
-            
-            <CoinInfo symbol={symbol} />
 
             <div className="flex flex-col md:flex-row gap-2 w-full min-h-0 shrink-0">
               {/* Master Account */}
@@ -618,7 +616,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* ─── BOTTOM ROW: Watchlist + Open Orders ───────────────── */}
+        {/* ─── BOTTOM ROW: Watchlist + Open Orders + Asset Telemetry ───────────────── */}
         <div className="flex flex-col lg:flex-row gap-2 shrink-0">
 
           {/* Market Watchlist */}
@@ -627,8 +625,13 @@ export default function App() {
           </div>
 
           {/* Open Orders */}
-          <div className="lg:w-[480px] shrink-0 panel-surface overflow-hidden min-h-[320px]">
+          <div className="lg:w-[440px] xl:w-[480px] shrink-0 panel-surface overflow-hidden min-h-[320px]">
             <OpenOrdersPanel symbol={symbol} />
+          </div>
+
+          {/* Asset Telemetry */}
+          <div className="lg:w-[350px] shrink-0 flex flex-col justify-end min-h-[320px]">
+            <CoinInfo symbol={symbol} />
           </div>
 
         </div>
