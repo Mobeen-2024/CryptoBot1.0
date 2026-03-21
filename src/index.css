@@ -22,6 +22,15 @@
   --bull: #0ecb81;
   --bear: #f6465d;
   --accent-blue: #2962FF;
+
+  /* --- Super Modal Variables --- */
+  --surface-modal: #121519;
+  --surface-card: #1c2025;
+  --border-subtle: #2b3139;
+  --tp-green: #0ecb81;
+  --sl-red: #f6465d;
+  --primary-yellow: #fcd535;
+  --shadow-glow: 0 4px 20px rgba(252, 213, 53, 0.2);
 }
 
 /* ─── Base ─────────────────────────────────────────────────────── */
@@ -96,7 +105,10 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-input[type="number"] { -moz-appearance: textfield; }
+input[type="number"] { 
+  -moz-appearance: textfield; 
+  appearance: textfield; 
+}
 
 /* ─── Tab Pill Transitions ─────────────────────────────────────── */
 .tab-pill {

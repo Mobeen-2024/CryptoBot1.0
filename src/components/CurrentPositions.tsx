@@ -389,27 +389,27 @@ export function CurrentPositions() {
 
         return createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(7,9,14,0.88)', backdropFilter: 'blur(16px)' }}>
-            <div className="w-full max-w-[400px] rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-[#2b3139]/80" style={{ background: 'linear-gradient(145deg,#181a20 0%,#1e2329 100%)' }}>
+            <div className="w-full max-w-[400px] rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-[var(--border-subtle)]" style={{ background: 'var(--surface-modal)' }}>
 
-              {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-              <div className="relative px-5 pt-5 pb-4 border-b border-[#2b3139]">
+              {/* ─── Header ───────────────────────────────────────── */}
+              <div className="relative px-5 pt-5 pb-4 border-b border-[var(--border-subtle)]">
                 {/* coloured side bar */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-tl-2xl ${isLong ? 'bg-[#0ecb81]' : 'bg-[#f6465d]'}`} />
+                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-tl-2xl ${isLong ? 'bg-[var(--tp-green)]' : 'bg-[var(--sl-red)]'}`} />
                 <div className="flex items-center justify-between pl-2">
                   <div className="flex items-center gap-3">
-                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${isLong ? 'bg-[#0ecb81]/15 text-[#0ecb81]' : 'bg-[#f6465d]/15 text-[#f6465d]'}`}>
+                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${isLong ? 'bg-[var(--tp-green)]/15 text-[var(--tp-green)]' : 'bg-[var(--sl-red)]/15 text-[var(--sl-red)]'}`}>
                       {isLong ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                     </div>
                     <div>
-                      <p className="text-[#eaecef] font-bold text-base leading-tight">{cleanSym}</p>
-                      <p className={`text-[11px] font-semibold ${isLong ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                      <p className="text-[var(--text-primary)] font-bold text-base leading-tight">{cleanSym}</p>
+                      <p className={`text-[11px] font-semibold ${isLong ? 'text-[var(--tp-green)]' : 'text-[var(--sl-red)]'}`}>
                         {positionSide} Â· {tpslModal.quantity} units
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => { setTpslModal(null); setTpPrice(''); setSlPrice(''); }}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#2b3139] hover:bg-[#3b4351] text-[#848e9c] hover:text-[#eaecef] transition-all"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface-card)] hover:bg-[var(--surface-card-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
@@ -417,24 +417,24 @@ export function CurrentPositions() {
 
                 {/* Price Context Bar */}
                 <div className="flex gap-2 mt-4 pl-2">
-                  <div className="flex-1 bg-[#0b0e11] rounded-xl px-3 py-2.5 border border-[#2b3139]">
+                  <div className="flex-1 bg-[var(--surface-card)] rounded-xl px-3 py-2.5 border border-[var(--border-subtle)]">
                     <p className="text-[9px] text-[#5e6673] uppercase tracking-widest font-bold mb-0.5">Entry</p>
-                    <p className="text-[#eaecef] font-mono font-semibold text-sm">{tpslModal.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
+                    <p className="text-[var(--text-primary)] font-mono font-semibold text-sm">{tpslModal.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
                   </div>
-                  <div className="flex-1 bg-[#0b0e11] rounded-xl px-3 py-2.5 border border-[#fcd535]/25">
-                    <p className="text-[9px] text-[#5e6673] uppercase tracking-widest font-bold mb-0.5">Mark</p>
-                    <p className="text-[#fcd535] font-mono font-semibold text-sm">{currentMark.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
+                  <div className="flex-1 bg-[var(--surface-card)] rounded-xl px-3 py-2.5 border border-[var(--primary-yellow)]/30">
+                    <p className="text-[9px] text-[var(--primary-yellow)] opacity-80 uppercase tracking-widest font-bold mb-0.5">Mark</p>
+                    <p className="text-[var(--primary-yellow)] font-mono font-semibold text-sm">{currentMark.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
                   </div>
                   {rr !== null && (
-                    <div className="flex-1 bg-[#0b0e11] rounded-xl px-3 py-2.5 border border-[#2b3139]">
+                    <div className="flex-1 bg-[var(--surface-card)] rounded-xl px-3 py-2.5 border border-[var(--border-subtle)]">
                       <p className="text-[9px] text-[#5e6673] uppercase tracking-widest font-bold mb-0.5">R:R</p>
-                      <p className="text-[#eaecef] font-mono font-semibold text-sm">{rr.toFixed(1)}x</p>
+                      <p className="text-[var(--text-primary)] font-mono font-semibold text-sm">{rr.toFixed(1)}x</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* â”€â”€ Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* ─── Body ────────────────────────────────────────── */}
               <div className="px-5 py-4 space-y-5">
 
                 {/* Take Profit */}
@@ -442,30 +442,30 @@ export function CurrentPositions() {
                   {/* Label + live P&L */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#0ecb81]" />
-                      <span className="text-xs font-bold text-[#eaecef] uppercase tracking-wider">Take Profit</span>
+                      <div className="w-2 h-2 rounded-full bg-[var(--tp-green)]" />
+                      <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Take Profit</span>
                     </div>
                     {tpVal > 0 && !tpWarning && (
-                      <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${tpPnl >= 0 ? 'text-[#0ecb81] bg-[#0ecb81]/10' : 'text-[#f6465d] bg-[#f6465d]/10'}`}>
+                      <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${tpPnl >= 0 ? 'text-[var(--tp-green)] bg-[var(--tp-green)]/10' : 'text-[var(--sl-red)] bg-[var(--sl-red)]/10'}`}>
                         {tpPnl >= 0 ? '+' : ''}{tpPnl.toFixed(2)} USDT&nbsp;
                         <span className="opacity-70">({tpRoi >= 0 ? '+' : ''}{tpRoi.toFixed(1)}%)</span>
                       </span>
                     )}
-                    {tpWarning && <span className="text-[10px] font-bold text-[#f6465d]">{tpWarning}</span>}
+                    {tpWarning && <span className="text-[10px] font-bold text-[var(--sl-red)]">{tpWarning}</span>}
                   </div>
 
                   {/* Input */}
-                  <div className={`flex items-center rounded-xl bg-[#0b0e11] border transition-all ${tpWarning ? 'border-[#f6465d]' : 'border-[#2b3139] hover:border-[#0ecb81]/40 focus-within:border-[#0ecb81] focus-within:shadow-[0_0_0_1px_#0ecb8122]'}`}>
+                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${tpWarning ? 'border-[var(--sl-red)]' : 'border-[var(--border-subtle)] hover:border-[var(--tp-green)]/40 focus-within:border-[var(--tp-green)] focus-within:shadow-[0_0_0_1px_var(--tp-green)]'}`}>
                     <div className="w-10 flex items-center justify-center shrink-0">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0ecb81" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tp-green)" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
                     </div>
                     <input
                       type="number"
                       value={tpPrice}
                       onChange={e => setTpPrice(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && executeOrder()}
-                      placeholder="Target priceâ€¦"
-                      className="flex-1 bg-transparent py-3 text-[#eaecef] font-mono text-sm outline-none placeholder-[#3b4351]"
+                      placeholder="Target price…"
+                      className="flex-1 bg-transparent py-3 text-[var(--text-primary)] font-mono text-sm outline-none placeholder-[var(--text-secondary)]"
                     />
                     <span className="pr-3 text-[#5e6673] text-[11px] font-mono shrink-0">USDT</span>
                   </div>
@@ -474,7 +474,7 @@ export function CurrentPositions() {
                   <div className="flex gap-1.5 mt-2">
                     {[1, 2, 5, 10, 20].map(pct => (
                       <button key={pct} onClick={() => setTargetByRoi('TP', pct)}
-                        className="flex-1 py-1.5 rounded-lg bg-[#0ecb81]/8 hover:bg-[#0ecb81]/20 text-[#0ecb81] text-[10px] font-bold font-mono transition-all border border-[#0ecb81]/15 hover:border-[#0ecb81]/40">
+                        className="flex-1 py-1.5 rounded-lg text-[var(--tp-green)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--tp-green)]/10 hover:border-[var(--tp-green)]/30 active:bg-[var(--tp-green)] active:text-[var(--surface-modal)]">
                         +{pct}%
                       </button>
                     ))}
@@ -483,38 +483,38 @@ export function CurrentPositions() {
 
                 {/* Separator */}
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-[#2b3139]" />
+                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
                   <span className="text-[10px] text-[#474d57] font-bold tracking-widest uppercase">or</span>
-                  <div className="flex-1 h-px bg-[#2b3139]" />
+                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
                 </div>
 
                 {/* Stop Loss */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#f6465d]" />
-                      <span className="text-xs font-bold text-[#eaecef] uppercase tracking-wider">Stop Loss</span>
+                      <div className="w-2 h-2 rounded-full bg-[var(--sl-red)]" />
+                      <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Stop Loss</span>
                     </div>
                     {slVal > 0 && !slWarning && (
-                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md text-[#f6465d] bg-[#f6465d]/10">
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md text-[var(--sl-red)] bg-[var(--sl-red)]/10">
                         {slPnl.toFixed(2)} USDT&nbsp;
                         <span className="opacity-70">({slRoi.toFixed(1)}%)</span>
                       </span>
                     )}
-                    {slWarning && <span className="text-[10px] font-bold text-[#f6465d]">{slWarning}</span>}
+                    {slWarning && <span className="text-[10px] font-bold text-[var(--sl-red)]">{slWarning}</span>}
                   </div>
 
-                  <div className={`flex items-center rounded-xl bg-[#0b0e11] border transition-all ${slWarning ? 'border-[#f6465d]' : 'border-[#2b3139] hover:border-[#f6465d]/40 focus-within:border-[#f6465d] focus-within:shadow-[0_0_0_1px_#f6465d22]'}`}>
+                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${slWarning ? 'border-[var(--sl-red)]' : 'border-[var(--border-subtle)] hover:border-[var(--sl-red)]/40 focus-within:border-[var(--sl-red)] focus-within:shadow-[0_0_0_1px_var(--sl-red)]'}`}>
                     <div className="w-10 flex items-center justify-center shrink-0">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f6465d" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sl-red)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                     <input
                       type="number"
                       value={slPrice}
                       onChange={e => setSlPrice(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && executeOrder()}
-                      placeholder="Risk triggerâ€¦"
-                      className="flex-1 bg-transparent py-3 text-[#eaecef] font-mono text-sm outline-none placeholder-[#3b4351]"
+                      placeholder="Risk trigger…"
+                      className="flex-1 bg-transparent py-3 text-[var(--text-primary)] font-mono text-sm outline-none placeholder-[var(--text-secondary)]"
                     />
                     <span className="pr-3 text-[#5e6673] text-[11px] font-mono shrink-0">USDT</span>
                   </div>
@@ -522,12 +522,12 @@ export function CurrentPositions() {
                   <div className="flex gap-1.5 mt-2">
                     {[1, 2, 5, 10, 20].map(pct => (
                       <button key={pct} onClick={() => setTargetByRoi('SL', pct)}
-                        className="flex-1 py-1.5 rounded-lg bg-[#f6465d]/8 hover:bg-[#f6465d]/20 text-[#f6465d] text-[10px] font-bold font-mono transition-all border border-[#f6465d]/15 hover:border-[#f6465d]/40">
+                        className="flex-1 py-1.5 rounded-lg text-[var(--sl-red)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--sl-red)]/10 hover:border-[var(--sl-red)]/30 active:bg-[var(--sl-red)] active:text-[var(--surface-modal)]">
                         -{pct}%
                       </button>
                     ))}
                     <button onClick={() => setSlPrice(tpslModal.entryPrice.toFixed(4))}
-                      className="flex-[1.5] py-1.5 rounded-lg bg-[#5e6673]/10 hover:bg-[#eaecef]/20 text-[#eaecef] text-[10px] font-bold font-mono transition-all border border-[#5e6673]/30 hover:border-[#eaecef]/50"
+                      className="flex-[1.5] py-1.5 rounded-lg bg-[var(--surface-card)] hover:bg-[var(--surface-card-hover)] text-[var(--text-primary)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] hover:border-[var(--text-primary)]/50"
                       title="Set Stop Loss to exact Entry Price (Risk-Free)">
                       Break Even
                     </button>
@@ -537,7 +537,7 @@ export function CurrentPositions() {
                 {/* Order type badge */}
                 {(tpPrice || slPrice) && (
                   <div className="flex justify-center">
-                    <span className="text-[10px] font-mono font-bold text-[#5e6673] bg-[#0b0e11] border border-[#2b3139] px-3 py-1 rounded-full">
+                    <span className="text-[10px] font-mono font-bold text-[#5e6673] bg-[var(--surface-card)] border border-[var(--border-subtle)] px-3 py-1 rounded-full">
                       Order type: {(tpPrice && slPrice) ? 'OCO' : tpPrice ? 'LIMIT' : 'STOP LIMIT'}
                     </span>
                   </div>
@@ -553,15 +553,19 @@ export function CurrentPositions() {
                   disabled={isSubmittingTpsl || !!tpWarning || !!slWarning || (!tpPrice && !slPrice)}
                   className={`w-full py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2.5 transition-all duration-150 ${
                     isSubmittingTpsl || !!tpWarning || !!slWarning || (!tpPrice && !slPrice)
-                      ? 'bg-[#2b3139] text-[#474d57] cursor-not-allowed'
-                      : 'bg-[#fcd535] hover:bg-[#f0c800] active:scale-[0.98] text-[#0b0e11] shadow-[0_4px_24px_rgba(252,213,53,0.3)] hover:shadow-[0_6px_32px_rgba(252,213,53,0.45)]'
+                      ? 'bg-[var(--surface-card)] text-[#474d57] cursor-not-allowed border border-[var(--border-subtle)]'
+                      : 'text-[var(--surface-modal)] active:scale-[0.98]'
                   }`}
+                  style={(!isSubmittingTpsl && !tpWarning && !slWarning && (tpPrice || slPrice)) ? {
+                    background: 'linear-gradient(180deg, var(--primary-yellow) 0%, #e0bc2f 100%)',
+                    boxShadow: 'var(--shadow-glow)'
+                  } : {}}
                 >
                   {isSubmittingTpsl ? (
                     <><RefreshCw className="w-4 h-4 animate-spin" /> Placing Order…</>
                   ) : (
                     <>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                       Submit TP / SL Order
                     </>
                   )}
