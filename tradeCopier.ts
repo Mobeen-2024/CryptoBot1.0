@@ -47,8 +47,10 @@ export class TradeCopier {
   private masterClient: any;
   private slaveClients: { id: string; client: any }[] = [];
   private db: Database.Database;
-  private listenKey: string | null = null;
-  private ws: WebSocket | null = null;
+  private spotListenKey: string | null = null;
+  private marginListenKey: string | null = null;
+  private spotWs: WebSocket | null = null;
+  private marginWs: WebSocket | null = null;
   private keepAliveInterval: NodeJS.Timeout | null = null;
   private isTestnet: boolean;
   private baseUrl: string;
@@ -326,150 +328,127 @@ export class TradeCopier {
 
   private async initUserDataStream() {
     try {
-      Logger.info(`Trade Copier: Initializing User Data Stream...`);
+      Logger.info(`Trade Copier: Initializing User Data Streams (Spot & Margin)...`);
 
-      // 1. Get Listen Key
-      // Try CCXT first, then Axios fallback
-      let response;
+      const apiKey = process.env.BINANCE_API_KEY;
+      if (!apiKey) throw new Error('BINANCE_API_KEY is missing');
+
+      // 1. Get Listen Keys for both Spot and Cross Margin
       try {
-        if (typeof this.masterClient.publicPostUserDataStream === 'function') {
-          Logger.info('Trade Copier: Attempting publicPostUserDataStream via CCXT');
-          response = await this.masterClient.publicPostUserDataStream();
-        } else if (typeof this.masterClient.v3PostUserDataStream === 'function') {
-          Logger.info('Trade Copier: Attempting v3PostUserDataStream via CCXT');
-          response = await this.masterClient.v3PostUserDataStream();
-        } else {
-          throw new Error('CCXT methods not found');
-        }
-      } catch (ccxtError: any) {
-        const cleanMsg = (ccxtError.message || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
-        Logger.warn(`Trade Copier: CCXT method failed (${cleanMsg}). Switching to Axios fallback.`);
-        
-        const apiKey = process.env.BINANCE_API_KEY;
-        if (!apiKey) throw new Error('BINANCE_API_KEY is missing');
-        
-        try {
-          const res = await axios.post(`${this.baseUrl}/api/v3/userDataStream`, null, {
-            headers: {
-              'X-MBX-APIKEY': apiKey,
-              'Content-Type': 'application/x-www-form-urlencoded'
-            }
-          });
-          response = res.data;
-        } catch (axiosError: any) {
-           if (axiosError.response && axiosError.response.status === 410) {
-             Logger.error('Trade Copier: Error 410 Gone. This usually means you are using Testnet keys on Live URL or vice versa.');
-             Logger.error(`Current Config -> Testnet: ${this.isTestnet}, URL: ${this.baseUrl}`);
-             Logger.error('Please check your BINANCE_USE_TESTNET environment variable.');
-           }
-           throw axiosError;
-        }
+        // Spot Listen Key
+        const spotRes = await axios.post(`${this.baseUrl}/api/v3/userDataStream`, null, {
+          headers: { 'X-MBX-APIKEY': apiKey, 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        this.spotListenKey = spotRes.data.listenKey;
+        Logger.info('Trade Copier: Obtained Spot Listen Key');
+
+        // Margin Listen Key
+        const marginRes = await axios.post(`${this.baseUrl}/sapi/v1/userDataStream`, null, {
+          headers: { 'X-MBX-APIKEY': apiKey, 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        this.marginListenKey = marginRes.data.listenKey;
+        Logger.info('Trade Copier: Obtained Cross Margin Listen Key');
+      } catch (axiosError: any) {
+         if (axiosError.response && axiosError.response.status === 410) {
+           Logger.error('Trade Copier: Error 410 Gone. This usually means you are using Testnet keys on Live URL or vice versa.');
+         }
+         throw axiosError;
       }
-      
-      this.listenKey = response.listenKey;
-      Logger.info('Trade Copier: Obtained Listen Key');
 
       // 2. Start Keep-Alive Interval (every 30 mins)
       if (this.keepAliveInterval) clearInterval(this.keepAliveInterval);
       this.keepAliveInterval = setInterval(() => this.keepListenKeyAlive(), 30 * 60 * 1000);
 
-      // 3. Connect WebSocket
+      // 3. Connect WebSockets
       this.connectWebSocket();
 
     } catch (error: any) {
-      // Check for 410 Gone error (Testnet/Live mismatch)
-      // Robust check: Check message string, status code in response, or specific CCXT error types if applicable
       const errorMessage = error.message || '';
-      const is410 = 
-        errorMessage.includes('410') || 
-        (error.response && error.response.status === 410) ||
-        (error.code === 410) ||
-        errorMessage.includes('Gone');
+      const is410 = errorMessage.includes('410') || (error.response && error.response.status === 410) || error.code === 410 || errorMessage.includes('Gone');
 
       if (is410 && !this.hasAutoSwitchedEnv) {
-        Logger.warn('Trade Copier: 410 Gone detected. API Key/Env mismatch. Attempting to auto-switch environment...');
+        Logger.warn('Trade Copier: 410 Gone detected. API Key/Env mismatch. Auto-switching...');
         this.hasAutoSwitchedEnv = true;
         this.toggleEnvironment();
-        // Reload markets for new environment
         for (const slave of this.slaveClients) await slave.client.loadMarkets();
         await this.masterClient.loadMarkets();
-        // Retry immediately with new environment
         this.initUserDataStream();
         return;
-      } else if (is410 && this.hasAutoSwitchedEnv) {
-        Logger.error('Trade Copier: 410 Gone persists after environment switch. API keys appear invalid for both Testnet and Live.');
-        Logger.error('Aborting User Data Stream connection.');
-        return;
-      }
-
-      if (error.message?.includes('Invalid Api-Key ID') || error.code === -2008) {
-         Logger.error('Trade Copier: Invalid API Key. Aborting User Data Stream connection.');
-         return;
       }
 
       Logger.error('Trade Copier: Error initializing User Data Stream:', error);
-      // Retry after delay for generic network errors
       setTimeout(() => this.initUserDataStream(), 5000);
     }
   }
 
   private async keepListenKeyAlive() {
-    if (!this.listenKey) return;
-    try {
-      if (typeof this.masterClient.publicPutUserDataStream === 'function') {
-        await this.masterClient.publicPutUserDataStream({ listenKey: this.listenKey });
-      } else if (typeof this.masterClient.v3PutUserDataStream === 'function') {
-        await this.masterClient.v3PutUserDataStream({ listenKey: this.listenKey });
-      } else {
-         // Fallback to Axios
+    const apiKey = process.env.BINANCE_API_KEY;
+    if (!apiKey) return;
+
+    if (this.spotListenKey) {
+      try {
          await axios.put(`${this.baseUrl}/api/v3/userDataStream`, null, {
-            params: { listenKey: this.listenKey },
-            headers: {
-              'X-MBX-APIKEY': process.env.BINANCE_API_KEY,
-              'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            params: { listenKey: this.spotListenKey },
+            headers: { 'X-MBX-APIKEY': apiKey, 'Content-Type': 'application/x-www-form-urlencoded' }
          });
-      }
-      Logger.info('Trade Copier: Listen Key kept alive');
-    } catch (error) {
-      Logger.error('Trade Copier: Failed to keep Listen Key alive:', error);
+         Logger.info('Trade Copier: Spot Listen Key kept alive');
+      } catch (e) { Logger.error('Trade Copier: Failed to keep Spot Listen Key alive'); }
+    }
+
+    if (this.marginListenKey) {
+      try {
+         await axios.put(`${this.baseUrl}/sapi/v1/userDataStream`, null, {
+            params: { listenKey: this.marginListenKey },
+            headers: { 'X-MBX-APIKEY': apiKey, 'Content-Type': 'application/x-www-form-urlencoded' }
+         });
+         Logger.info('Trade Copier: Margin Listen Key kept alive');
+      } catch (e) { Logger.error('Trade Copier: Failed to keep Margin Listen Key alive'); }
     }
   }
 
   private connectWebSocket() {
-    if (!this.listenKey) return;
+    // Spot WS
+    if (this.spotListenKey) {
+      const spotWsEndpoint = `${this.wsUrl}/ws/${this.spotListenKey}`;
+      Logger.info(`Trade Copier: Connecting Spot WS: ${spotWsEndpoint}`);
+      this.spotWs = new WebSocket(spotWsEndpoint);
 
-    const wsEndpoint = `${this.wsUrl}/ws/${this.listenKey}`;
-    Logger.info(`Trade Copier: Connecting to WebSocket: ${wsEndpoint}`);
-    
-    this.ws = new WebSocket(wsEndpoint);
+      this.spotWs.on('open', () => Logger.info('Trade Copier: Spot WS Connected'));
+      this.spotWs.on('message', (data: WebSocket.Data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.e === 'executionReport') this.handleExecutionReport(message as ExecutionReport, 'spot');
+        } catch (error) { Logger.error('Trade Copier: Spot WS Parse Error', error); }
+      });
+      this.spotWs.on('close', () => {
+        Logger.info('Trade Copier: Spot WS Closed. Reconnecting...');
+        setTimeout(() => this.initUserDataStream(), 5000);
+      });
+      this.spotWs.on('error', (error) => Logger.error('Trade Copier: Spot WS Error:', error));
+    }
 
-    this.ws.on('open', () => {
-      Logger.info('Trade Copier: WebSocket Connected');
-    });
+    // Margin WS
+    if (this.marginListenKey) {
+      const marginWsEndpoint = `${this.wsUrl}/ws/${this.marginListenKey}`;
+      Logger.info(`Trade Copier: Connecting Margin WS: ${marginWsEndpoint}`);
+      this.marginWs = new WebSocket(marginWsEndpoint);
 
-    this.ws.on('message', (data: WebSocket.Data) => {
-      try {
-        const message = JSON.parse(data.toString());
-        if (message.e === 'executionReport') {
-          this.handleExecutionReport(message as ExecutionReport);
-        }
-      } catch (error) {
-        Logger.error('Trade Copier: Error parsing message:', error);
-      }
-    });
-
-    this.ws.on('close', () => {
-      Logger.info('Trade Copier: WebSocket Closed. Reconnecting...');
-      setTimeout(() => this.initUserDataStream(), 5000); // Re-init to get fresh key
-    });
-
-    this.ws.on('error', (error) => {
-      Logger.error('Trade Copier: WebSocket Error:', error);
-    });
+      this.marginWs.on('open', () => Logger.info('Trade Copier: Margin WS Connected'));
+      this.marginWs.on('message', (data: WebSocket.Data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.e === 'executionReport') this.handleExecutionReport(message as ExecutionReport, 'margin');
+        } catch (error) { Logger.error('Trade Copier: Margin WS Parse Error', error); }
+      });
+      this.marginWs.on('close', () => {
+        Logger.info('Trade Copier: Margin WS Closed. Reconnecting...');
+        setTimeout(() => this.initUserDataStream(), 5000);
+      });
+      this.marginWs.on('error', (error) => Logger.error('Trade Copier: Margin WS Error:', error));
+    }
   }
 
-  private async handleExecutionReport(report: ExecutionReport) {
+  private async handleExecutionReport(report: ExecutionReport, streamType: 'spot' | 'margin' = 'spot') {
     // Only copy trades that are FILLED or PARTIALLY_FILLED
     if (report.X !== 'FILLED' && report.X !== 'PARTIALLY_FILLED') {
       return;
@@ -517,6 +496,15 @@ export class TradeCopier {
       const parts = symbol.split('/');
       const baseAsset = parts[0];
       const quoteAsset = parts[1] || 'USDT'; // Default to USDT if split fails
+
+      // Apply margin tag if it came from the margin stream (so backend maps it to Cross)
+      if (streamType === 'margin' && !symbol.includes('-CROSS')) {
+        symbol = `${symbol}-CROSS`;
+      }
+      // Or if it natively had marginType attached (like in shadow mode)
+      else if ((report as any).marginType && (report as any).marginType !== 'SPOT' && !symbol.includes('-' + (report as any).marginType)) {
+        symbol = `${symbol}-${(report as any).marginType}`;
+      }
 
       let balanceAsset = quoteAsset;
       if (side === 'sell') {
