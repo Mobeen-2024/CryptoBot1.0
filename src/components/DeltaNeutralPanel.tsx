@@ -16,7 +16,7 @@ interface BotState {
   preflightPass?: boolean; preflightDetails?: string;
 }
 
-interface DeltaNeutralPanelProps { symbol: string; }
+interface DeltaNeutralPanelProps { symbol: string; currentPrice?: number; }
 
 const TabButton: React.FC<{label:string; active:boolean; onClick:()=>void; icon:React.ReactNode}> = ({label,active,onClick,icon}) => (
   <button onClick={onClick} className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-t-lg border-b-2
@@ -25,14 +25,16 @@ const TabButton: React.FC<{label:string; active:boolean; onClick:()=>void; icon:
   </button>
 );
 
-export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol }) => {
+export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, currentPrice = 0 }) => {
   // ── Tab State ──────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'CORE'|'TRAILING'|'CYCLES'|'ENTRY'>('CORE');
 
   // ── Core Params ────────────────────────────────────────
   const [qty, setQty] = useState<string>('0.001');
   const [takeProfit, setTakeProfit] = useState<string>('2.00');
+  const [tpType, setTpType] = useState<'USDT'|'%'>('%');
   const [stopLoss, setStopLoss] = useState<string>('1.00');
+  const [slType, setSlType] = useState<'USDT'|'%'>('%');
   const [timeLimit, setTimeLimit] = useState<string>('60');
 
   // ── Smart Trailing ─────────────────────────────────────
@@ -81,10 +83,14 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol }) 
   const handleStart = async () => {
     setLoading(true);
     try {
+      const parsedQty = parseFloat(qty) || 0.001;
+      const slNum = slType === '%' ? (parsedQty * currentPrice * (parseFloat(stopLoss) / 100)) : parseFloat(stopLoss);
+      const tpNum = tpType === '%' ? (parsedQty * currentPrice * (parseFloat(takeProfit) / 100)) : parseFloat(takeProfit);
+
       const res = await fetch('/api/bot/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol, qty, stopLossUSDT: stopLoss, takeProfitUSDT: takeProfit, timeLimitMins: timeLimit,
+          symbol, qty, stopLossUSDT: slNum.toFixed(4), takeProfitUSDT: tpNum.toFixed(4), timeLimitMins: timeLimit,
           useSmartTrailing, trailingMode, trailingStep,
           rsiPeriod, rsiOverbought, rsiOversold, wrPeriod, wrOverbought, wrOversold,
           enableMultiCycle, maxCycles, entryMode, entryRsiThreshold, useRiskPercent, riskPercent
@@ -182,15 +188,22 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol }) 
           <div className="flex flex-col gap-4 animate-fadeIn">
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label:'Contract Size', icon:<Zap className="w-3 h-3"/>, val:qty, set:setQty, step:'0.001', color:'#00f0ff', suffix: symbol.split('/')[0] },
-                { label:'Stop Loss', icon:<AlertTriangle className="w-3 h-3"/>, val:stopLoss, set:setStopLoss, step:'0.5', color:'#ff073a', suffix:'USDT' },
-                { label:'Take Profit', icon:<TrendingUp className="w-3 h-3"/>, val:takeProfit, set:setTakeProfit, step:'0.5', color:'#39ff14', suffix:'USDT' },
-                { label:'Time Limit', icon:<Clock className="w-3 h-3"/>, val:timeLimit, set:setTimeLimit, step:'1', color:'#bc13fe', suffix:'MINS' },
-              ].map(({label,icon,val,set,step,color,suffix}) => (
+                { label:'Contract Size', icon:<Zap className="w-3 h-3"/>, val:qty, set:setQty, step:'0.001', color:'#00f0ff', suffix: symbol.split('/')[0], typeState:null },
+                { label:'Stop Loss', icon:<AlertTriangle className="w-3 h-3"/>, val:stopLoss, set:setStopLoss, step:'0.1', color:'#ff073a', suffix:'', typeState: slType, setType: setSlType },
+                { label:'Take Profit', icon:<TrendingUp className="w-3 h-3"/>, val:takeProfit, set:setTakeProfit, step:'0.1', color:'#39ff14', suffix:'', typeState: tpType, setType: setTpType },
+                { label:'Time Limit', icon:<Clock className="w-3 h-3"/>, val:timeLimit, set:setTimeLimit, step:'1', color:'#bc13fe', suffix:'MINS', typeState:null },
+              ].map(({label,icon,val,set,step,color,suffix,typeState,setType}) => (
                 <div key={label} className="flex flex-col gap-1.5">
-                  <label className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest font-bold text-gray-500" style={{color:`${color}80`}}>
-                    {icon}{label}
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest font-bold text-gray-500" style={{color:`${color}80`}}>
+                      {icon}{label}
+                    </label>
+                    {typeState && setType && (
+                      <button type="button" onClick={() => setType(typeState === '%' ? 'USDT' : '%')} disabled={status.isActive} className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-white/10 hover:border-white/30 transition-colors" style={{color}}>
+                        {typeState}
+                      </button>
+                    )}
+                  </div>
                   <div className="relative">
                     <input type="number" value={val} onChange={e=>set(e.target.value)} disabled={status.isActive} step={step}
                       className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2.5 font-mono text-[14px] font-bold outline-none disabled:opacity-40 transition-all"
@@ -198,7 +211,7 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol }) 
                       onFocus={e=>e.target.style.borderColor=color}
                       onBlur={e=>e.target.style.borderColor=`${color}30`}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold pointer-events-none" style={{color:`${color}40`}}>{suffix}</span>
+                    {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold pointer-events-none" style={{color:`${color}40`}}>{suffix}</span>}
                   </div>
                 </div>
               ))}

@@ -611,7 +611,7 @@ export default function App() {
             {activeTab === 'history' && <RecentTrades trades={recentTrades} />}
             {activeTab === 'ai' && <AIAgentPanel marketData={marketData} symbol={symbol} />}
             {activeTab === 'database' && <DatabasePanel />}
-            {activeTab === 'delta' && <DeltaNeutralPanel symbol={symbol} />}
+            {activeTab === 'delta' && <DeltaNeutralPanel symbol={symbol} currentPrice={currentPrice} />}
             {activeTab === 'bot' && <BotPanel />}
           </div>
         </div>
