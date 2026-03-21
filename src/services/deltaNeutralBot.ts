@@ -60,6 +60,15 @@ export interface BotState {
   preflightDetails?: string;
 }
 
+export interface TradeLogEntry {
+  timestamp: number;
+  event: string;
+  phase: string;
+  price: number;
+  pnl: number;
+  details: string;
+}
+
 export class DeltaNeutralBot {
   private masterClient: any;
   private slaveClient: any;
@@ -81,6 +90,22 @@ export class DeltaNeutralBot {
   private config: BotConfig = {};
   private trailingSLPrice: number = 0;
   private highWaterMark: number = 0; // for progressive trailing SL
+  private tradeLog: TradeLogEntry[] = [];
+
+  private logEvent(event: string, price: number, details: string) {
+    const entry: TradeLogEntry = {
+      timestamp: Date.now(),
+      event,
+      phase: this.state.phase || this.mode,
+      price,
+      pnl: this.state.livePnL || 0,
+      details,
+    };
+    this.tradeLog.push(entry);
+    Logger.info(`[TRADE_LOG] ${event}: ${details} @ ${price}`);
+  }
+
+  public getTradeLog(): TradeLogEntry[] { return this.tradeLog; }
 
   constructor(io?: SocketIOServer) {
     this.io = io || null;
@@ -241,6 +266,7 @@ export class DeltaNeutralBot {
       this.state.phase = 'HEDGED';
       this.state.statusText = 'PHASE II: NEUTRAL MONITORING';
 
+      this.logEvent('ENTRY', currentPrice, `Hedged entry: BUY+SELL @ ${currentPrice}`);
       this.emitStatus();
       this.startStateEngine();
     } catch (error) {
@@ -256,6 +282,7 @@ export class DeltaNeutralBot {
     if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
     if (this.entryCheckInterval) clearInterval(this.entryCheckInterval);
     Logger.info("Delta Neutral Bot Aborted.");
+    this.logEvent('ABORT', 0, 'User manually aborted the bot');
     this.emitStatus();
   }
 
@@ -269,6 +296,7 @@ export class DeltaNeutralBot {
     Logger.warn(`DeltaNeutralBot: [SHADOW] Closing ALL. Reason: ${reason}`);
     this.state.statusText = `CLOSING: ${reason}`;
     this.state.phase = 'CLOSED';
+    this.logEvent('CLOSE_ALL', 0, reason);
     this.emitStatus();
 
     this.state.longStopTriggered = true;

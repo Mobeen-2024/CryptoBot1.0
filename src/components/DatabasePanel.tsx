@@ -1,186 +1,144 @@
-import React, { useState, useEffect } from 'react';
-import { Database, Download, Trash2, AlertTriangle, CheckCircle, RefreshCw, Server, HardDrive, ShieldCheck } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from 'react';
+import { Database, Download, FileText, Calendar, Hash, RefreshCw, Search, ChevronDown, ChevronUp } from 'lucide-react';
+
+interface TradeRecord {
+  slave_id: string;
+  master_trade_id: string;
+  symbol: string;
+  side: string;
+  quantity: string;
+  price: string;
+  timestamp: number;
+}
 
 export const DatabasePanel: React.FC = () => {
-  const [isExporting, setIsExporting] = useState(false);
-  const [isPruning, setIsPruning] = useState(false);
-  const [healthScore, setHealthScore] = useState(99);
-  const [dbSize, setDbSize] = useState(14.2);
+  const [trades, setTrades] = useState<TradeRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortAsc, setSortAsc] = useState(false);
 
-  // Animate mock DB size and health slightly
   useEffect(() => {
-    const i = setInterval(() => {
-      setHealthScore(prev => prev > 95 ? prev - (Math.random() * 0.5) : 99);
-      setDbSize(prev => prev + (Math.random() * 0.05));
-    }, 3000);
-    return () => clearInterval(i);
+    const fetchTrades = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/backend/trades');
+        if (res.ok) {
+          const data = await res.json();
+          setTrades(data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch trade data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrades();
+    const interval = setInterval(fetchTrades, 15000);
+    return () => clearInterval(interval);
   }, []);
 
-  const handleExportCSV = async () => {
-    setIsExporting(true);
-    const downloadToast = toast.loading('Compiling telemetry to CSV...', {
-      style: { background: '#0a0d14', color: '#00f0ff', border: '1px solid rgba(0,240,255,0.2)' }
-    });
+  const filteredTrades = trades
+    .filter(t => !searchQuery || t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || t.side.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => sortAsc ? a.timestamp - b.timestamp : b.timestamp - a.timestamp);
 
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const csvContent = "data:text/csv;charset=utf-8,ID,Symbol,Side,Amount,Price,Timestamp\nORD-391X,BTCUSDT,BUY,0.15,64500.20,2026-03-07T12:00:00Z\n";
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `sys_telemetry_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast.success('Extraction complete', { id: downloadToast, iconTheme: { primary: '#00f0ff', secondary: '#0a0d14' } });
-    } catch (error) {
-      toast.error('Extraction failed', { id: downloadToast });
-    } finally {
-      setIsExporting(false);
-    }
+  const exportCSV = () => {
+    if (filteredTrades.length === 0) return;
+    const headers = 'ID,Master Trade ID,Symbol,Side,Quantity,Price,Timestamp\n';
+    const rows = filteredTrades.map(t =>
+      `${t.slave_id},${t.master_trade_id},${t.symbol},${t.side},${t.quantity},${t.price},${new Date(t.timestamp).toISOString()}`
+    ).join('\n');
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cryptobot_trades_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handlePruneLogs = async () => {
-    const confirm = window.confirm("AUTHORIZATION REQUIRED: Permanently delete telemetry > 30 days old?");
-    if (confirm) {
-      setIsPruning(true);
-      const pruneToast = toast.loading('Purging stale sectors...', {
-        style: { background: '#0a0d14', color: '#ff073a', border: '1px solid rgba(255,7,58,0.2)' }
-      });
-
-      try {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        setDbSize(8.4); // Mock reduction
-        toast.success('Sectors purged. System optimized.', {
-          id: pruneToast,
-          iconTheme: { primary: '#39ff14', secondary: '#0a0d14' },
-        });
-      } catch (error) {
-        toast.error('Purge failed', { id: pruneToast });
-      } finally {
-        setIsPruning(false);
-      }
-    }
-  };
+  const dateRange = trades.length > 0
+    ? `${new Date(trades[0].timestamp).toLocaleDateString()} — ${new Date(trades[trades.length - 1].timestamp).toLocaleDateString()}`
+    : '—';
 
   return (
-    <div className="h-full flex flex-col pt-4 px-4 overflow-y-auto custom-scrollbar relative">
-      
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-full h-[300px] bg-gradient-to-b from-[#00f0ff]/5 to-transparent pointer-events-none" />
-      <div className="absolute top-[10%] inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.02)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
-
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6 relative z-10 w-max">
-        <div className="relative">
-          <div className="p-3 bg-black border border-[#00f0ff]/30 rounded-xl inner-glow">
-            <Database className="w-6 h-6 text-[#00f0ff]" />
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#39ff14] rounded-full border-2 border-[#05070a] animate-pulse" />
+      <div className="px-4 py-3 border-b border-[#2b3139] bg-[#181a20] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <Database className="w-4 h-4 text-[#fcd535]" />
+          <span className="text-[11px] font-bold text-[#eaecef] uppercase tracking-widest">Trade Database</span>
+          <span className="text-[10px] font-mono text-[#5e6673] bg-[#0b0e11] border border-[#2b3139] rounded px-2 py-0.5">
+            <Hash className="w-3 h-3 inline mr-1" />{trades.length} records
+          </span>
         </div>
-        <div>
-          <h2 className="text-white font-black text-lg tracking-[0.2em] uppercase">Storage Core</h2>
-          <p className="text-[#00f0ff]/60 text-[10px] font-mono tracking-widest mt-1">VOLATILE // SQLITE_V3 // LOCAL_NODE</p>
-        </div>
-      </div>
-
-      {/* Top Diagnostics Row */}
-      <div className="grid grid-cols-3 gap-3 mb-6 relative z-10 max-w-4xl">
-        <DiagnosticCard icon={Server} label="Status" value="ONLINE" color="#39ff14" />
-        <DiagnosticCard icon={HardDrive} label="Allocated Array" value={`${dbSize.toFixed(2)} MB`} color="#00f0ff" />
-        <DiagnosticCard icon={ShieldCheck} label="Integrity Score" value={`${healthScore.toFixed(1)}%`} color={healthScore > 98 ? '#39ff14' : '#fcd535'} />
-      </div>
-
-      {/* Action Modules */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl relative z-10">
-        
-        {/* Export Module */}
-        <div className="bg-black/40 backdrop-blur-md border border-[#00f0ff]/20 hover:border-[#00f0ff]/50 rounded-xl p-5 transition-all group relative overflow-hidden flex flex-col h-full shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#00f0ff]/10 blur-3xl rounded-full" />
-          
-          <div className="flex items-start justify-between mb-4 relative z-10">
-            <div>
-              <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-1 group-hover:text-[#00f0ff] transition-colors">Data Extraction</h3>
-              <p className="text-[#00f0ff]/50 text-[10px] font-mono">SYS_TICK_LOG &rarr; CSV_FORMAT</p>
-            </div>
-            <div className="p-2 bg-[#00f0ff]/10 rounded border border-[#00f0ff]/20 text-[#00f0ff]">
-              <Download className="w-4 h-4" />
-            </div>
-          </div>
-          
-          <p className="text-gray-400 text-[11px] leading-relaxed mb-6 flex-1 relative z-10">
-            Compile the entire multi-node execution registry from the localized SQLite array into a portable comma-separated telemetric format. Valid for external algorithmic auditing.
-          </p>
-          
-          <button
-            onClick={handleExportCSV}
-            disabled={isExporting}
-            className="w-full py-2.5 bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/30 hover:border-[#00f0ff] rounded box-glow text-[11px] font-bold tracking-[0.2em] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 relative z-10"
-          >
-            {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {isExporting ? 'COMPILING. . .' : 'EXECUTE EXTRACTION'}
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-[#5e6673] font-mono hidden sm:block">
+            <Calendar className="w-3 h-3 inline mr-1" />{dateRange}
+          </span>
+          <button onClick={exportCSV} disabled={trades.length === 0}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#eaecef] bg-[#fcd535]/10 hover:bg-[#fcd535]/20 border border-[#fcd535]/30 rounded-lg transition-all disabled:opacity-30">
+            <Download className="w-3 h-3 text-[#fcd535]" />Export CSV
           </button>
         </div>
+      </div>
 
-        {/* Prune Module */}
-        <div className="bg-black/40 backdrop-blur-md border border-[#ff073a]/20 hover:border-[#ff073a]/50 rounded-xl p-5 transition-all group relative overflow-hidden flex flex-col h-full shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff073a]/10 blur-3xl rounded-full" />
-          
-          <div className="flex items-start justify-between mb-4 relative z-10">
-            <div>
-              <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-1 group-hover:text-[#ff073a] transition-colors">Sector Purge</h3>
-              <p className="text-[#ff073a]/50 text-[10px] font-mono">DELETE_OLD_TICKS (&gt;30D)</p>
-            </div>
-            <div className="p-2 bg-[#ff073a]/10 rounded border border-[#ff073a]/20 text-[#ff073a]">
-              <Trash2 className="w-4 h-4" />
-            </div>
-          </div>
-          
-          <p className="text-gray-400 text-[11px] leading-relaxed mb-4 flex-1 relative z-10">
-            Mitigate unbounded array inflation. Permanently evaporate telemetric logs older than 30 cycles to maintain optimal I/O throughput.
-          </p>
-
-          <div className="flex items-center gap-2 mb-4 p-2 bg-[#ff073a]/10 rounded border border-[#ff073a]/30 text-[9px] text-[#ff073a] font-mono relative z-10 uppercase tracking-wider">
-            <AlertTriangle className="w-3 h-3 shrink-0" />
-            Warning: Irreversible phase deletion.
-          </div>
-          
-          <button
-            onClick={handlePruneLogs}
-            disabled={isPruning}
-            className="w-full py-2.5 bg-[#ff073a]/10 hover:bg-[#ff073a]/20 text-[#ff073a] border border-[#ff073a]/30 hover:border-[#ff073a] rounded box-glow-red text-[11px] font-bold tracking-[0.2em] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 relative z-10"
-          >
-            {isPruning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            {isPruning ? 'PURGING SECTORS. . .' : 'INITIATE PURGE'}
-          </button>
+      {/* Search & Sort */}
+      <div className="px-4 py-2 border-b border-[#2b3139] bg-[#0f1114] flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 flex-1 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-3 py-1.5">
+          <Search className="w-3.5 h-3.5 text-[#5e6673]" />
+          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Filter by symbol or side..."
+            className="bg-transparent text-[11px] text-[#eaecef] font-mono outline-none flex-1 placeholder-[#3b4149]" />
         </div>
-
+        <button onClick={() => setSortAsc(!sortAsc)}
+          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-[#5e6673] hover:text-[#eaecef] bg-[#0b0e11] border border-[#2b3139] rounded-lg transition-colors">
+          {sortAsc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          {sortAsc ? 'Oldest' : 'Newest'}
+        </button>
       </div>
 
-      <div className="mt-8 pt-6 border-t border-white/[0.05] flex items-center gap-2 text-[9px] text-gray-500 font-mono tracking-widest max-w-4xl relative z-10">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#39ff14] animate-pulse" />
-        PATH: /SYS_ROOT/TRADES.DB // I/O: UNRESTRICTED
+      {/* Table */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {loading ? (
+          <div className="flex items-center justify-center h-full text-[#5e6673] text-xs font-mono gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin" /> Loading trades...
+          </div>
+        ) : filteredTrades.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-[#5e6673] gap-2">
+            <FileText className="w-8 h-8 opacity-30" />
+            <span className="text-xs font-mono">{searchQuery ? 'No trades match your filter' : 'No trade records found'}</span>
+          </div>
+        ) : (
+          <table className="w-full text-[11px] font-mono">
+            <thead className="sticky top-0 bg-[#0f1114] z-10">
+              <tr className="text-[9px] text-[#5e6673] uppercase tracking-widest border-b border-[#2b3139]">
+                <th className="text-left px-4 py-2">Time</th>
+                <th className="text-left px-4 py-2">Symbol</th>
+                <th className="text-left px-4 py-2">Side</th>
+                <th className="text-right px-4 py-2">Qty</th>
+                <th className="text-right px-4 py-2">Price</th>
+                <th className="text-right px-4 py-2">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTrades.map((t, i) => (
+                <tr key={i} className="border-b border-[#1e2329] hover:bg-[#181a20] transition-colors">
+                  <td className="px-4 py-2 text-[#848e9c]">{new Date(t.timestamp).toLocaleString()}</td>
+                  <td className="px-4 py-2 text-[#eaecef] font-bold">{t.symbol}</td>
+                  <td className="px-4 py-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${t.side.toUpperCase() === 'BUY' ? 'bg-[#0ecb81]/10 text-[#0ecb81]' : 'bg-[#f6465d]/10 text-[#f6465d]'}`}>
+                      {t.side.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-right text-[#eaecef]">{parseFloat(t.quantity).toFixed(5)}</td>
+                  <td className="px-4 py-2 text-right text-[#fcd535]">${parseFloat(t.price).toLocaleString()}</td>
+                  <td className="px-4 py-2 text-right text-[#848e9c]">${(parseFloat(t.quantity) * parseFloat(t.price)).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-
     </div>
   );
 };
-
-// Sub-component for diagnostics
-function DiagnosticCard({ icon: Icon, label, value, color }: any) {
-  return (
-    <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-3 flex items-center gap-3 relative overflow-hidden">
-      <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white/[0.02] to-transparent pointer-events-none" />
-      <div className="w-8 h-8 rounded bg-black border border-white/10 flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4" style={{ color }} />
-      </div>
-      <div>
-        <div className="text-[8px] text-gray-500 font-bold uppercase tracking-[0.2em] mb-0.5">{label}</div>
-        <div className="text-[12px] font-mono font-bold" style={{ color }}>{value}</div>
-      </div>
-    </div>
-  );
-}
-

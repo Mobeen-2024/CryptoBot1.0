@@ -238,11 +238,91 @@ async function startServer() {
   app.get('/api/health', (req, res) => {
     try {
       const isSandbox = process.env.BINANCE_USE_TESTNET === 'true' || process.env.BINANCE_USE_TESTNET === '1';
-      res.json({ status: 'ok', exchange: 'binance', sandbox: isSandbox });
+      res.json({ status: 'ok', exchange: 'binance', sandbox: isSandbox, version: '1.0.0' });
     } catch (error) {
       res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
   });
+
+  // ─── Request Logger Middleware ───────────────────────────────────
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      if (duration > 1000) {
+        Logger.warn(`Slow request: ${req.method} ${req.path} → ${res.statusCode} (${duration}ms)`);
+      }
+    });
+    next();
+  });
+
+  // ─── System Health & Telemetry ──────────────────────────────────
+  const serverStartTime = Date.now();
+  let wsConnectionCount = 0;
+  io.on('connection', () => { wsConnectionCount++; });
+  io.on('disconnect', () => { wsConnectionCount = Math.max(0, wsConnectionCount - 1); });
+
+  app.get('/api/system/info', (req, res) => {
+    const mem = process.memoryUsage();
+    const uptimeSec = Math.floor((Date.now() - serverStartTime) / 1000);
+    const h = Math.floor(uptimeSec / 3600);
+    const m = Math.floor((uptimeSec % 3600) / 60);
+    const s = uptimeSec % 60;
+
+    res.json({
+      version: '1.0.0',
+      uptime: `${h}h ${m}m ${s}s`,
+      uptimeSeconds: uptimeSec,
+      memory: {
+        heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+        rss: Math.round(mem.rss / 1024 / 1024),
+        external: Math.round(mem.external / 1024 / 1024),
+      },
+      wsConnections: wsConnectionCount,
+      bot: {
+        isActive: deltaNeutralBot.getStatus().isActive,
+        phase: deltaNeutralBot.getStatus().phase || 'CLOSED',
+        symbol: deltaNeutralBot.getStatus().symbol || '—',
+        cycles: deltaNeutralBot.getStatus().totalCyclesCompleted || 0,
+      },
+      copier: {
+        isActive: typeof (tradeCopier as any).isActive === 'function' ? (tradeCopier as any).isActive() : true,
+      },
+      os: {
+        platform: os.platform(),
+        arch: os.arch(),
+        cpus: os.cpus().length,
+        totalMemMB: Math.round(os.totalmem() / 1024 / 1024),
+        freeMemMB: Math.round(os.freemem() / 1024 / 1024),
+      },
+    });
+  });
+
+  // ─── Bot Trade History Log ──────────────────────────────────────
+  app.get('/api/bot/history', (req, res) => {
+    res.json(deltaNeutralBot.getTradeLog());
+  });
+
+  // ─── Graceful Shutdown ──────────────────────────────────────────
+  const gracefulShutdown = async (signal: string) => {
+    Logger.warn(`Received ${signal}. Graceful shutdown started...`);
+    try {
+      if (deltaNeutralBot.getStatus().isActive) {
+        await deltaNeutralBot.stop();
+        Logger.info('Delta Neutral Bot stopped.');
+      }
+      shadowDb.close();
+      Logger.info('Database connections closed.');
+      Logger.close();
+    } catch (err) {
+      Logger.error('Shutdown error:', err);
+    }
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
   // ─── Leverage / Margin Type Endpoint ─────────────────────────────
   app.post('/api/binance/leverage', async (req, res) => {
@@ -598,14 +678,16 @@ async function startServer() {
             executePrice = ticker.last || 0;
          }
 
-         // `balanceAsset` was determined above for both pending and market shadow orders
-         
-         const shadowBalance = await tradeCopier.getBalance(publicExchange, balanceAsset, 'master');
-         const orderValue = orderSide === 'buy' ? (amount * executePrice) : amount;
-         const effectiveLeverage = marginMode ? (Number(leverage) || 1) : 1;
-         
-         if ((shadowBalance * effectiveLeverage) < orderValue) {
-            return res.status(400).json({ error: `Insufficient Virtual Shadow Balance (Leverage ${effectiveLeverage}x)` });
+         // Shadow balance validation
+         // If `isClosingPosition` is passed from the client, bypass the balance check completely
+         // because the balance was already validated at entry.
+         if (!ccxtParams.isClosingPosition) {
+           const shadowBalance = await tradeCopier.getBalance(publicExchange, balanceAsset, 'master');
+           const orderValue = amount * executePrice;
+           const effectiveLeverage = marginMode ? (Number(leverage) || 1) : 1;
+           if ((shadowBalance * effectiveLeverage) < orderValue) {
+             return res.status(400).json({ error: `Insufficient Virtual Shadow Balance (Leverage ${effectiveLeverage}x)` });
+           }
          }
 
          // Update Master locally

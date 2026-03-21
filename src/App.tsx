@@ -12,6 +12,7 @@ import { CurrentPositions } from './components/CurrentPositions';
 import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
+import { SystemHealthPanel } from './components/SystemHealthPanel';
 import { IndicatorModal } from './components/IndicatorModal';
 import { BotPanel } from './components/BotPanel';
 import { MarketWatchlist } from './components/MarketWatchlist';
@@ -394,6 +395,7 @@ export default function App() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0b0e11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
             <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight hidden sm:block">CryptoBot<span className="text-[#fcd535]">.</span></span>
+            <span className="hidden sm:inline text-[8px] font-mono font-bold text-[#fcd535] bg-[#fcd535]/10 border border-[#fcd535]/20 rounded px-1.5 py-0.5 tracking-wider">v1.0</span>
           </div>
 
           {/* Pair Selector */}
@@ -585,7 +587,7 @@ export default function App() {
               { id: 'analytics', icon: <LineChart className="w-3.5 h-3.5" />, label: 'Analytics' },
               { id: 'history', icon: <History className="w-3.5 h-3.5" />, label: 'History' },
               { id: 'ai', icon: <Bot className="w-3.5 h-3.5" />, label: 'AI' },
-              { id: 'database', icon: <Database className="w-3.5 h-3.5" />, label: 'DB' },
+              { id: 'database', icon: <Database className="w-3.5 h-3.5" />, label: 'System' },
               { id: 'delta', icon: <Activity className="w-3.5 h-3.5" />, label: 'Strategy' },
               { id: 'bot', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, label: 'Bots' },
             ] as { id: typeof activeTab; icon: React.ReactNode; label: string }[]).map(tab => (
@@ -610,7 +612,16 @@ export default function App() {
             {activeTab === 'analytics' && <PerformanceChart />}
             {activeTab === 'history' && <RecentTrades trades={recentTrades} />}
             {activeTab === 'ai' && <AIAgentPanel marketData={marketData} symbol={symbol} />}
-            {activeTab === 'database' && <DatabasePanel />}
+            {activeTab === 'database' && (
+              <div className="flex flex-col lg:flex-row h-full">
+                <div className="lg:w-[400px] shrink-0 border-r border-[#2b3139] h-full overflow-hidden">
+                  <SystemHealthPanel />
+                </div>
+                <div className="flex-1 h-full overflow-hidden">
+                  <DatabasePanel />
+                </div>
+              </div>
+            )}
             {activeTab === 'delta' && <DeltaNeutralPanel symbol={symbol} />}
             {activeTab === 'bot' && <BotPanel />}
           </div>

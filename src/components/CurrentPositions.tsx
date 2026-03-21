@@ -35,16 +35,25 @@ export function CurrentPositions() {
       const side = netQty > 0 ? 'SELL' : 'BUY';
       const quantity = Math.abs(netQty);
       
-      const toastId = toast.loading(`Closing ${sym}...`);
+      // Strip margin suffixes to get clean symbol for the API
+      const cleanSymbol = sym.replace('-ISOLATED', '').replace('-CROSS', '');
+      // Determine margin mode from the symbol suffix
+      const marginMode = sym.includes('-ISOLATED') ? 'isolated' : sym.includes('-CROSS') ? 'cross' : undefined;
+      
+      const toastId = toast.loading(`Closing ${cleanSymbol}...`);
       
       const res = await fetch('/api/binance/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: sym,
+          symbol: cleanSymbol,
           side: side,
           type: 'MARKET',
-          quantity: quantity
+          quantity: quantity,
+          marginMode: marginMode,
+          params: {
+            isClosingPosition: true
+          }
         })
       });
 
@@ -53,7 +62,7 @@ export function CurrentPositions() {
         throw new Error(errData.error || 'Failed to close position');
       }
 
-      toast.success(`Position ${sym} closed`, { id: toastId });
+      toast.success(`Position ${cleanSymbol} closed`, { id: toastId });
       fetchPositions(); // Refresh
     } catch (err: any) {
       toast.error(err.message, { id: err.message });
@@ -565,6 +574,108 @@ export function CurrentPositions() {
                   className="w-full py-2 text-xs font-bold text-[#5e6673] hover:text-[#848e9c] transition-colors"
                 >
                   Cancel
+                </button>
+              </div>
+
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
+
+      {/* ─── Leverage Modal ─────────────────────────────────────── */}
+      {leverageModal && (() => {
+        const cleanSym = leverageModal.symbol.replace('-ISOLATED', '').replace('-CROSS', '');
+        
+        const executeLeverageChange = async () => {
+          setIsSubmittingLeverage(true);
+          try {
+            const res = await fetch('/api/binance/leverage', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                symbol: cleanSym,
+                leverage: leverageValue,
+                marginType: marginType.toLowerCase()
+              })
+            });
+            if (res.ok) {
+              toast.success(`Margin updated: ${marginType} ${leverageValue}x`);
+              setLeverageModal(null);
+              fetchPositions();
+            } else {
+              const err = await res.json();
+              toast.error(err.error || 'Failed to adjust leverage');
+            }
+          } catch {
+            toast.error('Network error');
+          } finally {
+            setIsSubmittingLeverage(false);
+          }
+        };
+
+        return createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(7,9,14,0.88)', backdropFilter: 'blur(16px)' }}>
+            <div className="w-full max-w-[400px] rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-[#2b3139]/80" style={{ background: 'linear-gradient(145deg,#181a20 0%,#1e2329 100%)' }}>
+              
+              {/* Header */}
+              <div className="relative px-5 pt-5 pb-4 border-b border-[#2b3139]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#fcd535]/10 flex items-center justify-center text-[#fcd535]">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-[#eaecef] font-bold text-base leading-tight">Adjust Leverage</p>
+                      <p className="text-[11px] font-semibold text-[#848e9c]">{cleanSym}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setLeverageModal(null)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#2b3139] hover:bg-[#3b4351] text-[#848e9c] hover:text-[#eaecef] transition-all">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="px-5 py-5 space-y-6">
+                
+                {/* Margin Mode Selector */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xs font-bold text-[#eaecef] uppercase tracking-wider">Margin Mode</span>
+                  </div>
+                  <div className="flex bg-[#0b0e11] rounded-xl p-1 border border-[#2b3139]">
+                    <button onClick={() => setMarginType('CROSS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${marginType === 'CROSS' ? 'bg-[#2b3139] text-[#eaecef] shadow-[0_2px_8px_rgba(0,0,0,0.5)]' : 'text-[#5e6673] hover:text-[#848e9c]'}`}>Cross</button>
+                    <button onClick={() => setMarginType('ISOLATED')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${marginType === 'ISOLATED' ? 'bg-[#2b3139] text-[#eaecef] shadow-[0_2px_8px_rgba(0,0,0,0.5)]' : 'text-[#5e6673] hover:text-[#848e9c]'}`}>Isolated</button>
+                  </div>
+                </div>
+
+                {/* Leverage Slider */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-[#eaecef] uppercase tracking-wider">Leverage</span>
+                    <div className="flex items-center bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 py-1">
+                      <input type="number" value={leverageValue} onChange={e => setLeverageValue(Math.min(125, Math.max(1, parseInt(e.target.value) || 1)))} className="w-10 bg-transparent text-[#eaecef] font-mono text-sm outline-none text-right" />
+                      <span className="text-[#5e6673] text-[11px] font-mono ml-1">x</span>
+                    </div>
+                  </div>
+                  <div className="relative w-full h-8 flex items-center">
+                    <input type="range" min="1" max="125" step="1" value={leverageValue} onChange={e => setLeverageValue(parseInt(e.target.value))} className="w-full relative z-10 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-runnable-track]:bg-[#2b3139] [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-[#fcd535] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(252,213,53,0.5)]" />
+                    <div className="absolute left-0 h-1.5 bg-[#fcd535] rounded-l-full z-0 pointer-events-none" style={{ width: `${((leverageValue - 1) / 124) * 100}%` }} />
+                  </div>
+                  <div className="flex justify-between mt-1 px-1">
+                    {[1, 10, 20, 50, 100, 125].map(val => (
+                      <span key={val} className="text-[9px] font-mono text-[#5e6673] cursor-pointer hover:text-[#eaecef]" onClick={() => setLeverageValue(val)}>{val}x</span>
+                    ))}
+                  </div>
+                </div>
+                
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 pb-5 pt-1 space-y-3">
+                <button onClick={executeLeverageChange} disabled={isSubmittingLeverage} className={`w-full py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2.5 transition-all duration-150 ${isSubmittingLeverage ? 'bg-[#2b3139] text-[#474d57] cursor-not-allowed' : 'bg-[#fcd535] hover:bg-[#f0c800] active:scale-[0.98] text-[#0b0e11] shadow-[0_4px_24px_rgba(252,213,53,0.3)] hover:shadow-[0_6px_32px_rgba(252,213,53,0.45)]'}`}>
+                  {isSubmittingLeverage ? <><RefreshCw className="w-4 h-4 animate-spin" /> Updating…</> : 'Confirm Adjustment'}
                 </button>
               </div>
 
