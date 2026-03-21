@@ -523,6 +523,37 @@ export class TradeCopier {
         balanceAsset = baseAsset;
       }
       
+      // FIX: Insert the master trade into the database for LIVE trades.
+      // processSimulatedMasterTrade inserts it before calling handleExecutionReport,
+      // but live trades from WebSocket never get inserted as 'master'.
+      const masterCheckStmt = this.db.prepare('SELECT master_trade_id FROM copied_fills_v2 WHERE master_trade_id = ? AND slave_id = ?');
+      const masterExisting = masterCheckStmt.get(masterTradeId, 'master');
+      
+      if (!masterExisting) {
+         try {
+           const insertMaster = this.db.prepare(`
+             INSERT INTO copied_fills_v2 (slave_id, master_trade_id, master_order_id, slave_order_id, symbol, side, quantity, price, timestamp)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           `);
+           const tradeTimestamp = report.T || Date.now();
+           insertMaster.run('master', masterTradeId, masterOrderId, masterOrderId, symbol, side, masterQuantity, price, tradeTimestamp);
+           
+           if (this.io) {
+             this.io.emit('new_trade', {
+               slave_id: 'master',
+               master_trade_id: masterTradeId,
+               symbol: symbol,
+               side: side,
+               quantity: masterQuantity,
+               price: price,
+               timestamp: tradeTimestamp
+             });
+           }
+         } catch (dbErr) {
+           Logger.error('Trade Copier: Failed to insert live master trade into DB:', dbErr);
+         }
+      }
+      
       const masterBalance = await this.getBalance(this.masterClient, balanceAsset, 'master');
 
       if (masterBalance <= 0 && !this.isShadowMode) {
