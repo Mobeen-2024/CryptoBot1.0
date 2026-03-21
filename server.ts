@@ -289,11 +289,41 @@ async function startServer() {
   // Delta Neutral Bot Endpoints
   app.post('/api/bot/start', async (req, res) => {
     try {
-      const { symbol, qty, stopLossUSDT } = req.body;
+      const { 
+        symbol, qty, stopLossUSDT, takeProfitUSDT, timeLimitMins, 
+        useSmartTrailing, trailingMode, trailingStep,
+        rsiPeriod, rsiOverbought, rsiOversold, 
+        wrPeriod, wrOverbought, wrOversold,
+        enableMultiCycle, maxCycles,
+        entryMode, entryRsiThreshold,
+        useRiskPercent, riskPercent
+      } = req.body;
+      
       if (!symbol || !qty || !stopLossUSDT) {
-        return res.status(400).json({ error: 'Missing required parameters' });
+        return res.status(400).json({ error: 'Missing required parameters: symbol, qty, stopLossUSDT' });
       }
-      await deltaNeutralBot.start(symbol, Number(qty), Number(stopLossUSDT));
+      
+      const config = {
+        takeProfitUSDT:      takeProfitUSDT     ? Number(takeProfitUSDT)     : undefined,
+        timeLimitMins:       timeLimitMins       ? Number(timeLimitMins)       : undefined,
+        useSmartTrailing:    Boolean(useSmartTrailing),
+        trailingMode:        trailingMode        || 'BREAKEVEN',
+        trailingStep:        Number(trailingStep)  || 0.5,
+        rsiPeriod:           Number(rsiPeriod)   || 14,
+        rsiOverbought:       Number(rsiOverbought) || 70,
+        rsiOversold:         Number(rsiOversold)   || 30,
+        wrPeriod:            Number(wrPeriod)    || 14,
+        wrOverbought:        Number(wrOverbought)  || -20,
+        wrOversold:          Number(wrOversold)    || -80,
+        enableMultiCycle:    Boolean(enableMultiCycle),
+        maxCycles:           Number(maxCycles)   || 1,
+        entryMode:           entryMode           || 'INSTANT',
+        entryRsiThreshold:   Number(entryRsiThreshold) || 40,
+        useRiskPercent:      Boolean(useRiskPercent),
+        riskPercent:         Number(riskPercent) || 1,
+      };
+
+      await deltaNeutralBot.start(symbol, Number(qty), Number(stopLossUSDT), config);
       res.json({ message: 'Bot started successfully', status: deltaNeutralBot.getStatus() });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to start bot' });
