@@ -174,8 +174,10 @@ export function CurrentPositions() {
           }
 
           const livePrc = livePrices[pos.symbol] || pos.averageEntryPrice;
-          const currentValue = pos.netQuantity * livePrc;
-          const pnl = currentValue - pos.totalCost;
+          const isLong = pos.netQuantity > 0;
+          const pnl = isLong 
+              ? (pos.netQuantity * livePrc) - pos.totalCost 
+              : pos.totalCost - (Math.abs(pos.netQuantity) * livePrc);
           const roi = (pos.totalCost > 0) ? (pnl / pos.totalCost) * 100 : 0;
           const isProfit = pnl >= 0;
           const base = displaySymbol.replace('/', '').replace('USDT', '');
@@ -194,7 +196,7 @@ export function CurrentPositions() {
                     <div>
                       <div className="text-[12px] font-bold text-white font-mono">{displaySymbol}</div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[8px] font-bold text-emerald-400 bg-emerald-500/10 px-1 rounded">LONG</span>
+                        <span className={`text-[8px] font-bold px-1 rounded ${isLong ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
                         <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/10 px-1 rounded">{marginTag}</span>
                       </div>
                     </div>
@@ -216,7 +218,7 @@ export function CurrentPositions() {
                   </div>
                   <div className="text-right">
                     <div className="text-[9px] text-gray-600 uppercase tracking-wide">Size</div>
-                    <div className="text-[10px] font-mono text-gray-300">{pos.netQuantity.toFixed(4)}</div>
+                    <div className="text-[10px] font-mono text-gray-300">{Math.abs(pos.netQuantity).toFixed(4)}</div>
                   </div>
                 </div>
                 {/* TP/SL row */}
@@ -245,6 +247,9 @@ export function CurrentPositions() {
                 <div className="flex items-center gap-2 w-[200px] shrink-0">
                   <div className="w-5 h-5 bg-emerald-500/20 rounded flex items-center justify-center text-emerald-500 font-bold text-[10px]">B</div>
                   <h3 className="font-bold text-[#eaecef] text-sm tracking-wide">{displaySymbol}</h3>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${isLong ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}`}>
+                    {isLong ? 'LONG' : 'SHORT'}
+                  </span>
                   {marginTag && (
                     <span className="text-[10px] text-[#fcd535] bg-[#fcd535]/10 px-1.5 py-0.5 rounded font-mono border border-[#fcd535]/20">{marginTag}</span>
                   )}
@@ -266,7 +271,7 @@ export function CurrentPositions() {
                     <span className="text-[13px] font-bold font-mono text-[#eaecef]">0.00</span>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="text-[#848e9c] text-[10px]">Size:</span>
-                      <span className="text-[11px] font-mono text-[#eaecef]">{pos.netQuantity.toString()}</span>
+                      <span className="text-[11px] font-mono text-[#eaecef]">{Math.abs(pos.netQuantity).toString()}</span>
                     </div>
                   </div>
                   {/* TP/SL */}

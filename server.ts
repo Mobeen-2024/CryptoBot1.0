@@ -878,22 +878,34 @@ async function startServer() {
          const prc = typeof price === 'string' ? parseFloat(price) : price;
 
          if (side.toUpperCase() === 'BUY') {
-            positions[symbol].netQuantity += qty;
-            positions[symbol].totalCost += (qty * prc);
+            if (positions[symbol].netQuantity < -0.000001) {
+               // Covering a short
+               const avgPrice = positions[symbol].totalCost / Math.abs(positions[symbol].netQuantity);
+               positions[symbol].totalCost -= (qty * avgPrice);
+               positions[symbol].netQuantity += qty;
+            } else {
+               // Opening or adding to LONG
+               positions[symbol].netQuantity += qty;
+               positions[symbol].totalCost += (qty * prc);
+            }
          } else if (side.toUpperCase() === 'SELL') {
-            // Calculate proportional cost removal to maintain accurate average entry price
-            if (positions[symbol].netQuantity > 0) {
+            if (positions[symbol].netQuantity > 0.000001) {
+               // Closing a long
                const avgPrice = positions[symbol].totalCost / positions[symbol].netQuantity;
                positions[symbol].totalCost -= (qty * avgPrice);
+               positions[symbol].netQuantity -= qty;
+            } else {
+               // Opening or adding to SHORT
+               positions[symbol].netQuantity -= qty;
+               positions[symbol].totalCost += (qty * prc);
             }
-            positions[symbol].netQuantity -= qty;
          }
 
          // Update Average Entry Price based dynamically on active cost
-         if (positions[symbol].netQuantity > 0.000001) { // Floating point safety
-             positions[symbol].averageEntryPrice = Math.max(0, positions[symbol].totalCost / positions[symbol].netQuantity);
+         if (Math.abs(positions[symbol].netQuantity) > 0.000001) { // Floating point safety
+             positions[symbol].averageEntryPrice = Math.max(0, positions[symbol].totalCost / Math.abs(positions[symbol].netQuantity));
          } else {
-             // Position closed or flipped short (if shorting supported)
+             // Position completely closed
              positions[symbol].averageEntryPrice = 0;
              positions[symbol].totalCost = 0;
              positions[symbol].netQuantity = 0; // Prevent float artifacts like 1e-16
@@ -901,7 +913,8 @@ async function startServer() {
       });
 
       // Filter out zeroed positions (closed trades)
-      const activePositions = Object.values(positions).filter(p => p.netQuantity > 0);
+      // Allow shorts (negative netQuantity)
+      const activePositions = Object.values(positions).filter(p => Math.abs(p.netQuantity) > 0.000001);
 
       // Attach any open pending shadow orders as TP / SL targets
       const augmentedPositions = activePositions.map(pos => {

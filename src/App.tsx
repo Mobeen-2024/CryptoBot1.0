@@ -354,7 +354,12 @@ export default function App() {
         symbol: ccxtSymbol
       });
 
-      toast.success(`Order Filled: ${data.id || 'Confirmed'}`, { id: orderToast });
+      if (order.type === 'MARKET') {
+        toast.success(`Market Order Filled: ${data.id || 'Confirmed'}`, { id: orderToast });
+      } else {
+        toast.success(`${order.type} Order Placed. Waiting in Pending Orders...`, { id: orderToast, duration: 6000 });
+      }
+
       // Refresh balance after successful order
       setTimeout(refreshBalance, 1000);
     } catch (err: any) {
