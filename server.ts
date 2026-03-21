@@ -843,6 +843,22 @@ async function startServer() {
     }
   });
 
+  // Wipe Database Endpoint
+  app.delete('/api/backend/trades', (req, res) => {
+    try {
+      const db = new Database('trades.db');
+      db.prepare('DELETE FROM copied_fills_v2').run();
+      db.prepare('DELETE FROM shadow_balances').run();
+      db.close();
+      
+      Logger.info('Backend: Database successfully wiped via UI command.');
+      res.status(200).json({ message: 'Database cleared successfully' });
+    } catch (error: any) {
+      Logger.error('Failed to wipe database:', error);
+      res.status(500).json({ error: 'Failed to wipe database' });
+    }
+  });
+
   // Open / Pending Orders Endpoint
   app.get('/api/backend/openOrders', (req, res) => {
     try {
