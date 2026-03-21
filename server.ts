@@ -88,10 +88,13 @@ async function startServer() {
   // Initialize Delta Neutral Bot
   const deltaNeutralBot = new DeltaNeutralBot(io);
 
+  let isPendingEngineRunning = false;
   // ─── Shadow Pending Order Price-Matching Engine ────────────────────
   // Monitors live prices and fills pending shadow orders when targets are hit.
   async function startPendingOrderEngine() {
     if (pendingShadowOrders.length === 0) return;
+    if (isPendingEngineRunning) return;
+    isPendingEngineRunning = true;
 
     // Collect unique symbols from pending orders
     const symbols = [...new Set(pendingShadowOrders.map((o: any) => o.symbol.replace('/', '').toLowerCase()))];
@@ -171,6 +174,11 @@ async function startServer() {
             pendingShadowOrders.splice(i, 1);
           }
         }
+        
+        // If all pending orders filled, close connection naturally
+        if (!pendingShadowOrders.some((o: any) => o.status === 'open')) {
+          pendingWs.close();
+        }
       } catch (e) {
         // Silently ignore parse errors on the price feed
       }
@@ -185,8 +193,9 @@ async function startServer() {
       }
     });
     pendingWs.on('close', () => {
+      isPendingEngineRunning = false;
       // Reconnect if there are still pending orders
-      if (pendingShadowOrders.length > 0) {
+      if (pendingShadowOrders.some((o: any) => o.status === 'open')) {
         setTimeout(() => startPendingOrderEngine(), 3000);
       }
     });
@@ -194,7 +203,7 @@ async function startServer() {
 
   // Check for new pending orders periodically and start the engine
   setInterval(() => {
-    if (pendingShadowOrders.some((o: any) => o.status === 'open')) {
+    if (!isPendingEngineRunning && pendingShadowOrders.some((o: any) => o.status === 'open')) {
       startPendingOrderEngine();
     }
   }, 5000);
@@ -852,7 +861,7 @@ async function startServer() {
       const trades = db.prepare(`
         SELECT symbol, side, quantity, price 
         FROM copied_fills_v2 
-        WHERE slave_id LIKE 'master%' OR slave_id LIKE 'slave_virtual%' OR slave_id = 'webhook'
+        WHERE slave_id = 'master'
         ORDER BY timestamp ASC
       `).all() as any[];
       db.close();
