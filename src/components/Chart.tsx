@@ -70,6 +70,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
 
+  const [visibleHighLow, setVisibleHighLow] = useState<{ high: any, low: any } | null>(null);
+  const visibleHighLowRef = useRef<{ high: any, low: any } | null>(null);
+  const dataRef = useRef<any[]>(data);
+
+  useEffect(() => { dataRef.current = data; }, [data]);
+
   // Helper to parse interval into ms
   const getIntervalMs = (interval: string) => {
     const value = parseInt(interval);
@@ -276,6 +282,32 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       setAvgPositions(prev => ({ ...prev, buyPrice: mockBuyPrice, sellPrice: mockSellPrice }));
     }
 
+    // Subscribe to visible range to calculate Recent High / Low
+    chart.timeScale().subscribeVisibleTimeRangeChange((timeRange) => {
+      if (timeRange && dataRef.current && dataRef.current.length > 0) {
+        let maxItem = null;
+        let minItem = null;
+        for (let i = 0; i < dataRef.current.length; i++) {
+          const d = dataRef.current[i];
+          if (d.time >= timeRange.from && d.time <= timeRange.to) {
+            if (!maxItem || d.high > maxItem.high) maxItem = d;
+            if (!minItem || d.low < minItem.low) minItem = d;
+          }
+          if (d.time > timeRange.to) break;
+        }
+        if (maxItem && minItem) {
+          const nextState = { high: maxItem, low: minItem };
+          visibleHighLowRef.current = nextState;
+          setVisibleHighLow(prev => {
+            if (prev?.high.time !== nextState.high.time || prev?.low.time !== nextState.low.time) {
+              return nextState;
+            }
+            return prev;
+          });
+        }
+      }
+    });
+
     // Subscribe to crosshair movement to update OHLC floating card
     chart.subscribeCrosshairMove((param) => {
       if (param.time && param.seriesData.size > 0 && candlestickSeries && param.point) {
@@ -325,6 +357,33 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           }
           return prev;
         });
+      }
+
+      // Sync High/Low Markers
+      if (seriesRef.current && chartRef.current && visibleHighLowRef.current) {
+        const timeScale = chartRef.current.timeScale();
+        const { high, low } = visibleHighLowRef.current;
+        const series = seriesRef.current;
+        
+        const topEl = document.getElementById('recent-top-marker');
+        if (topEl && high) {
+           const x = timeScale.timeToCoordinate(high.time);
+           const y = series.priceToCoordinate(high.high);
+           if (x !== null && y !== null) {
+              topEl.style.transform = `translate(${x}px, ${y}px)`;
+              topEl.style.opacity = '1';
+           } else { topEl.style.opacity = '0'; }
+        }
+        
+        const bottomEl = document.getElementById('recent-bottom-marker');
+        if (bottomEl && low) {
+           const x = timeScale.timeToCoordinate(low.time);
+           const y = series.priceToCoordinate(low.close); // Pinned to the Close as requested
+           if (x !== null && y !== null) {
+              bottomEl.style.transform = `translate(${x}px, ${y}px)`;
+              bottomEl.style.opacity = '1';
+           } else { bottomEl.style.opacity = '0'; }
+        }
       }
 
       // Sync HTML Trade Markers
@@ -897,6 +956,45 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
         
+        {/* Recent High/Low Markers Overlay Layer */}
+        {visibleHighLow && (
+          <div className="absolute inset-0 z-40 pointer-events-none overflow-hidden">
+            {/* Top Marker */}
+            <div
+              id="recent-top-marker"
+              className="absolute top-0 left-0 flex flex-col items-center opacity-0 will-change-transform"
+              style={{ transition: 'opacity 0.15s ease' }}
+            >
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[6px] flex flex-col items-center">
+                <div className="px-1.5 py-0.5 rounded backdrop-blur-md bg-[#00E676]/10 border border-[#00E676]/40 shadow-[0_2px_8px_rgba(0,230,118,0.2)] flex items-center gap-1">
+                  <span className="text-[10px] font-mono font-black text-[#00E676] tracking-tighter">
+                    {visibleHighLow.high.high.toFixed(2)}
+                  </span>
+                </div>
+                {/* Connecting Line */}
+                <div className="w-px h-[6px] bg-gradient-to-b from-[#00E676]/60 to-[#00E676]/0" />
+              </div>
+            </div>
+
+            {/* Bottom Marker */}
+            <div
+              id="recent-bottom-marker"
+              className="absolute top-0 left-0 flex flex-col items-center opacity-0 will-change-transform"
+              style={{ transition: 'opacity 0.15s ease' }}
+            >
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[6px] flex flex-col items-center">
+                {/* Connecting Line */}
+                <div className="w-px h-[6px] bg-gradient-to-t from-[#FF1744]/60 to-[#FF1744]/0" />
+                <div className="px-1.5 py-0.5 rounded backdrop-blur-md bg-[#FF1744]/10 border border-[#FF1744]/40 shadow-[0_2px_8px_rgba(255,23,68,0.2)] flex items-center gap-1">
+                  <span className="text-[10px] font-mono font-black text-[#FF1744] tracking-tighter">
+                    {visibleHighLow.low.low.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* HTML Markers Overlay Layer */}
         <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
           {htmlMarkers.map((m) => (

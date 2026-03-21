@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Cpu, Network, Zap, Crosshair, Box, ShieldCheck, Activity, Terminal, X, Play, Square, Settings2, Trash2, Plus, Database, Server, BrainCircuit } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type BotType = 'DCA' | 'GRID';
 type BotStrategy = 'LONG' | 'SHORT';
@@ -35,14 +35,14 @@ const defaultBot = (): Omit<BotConfig, 'id' | 'createdAt'> => ({
   currentCycle: 0, realizedProfit: 0, unrealizedPnl: 0, position: 0, unsoldVolume: 0,
 });
 
-// ─── Storage Helpers ────────────────────────────────────────────────────────
+// â”€â”€â”€ Storage Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const loadBots = (): BotConfig[] => { try { return JSON.parse(localStorage.getItem('bot_configs') || '[]'); } catch { return []; } };
 const saveBots = (bots: BotConfig[]) => { try { localStorage.setItem('bot_configs', JSON.stringify(bots)); } catch {} };
 const loadAPs = (): AccessPoint[] => { try { return JSON.parse(localStorage.getItem('access_points') || '[]'); } catch { return []; } };
 const saveAPs = (aps: AccessPoint[]) => { try { localStorage.setItem('access_points', JSON.stringify(aps)); } catch {} };
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-// ─── Cyber Status Badge ─────────────────────────────────────────────────────
+// â”€â”€â”€ Cyber Status Badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const StatusBadge: React.FC<{ status: BotStatus | 'connected' | 'disconnected' | 'error' }> = ({ status }) => {
   const map: Record<string, { text: string; cls: string; dot: string }> = {
     running:      { text: 'ONLINE',      cls: 'bg-[#39ff14]/10 text-[#39ff14] border-[#39ff14]/30', dot: 'bg-[#39ff14] animate-pulse' },
@@ -61,7 +61,7 @@ const StatusBadge: React.FC<{ status: BotStatus | 'connected' | 'disconnected' |
   );
 };
 
-// ─── Diagnostics Card ───────────────────────────────────────────────────────
+// â”€â”€â”€ Diagnostics Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const Stat: React.FC<{ label: string; value: React.ReactNode; sub?: string; color?: string; highlight?: boolean }> = ({ label, value, sub, color = '#eaecef', highlight }) => (
   <div className="bg-black/40 backdrop-blur-sm border border-white/[0.05] rounded-xl p-3 relative overflow-hidden group">
     {highlight && <div className="absolute top-0 right-0 w-16 h-16 bg-[#00f0ff]/10 blur-2xl rounded-full" />}
@@ -71,7 +71,7 @@ const Stat: React.FC<{ label: string; value: React.ReactNode; sub?: string; colo
   </div>
 );
 
-// ─── Fields ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const Field: React.FC<{ label: string; children: React.ReactNode; icon?: any }> = ({ label, children, icon: Icon }) => (
   <div className="relative group">
     <div className="flex items-center gap-1.5 mb-1.5">
@@ -88,7 +88,7 @@ const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (props) 
   <select {...props} className={`w-full bg-black/50 border border-white/[0.1] focus:border-[#00f0ff] focus:shadow-[0_0_15px_rgba(0,240,255,0.1)] rounded-lg px-3 py-2 text-white text-[13px] outline-none font-mono font-bold transition-all appearance-none ${props.className || ''}`} />
 );
 
-// ─── Cyber Access Point Modal ───────────────────────────────────────────────
+// â”€â”€â”€ Cyber Access Point Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const APModal: React.FC<{ onClose: () => void; onSave: (ap: AccessPoint) => void }> = ({ onClose, onSave }) => {
   const [form, setForm] = useState({ name: '', exchange: 'Binance', apiKey: '', apiSecret: '' });
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -123,7 +123,7 @@ const APModal: React.FC<{ onClose: () => void; onSave: (ap: AccessPoint) => void
           <button
             onClick={() => {
               if (!form.name || !form.apiKey) return toast.error('Node Designation & Key required', { style: { background: '#0a0d14', color: '#ff073a', border: '1px solid rgba(255,7,58,0.2)' } });
-              onSave({ id: uid(), name: form.name, exchange: form.exchange, apiKey: form.apiKey.slice(0, 8) + '••••', balance: 0, status: 'connected' });
+              onSave({ id: uid(), name: form.name, exchange: form.exchange, apiKey: form.apiKey.slice(0, 8) + 'â€¢â€¢â€¢â€¢', balance: 0, status: 'connected' });
               onClose();
               toast.success('Uplink Established', { iconTheme: { primary: '#00f0ff', secondary: '#0a0d14' }, style: { background: '#0a0d14', color: '#00f0ff', border: '1px solid rgba(0,240,255,0.2)' } });
             }}
@@ -135,7 +135,7 @@ const APModal: React.FC<{ onClose: () => void; onSave: (ap: AccessPoint) => void
   );
 };
 
-// ─── Cyber Bot Configuration Modal ──────────────────────────────────────────
+// â”€â”€â”€ Cyber Bot Configuration Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; onClose: () => void; onSave: (bot: BotConfig) => void }> = ({ existing, accessPoints, onClose, onSave }) => {
   const [cfg, setCfg] = useState<Omit<BotConfig, 'id' | 'createdAt'>>(existing ? { ...existing } : defaultBot());
   const set = <K extends keyof typeof cfg>(k: K, v: (typeof cfg)[K]) => setCfg(f => ({ ...f, [k]: v }));
@@ -169,7 +169,7 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
               <Field label="Node Alias"><Input placeholder="ALPHA_NODE_01" value={cfg.name} onChange={e => set('name', e.target.value.toUpperCase())} /></Field>
               <Field label="Uplink Gateway">
                 <Select value={cfg.accessPointId} onChange={e => set('accessPointId', e.target.value)}>
-                  <option value="">— UNAVAILABLE —</option>
+                  <option value="">â€” UNAVAILABLE â€”</option>
                   {accessPoints.map(ap => <option key={ap.id} value={ap.id}>{ap.name} ({ap.exchange})</option>)}
                 </Select>
               </Field>
@@ -262,7 +262,7 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
   );
 };
 
-// ─── Cyber Bot Card ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Cyber Bot Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const BotCard: React.FC<{
   bot: BotConfig; ap?: AccessPoint;
   onToggle: (id: string) => void; onEdit: (bot: BotConfig) => void; onDelete: (id: string) => void;
@@ -345,7 +345,7 @@ const BotCard: React.FC<{
   );
 };
 
-// ─── Command Center Root ────────────────────────────────────────────────────
+// â”€â”€â”€ Command Center Root â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const BotPanel: React.FC = () => {
   const [view, setView] = useState<'bots' | 'access'>('bots');
   const [bots, setBots] = useState<BotConfig[]>(loadBots());

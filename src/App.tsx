@@ -616,12 +616,17 @@ export default function App() {
           </div>
         </div>
 
-        {/* ─── BOTTOM ROW: Watchlist + Open Orders + Asset Telemetry ───────────────── */}
+        {/* ─── BOTTOM ROW: Watchlist + Open Orders + OrderBook + Asset Telemetry ───────────────── */}
         <div className="flex flex-col lg:flex-row gap-2 shrink-0">
 
           {/* Market Watchlist */}
           <div className="flex-1 panel-surface overflow-hidden min-h-[320px]">
             <MarketWatchlist onSelectSymbol={setSymbol} activeSymbol={symbol} />
+          </div>
+
+          {/* Order Book */}
+          <div className="lg:w-[320px] shrink-0 panel-surface overflow-hidden min-h-[320px]">
+            <OrderBook bids={orderBook.bids} asks={orderBook.asks} />
           </div>
 
           {/* Open Orders */}
