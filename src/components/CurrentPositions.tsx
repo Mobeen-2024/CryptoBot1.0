@@ -161,7 +161,7 @@ export function CurrentPositions() {
         <span className="text-[9px] text-gray-500 font-mono tracking-widest">REAL-TIME PNL</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar max-h-[400px]">
         {positions.map((pos) => {
           let displaySymbol = pos.symbol;
           let marginTag = 'Cross 10x';
