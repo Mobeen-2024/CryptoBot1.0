@@ -880,9 +880,17 @@ async function startServer() {
          if (side.toUpperCase() === 'BUY') {
             if (positions[symbol].netQuantity < -0.000001) {
                // Covering a short
-               const avgPrice = positions[symbol].totalCost / Math.abs(positions[symbol].netQuantity);
-               positions[symbol].totalCost -= (qty * avgPrice);
-               positions[symbol].netQuantity += qty;
+               const currentShortQty = Math.abs(positions[symbol].netQuantity);
+               if (qty > currentShortQty) {
+                  // Covered everything AND opened a long
+                  const overCoverQty = qty - currentShortQty;
+                  positions[symbol].netQuantity = overCoverQty;
+                  positions[symbol].totalCost = overCoverQty * prc;
+               } else {
+                  const avgPrice = positions[symbol].totalCost / currentShortQty;
+                  positions[symbol].totalCost -= (qty * avgPrice);
+                  positions[symbol].netQuantity += qty;
+               }
             } else {
                // Opening or adding to LONG
                positions[symbol].netQuantity += qty;
@@ -891,9 +899,17 @@ async function startServer() {
          } else if (side.toUpperCase() === 'SELL') {
             if (positions[symbol].netQuantity > 0.000001) {
                // Closing a long
-               const avgPrice = positions[symbol].totalCost / positions[symbol].netQuantity;
-               positions[symbol].totalCost -= (qty * avgPrice);
-               positions[symbol].netQuantity -= qty;
+               const currentLongQty = positions[symbol].netQuantity;
+               if (qty > currentLongQty) {
+                  // Closed everything AND opened a short
+                  const overSellQty = qty - currentLongQty;
+                  positions[symbol].netQuantity = -overSellQty;
+                  positions[symbol].totalCost = overSellQty * prc;
+               } else {
+                  const avgPrice = positions[symbol].totalCost / currentLongQty;
+                  positions[symbol].totalCost -= (qty * avgPrice);
+                  positions[symbol].netQuantity -= qty;
+               }
             } else {
                // Opening or adding to SHORT
                positions[symbol].netQuantity -= qty;
