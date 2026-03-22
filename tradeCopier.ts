@@ -374,6 +374,9 @@ export class TradeCopier {
         await this.masterClient.loadMarkets();
         this.initUserDataStream();
         return;
+      } else if (is410) {
+        Logger.warn('Trade Copier: 410 Gone is persistent. Disabling User Data Stream sub-checks to keep terminal quiet. (Verify keys on Live vs Testnet)');
+        return;
       }
 
       Logger.error('Trade Copier: Error initializing User Data Stream:', error);
