@@ -2,6 +2,7 @@ import ccxt from 'ccxt';
 import { Logger } from '../../logger.js';
 import dotenv from 'dotenv';
 import { Server as SocketIOServer } from 'socket.io';
+import Database from 'better-sqlite3';
 
 dotenv.config({ quiet: true });
 
@@ -41,6 +42,7 @@ export interface TradeLogEntry {
 export class DeltaNeutralBot {
   private publicClient: any;
   private io: SocketIOServer | null;
+  private db: Database.Database;
   
   public state: BotState = {
     isActive: false, symbol: '', qty: 0,
@@ -53,6 +55,54 @@ export class DeltaNeutralBot {
   private startTime: number = 0;
   private config: BotConfig = {} as BotConfig;
   private tradeLog: TradeLogEntry[] = [];
+
+  constructor(io?: SocketIOServer) {
+    this.io = io || null;
+    this.db = new Database('shadow_orders.db');
+    this.publicClient = new (ccxt as any).binance({ enableRateLimit: true });
+  }
+
+  private insertShadowTrade(slaveId: string, side: 'BUY' | 'SELL', qty: number, price: number) {
+    const tradeId = `straddle_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    this.db.prepare(`
+      INSERT INTO copied_fills_v2 
+      (slave_id, master_trade_id, master_order_id, slave_order_id, symbol, side, quantity, price, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(slaveId, tradeId, tradeId, tradeId, this.state.symbol, side, qty, price, Date.now());
+    
+    const baseAsset = this.state.symbol.split('/')[0] || '';
+    const row: any = this.db.prepare(`SELECT balance FROM shadow_balances WHERE slave_id = ? AND asset = ?`).get(slaveId, baseAsset) || { balance: 0 };
+    let newBal = Number(row.balance || 0);
+    newBal += (side === 'BUY' ? qty : -qty);
+    this.db.prepare(`
+       INSERT INTO shadow_balances (slave_id, asset, balance) VALUES (?, ?, ?)
+       ON CONFLICT(slave_id, asset) DO UPDATE SET balance = excluded.balance
+    `).run(slaveId, baseAsset, newBal);
+
+    if (this.io) this.io.emit('trade_copied');
+  }
+
+  private addVisualGuard(idPrefix: string, limitPrice: number, side: 'buy' | 'sell', type: 'limit' | 'stop') {
+    const baseAsset = this.state.symbol.split('/')[0] || '';
+    let quoteAsset = this.state.symbol.split('/')[1] || 'USDT';
+    if (this.state.symbol.indexOf('/') === -1) quoteAsset = 'USDT';
+    
+    const id = `sim_pending_${idPrefix}_${Date.now()}`;
+    this.db.prepare(`
+        INSERT OR REPLACE INTO shadow_pending_orders 
+        (id, symbol, side, type, amount, limitPrice, stopPrice, marginMode, baseAsset, quoteAsset, balanceAsset, status)
+        VALUES (@id, @symbol, @side, @type, @amount, @limitPrice, @stopPrice, @marginMode, @baseAsset, @quoteAsset, @balanceAsset, @status)
+    `).run({
+        id, symbol: this.state.symbol.replace('/', ''), side, type, amount: this.state.qty,
+        limitPrice: type === 'limit' ? limitPrice : null, stopPrice: type === 'stop' ? limitPrice : null,
+        marginMode: 'cross', baseAsset, quoteAsset, balanceAsset: quoteAsset, status: 'open'
+    });
+  }
+
+  private clearPendingShadowOrders() {
+    const sym = this.state.symbol.replace('/', '');
+    this.db.prepare(`UPDATE shadow_pending_orders SET status = 'canceled' WHERE symbol = ? AND status = 'open' AND id LIKE '%sim_pending_%'`).run(sym);
+  }
 
   private logEvent(event: string, price: number, details: string) {
     const entry: TradeLogEntry = {
@@ -68,11 +118,6 @@ export class DeltaNeutralBot {
   }
 
   public getTradeLog(): TradeLogEntry[] { return this.tradeLog; }
-
-  constructor(io?: SocketIOServer) {
-    this.io = io || null;
-    this.publicClient = new (ccxt as any).binance({ enableRateLimit: true });
-  }
 
   public async start(symbol: string, qty: number, config: BotConfig) {
     if (this.state.isActive) throw new Error("Bot is already active");
@@ -168,6 +213,13 @@ export class DeltaNeutralBot {
       this.startTime = Date.now();
 
       this.logEvent('ENTRY', currentPrice, `Hedged Phase 1 Lock established. Anchor: ${anchor.toFixed(2)}, UGuard: ${this.state.upperGuard.toFixed(2)}, LGuard: ${this.state.lowerGuard.toFixed(2)}`);
+      
+      this.clearPendingShadowOrders();
+      this.insertShadowTrade('master', 'BUY', this.state.qty, currentPrice);
+      this.insertShadowTrade('slave_1', 'SELL', this.state.qty, currentPrice);
+      this.addVisualGuard('UPPER_GUARD', this.state.upperGuard, 'sell', 'limit');
+      this.addVisualGuard('LOWER_GUARD', this.state.lowerGuard, 'buy', 'limit');
+
       this.emitStatus();
       this.startStateEngine();
     } catch (error) {
@@ -207,6 +259,7 @@ export class DeltaNeutralBot {
         const currentPrice = ticker.last;
         if (!currentPrice) return;
 
+// ... inside State Engine ...
         // ──────────────────────────────────────────────────
         //  STATE: HEDGED (Phase 1)
         // ──────────────────────────────────────────────────
@@ -221,6 +274,16 @@ export class DeltaNeutralBot {
              this.state.realizedLoss = parseFloat(slaveLoss.toFixed(4));
              
              this.logEvent('GUARD_BREACH_UPPER', currentPrice, `Upper guard hit (${this.state.upperGuard.toFixed(2)}). Liquidated Bearish side for realized loss: ${this.state.realizedLoss} USDT.`);
+             
+             // Phase III: Whipsaw Protection -> Move Survivor (Account A Bullish) Stop Loss to Breakeven
+             this.state.lowerGuard = this.state.masterEntryPrice; 
+             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Long) Stop Loss to Breakeven @ ${this.state.lowerGuard}`);
+             
+             // Clear visual pending orders & update trades
+             this.clearPendingShadowOrders();
+             this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice); // Buy back short
+             this.addVisualGuard('MASTER_BE', this.state.lowerGuard, 'sell', 'limit'); // Visual BE SL
+
              this.state.phase = 'NAKED_LONG';
              this.emitStatus();
           }
@@ -230,6 +293,15 @@ export class DeltaNeutralBot {
              this.state.realizedLoss = parseFloat(masterLoss.toFixed(4));
 
              this.logEvent('GUARD_BREACH_LOWER', currentPrice, `Lower guard hit (${this.state.lowerGuard.toFixed(2)}). Liquidated Bullish side for realized loss: ${this.state.realizedLoss} USDT.`);
+             
+             // Phase III: Whipsaw Protection -> Move Survivor (Account B Bearish) Stop Loss to Breakeven
+             this.state.upperGuard = this.state.slaveEntryPrice;
+             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Short) Stop Loss to Breakeven @ ${this.state.upperGuard}`);
+
+             this.clearPendingShadowOrders();
+             this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice); // Sell long
+             this.addVisualGuard('SLAVE_BE', this.state.upperGuard, 'buy', 'limit'); // Visual BE SL
+
              this.state.phase = 'NAKED_SHORT';
              this.emitStatus();
           } else {
@@ -242,7 +314,18 @@ export class DeltaNeutralBot {
         else if (this.state.phase === 'NAKED_LONG') {
           const nakedPnL = (currentPrice - this.state.masterEntryPrice) * this.state.qty;
           this.state.livePnL = parseFloat((nakedPnL + (this.state.realizedLoss || 0)).toFixed(4));
-          this.emitStatus();
+          
+          // Whipsaw Breakeven Check
+          if (this.state.lowerGuard && currentPrice <= this.state.lowerGuard) {
+             this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Long safely at Breakeven. Total loss capped.`);
+             this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice);
+             this.clearPendingShadowOrders();
+             this.state.phase = 'CLOSED';
+             this.emitStatus();
+             clearInterval(this.priceCheckInterval!);
+          } else {
+             this.emitStatus();
+          }
         }
         // ──────────────────────────────────────────────────
         //  STATE: NAKED_SHORT (Account B riding solo)
@@ -250,7 +333,18 @@ export class DeltaNeutralBot {
         else if (this.state.phase === 'NAKED_SHORT') {
           const nakedPnL = (this.state.slaveEntryPrice - currentPrice) * this.state.qty;
           this.state.livePnL = parseFloat((nakedPnL + (this.state.realizedLoss || 0)).toFixed(4));
-          this.emitStatus();
+          
+          // Whipsaw Breakeven Check
+          if (this.state.upperGuard && currentPrice >= this.state.upperGuard) {
+             this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Short safely at Breakeven. Total loss capped.`);
+             this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice);
+             this.clearPendingShadowOrders();
+             this.state.phase = 'CLOSED';
+             this.emitStatus();
+             clearInterval(this.priceCheckInterval!);
+          } else {
+             this.emitStatus();
+          }
         }
 
       } catch (error) {
