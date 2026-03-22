@@ -293,7 +293,7 @@ async function startServer() {
         isActive: deltaNeutralBot.getStatus().isActive,
         phase: deltaNeutralBot.getStatus().phase || 'CLOSED',
         symbol: deltaNeutralBot.getStatus().symbol || '—',
-        cycles: deltaNeutralBot.getStatus().totalCyclesCompleted || 0,
+        cycles: 0,
       },
       copier: {
         isActive: typeof (tradeCopier as any).isActive === 'function' ? (tradeCopier as any).isActive() : true,
@@ -379,43 +379,28 @@ async function startServer() {
   app.post('/api/bot/start', async (req, res) => {
     try {
       const { 
-        symbol, qty, stopLossUSDT, takeProfitUSDT, timeLimitMins, 
-        useSmartTrailing, trailingMode, trailingStep,
-        rsiPeriod, rsiOverbought, rsiOversold, 
-        wrPeriod, wrOverbought, wrOversold,
-        enableMultiCycle, maxCycles,
-        entryMode, entryRsiThreshold,
-        useRiskPercent, riskPercent
+        symbol, qty, 
+        entryMode, scheduleTimeStr,
+        usePreviousDayAvg, customAnchorPrice, offsetType, offsetValue
       } = req.body;
       
-      if (!symbol || !qty || !stopLossUSDT) {
-        return res.status(400).json({ error: 'Missing required parameters: symbol, qty, stopLossUSDT' });
+      if (!symbol || !qty) {
+        return res.status(400).json({ error: 'Missing required parameters: symbol, qty' });
       }
       
       const config = {
-        takeProfitUSDT:      takeProfitUSDT     ? Number(takeProfitUSDT)     : undefined,
-        timeLimitMins:       timeLimitMins       ? Number(timeLimitMins)       : undefined,
-        useSmartTrailing:    Boolean(useSmartTrailing),
-        trailingMode:        trailingMode        || 'BREAKEVEN',
-        trailingStep:        Number(trailingStep)  || 0.5,
-        rsiPeriod:           Number(rsiPeriod)   || 14,
-        rsiOverbought:       Number(rsiOverbought) || 70,
-        rsiOversold:         Number(rsiOversold)   || 30,
-        wrPeriod:            Number(wrPeriod)    || 14,
-        wrOverbought:        Number(wrOverbought)  || -20,
-        wrOversold:          Number(wrOversold)    || -80,
-        enableMultiCycle:    Boolean(enableMultiCycle),
-        maxCycles:           Number(maxCycles)   || 1,
         entryMode:           entryMode           || 'INSTANT',
-        entryRsiThreshold:   Number(entryRsiThreshold) || 40,
-        useRiskPercent:      Boolean(useRiskPercent),
-        riskPercent:         Number(riskPercent) || 1,
+        scheduleTimeStr:     scheduleTimeStr     || '',
+        usePreviousDayAvg:   Boolean(usePreviousDayAvg),
+        customAnchorPrice:   customAnchorPrice ? Number(customAnchorPrice) : 0,
+        offsetType:          offsetType          || '%',
+        offsetValue:         Number(offsetValue) || 1.00
       };
 
-      await deltaNeutralBot.start(symbol, Number(qty), Number(stopLossUSDT), config);
-      res.json({ message: 'Bot started successfully', status: deltaNeutralBot.getStatus() });
+      await deltaNeutralBot.start(symbol, Number(qty), config);
+      res.json({ message: 'Asymmetric Hedge scheduled successfully', status: deltaNeutralBot.getStatus() });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Failed to start bot' });
+      res.status(500).json({ error: error.message || 'Failed to initialize straddle' });
     }
   });
 

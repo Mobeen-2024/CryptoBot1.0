@@ -559,20 +559,20 @@ export default function App() {
           <div className="flex flex-col gap-2 w-full lg:w-[650px] shrink-0 z-10">
 
             <div className="flex flex-col md:flex-row gap-2 w-full min-h-0 shrink-0">
-              {/* Master Account */}
+              {/* Bullish Account */}
               <div className="flex flex-col gap-2 flex-1 min-w-0">
                 <div className="flex items-center justify-center gap-2 bg-[#0ecb81]/8 border border-[#0ecb81]/20 text-[#0ecb81] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg">
                   <div className="glow-dot-sm bg-[#0ecb81]" />
-                  Master
+                  Bullish
                 </div>
                 <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(balance)} baseBalance={parseFloat(baseBalance)} onPlaceOrder={handlePlaceOrder} />
               </div>
 
-              {/* Slave Account */}
+              {/* Bearish Account */}
               <div className="flex flex-col gap-2 flex-1 min-w-0">
-                <div className="flex items-center justify-center gap-2 bg-[#2962FF]/8 border border-[#2962FF]/20 text-[#2962FF] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg">
-                  <div className="glow-dot-sm bg-[#2962FF]" />
-                  Sub-Account
+                <div className="flex items-center justify-center gap-2 bg-[#f6465d]/8 border border-[#f6465d]/20 text-[#f6465d] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg">
+                  <div className="glow-dot-sm bg-[#f6465d]" />
+                  Bearish
                 </div>
                 <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(slaveBalance)} baseBalance={parseFloat(slaveBaseBalance)} onPlaceOrder={handlePlaceOrder} />
               </div>

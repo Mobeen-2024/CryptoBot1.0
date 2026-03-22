@@ -18,7 +18,7 @@ export const DatabasePanel: React.FC = () => {
   const [trades, setTrades] = useState<TradeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [accountFilter, setAccountFilter] = useState<'ALL' | 'MASTER' | 'SUB-ACCOUNT'>('ALL');
+  const [accountFilter, setAccountFilter] = useState<'ALL' | 'BULLISH' | 'BEARISH'>('ALL');
   const [isExporting, setIsExporting] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
   const [showWipeConfirm, setShowWipeConfirm] = useState(false);
@@ -65,7 +65,7 @@ export const DatabasePanel: React.FC = () => {
       
       const matchesAccount = 
         accountFilter === 'ALL' ? true :
-        accountFilter === 'MASTER' ? t.slave_id === 'master' : 
+        accountFilter === 'BULLISH' ? t.slave_id === 'master' : 
         t.slave_id !== 'master';
 
       return matchesSearch && matchesAccount;
@@ -206,7 +206,7 @@ export const DatabasePanel: React.FC = () => {
         
         {/* Segmented Account Control */}
         <div className="flex bg-[#0A0D14] p-1 rounded-lg border border-[#334155]/40 w-full sm:w-auto overflow-x-auto custom-scrollbar">
-          {(['ALL', 'MASTER', 'SUB-ACCOUNT'] as const).map(mode => (
+          {(['ALL', 'BULLISH', 'BEARISH'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setAccountFilter(mode)}
@@ -217,8 +217,8 @@ export const DatabasePanel: React.FC = () => {
               }`}
             >
               <div className="flex items-center justify-center gap-1.5">
-                {mode === 'MASTER' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[#34D399] shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-transparent'}`} />}
-                {mode === 'SUB-ACCOUNT' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[#3B82F6] shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'bg-transparent'}`} />}
+                {mode === 'BULLISH' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[#34D399] shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-transparent'}`} />}
+                {mode === 'BEARISH' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[#f6465d] shadow-[0_0_8px_rgba(246,70,93,0.8)]' : 'bg-transparent'}`} />}
                 {mode}
               </div>
             </button>
@@ -298,10 +298,10 @@ export const DatabasePanel: React.FC = () => {
                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[9px] font-bold uppercase tracking-widest border ${
                          isMaster 
                           ? 'bg-[#34D399]/10 text-[#34D399] border-[#34D399]/20' 
-                          : 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20'
+                          : 'bg-[#f6465d]/10 text-[#f6465d] border-[#f6465d]/20'
                        }`}>
                          {isMaster ? <CheckCircle2 className="w-2.5 h-2.5" /> : <RefreshCw className="w-2.5 h-2.5" />}
-                         {isMaster ? 'Master' : `Sub · ${t.slave_id.replace('slave_', '')}`}
+                         {isMaster ? 'Bullish' : `Bearish · ${t.slave_id.replace('slave_', '')}`}
                        </span>
                     </div>
 
