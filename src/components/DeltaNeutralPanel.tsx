@@ -8,7 +8,7 @@ import {
 interface BotState {
   isActive: boolean; symbol: string; qty: number; 
   masterEntryPrice: number; slaveEntryPrice: number;
-  livePnL?: number; phase?: 'IDLE' | 'SCHEDULED' | 'HEDGED' | 'ASYMMETRIC_BREAK' | 'CLOSED';
+  livePnL?: number; phase?: 'IDLE' | 'SCHEDULED' | 'HEDGED' | 'NAKED_LONG' | 'NAKED_SHORT' | 'ASYMMETRIC_BREAK' | 'CLOSED';
   scheduledTime?: number;
 }
 
@@ -88,6 +88,8 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
     if (!status.isActive) return 'border-[#1E293B] bg-[#0A0D14]';
     if (status.phase === 'SCHEDULED') return 'border-[#FCD535]/50 bg-[#FCD535]/10';
     if (status.phase === 'HEDGED') return 'border-[#00f0ff]/50 bg-[#00f0ff]/10';
+    if (status.phase === 'NAKED_LONG') return 'border-[#00ff88]/50 bg-[#00ff88]/5';
+    if (status.phase === 'NAKED_SHORT') return 'border-[#ff0055]/50 bg-[#ff0055]/5';
     return 'border-[#E0E7FF] bg-[#E0E7FF]/10';
   };
 
@@ -106,6 +108,8 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
               <span className={`flex justify-center items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest ${
                 status.isActive 
                   ? status.phase === 'SCHEDULED' ? 'bg-[#FCD535]/20 text-[#FCD535] border border-[#FCD535]/50 shadow-[0_0_8px_rgba(252,213,53,0.3)]' 
+                  : status.phase === 'NAKED_LONG' ? 'bg-[#00ff88]/20 text-[#00ff88] border border-[#00ff88]/50 shadow-[0_0_8px_rgba(0,255,136,0.3)]'
+                  : status.phase === 'NAKED_SHORT' ? 'bg-[#ff0055]/20 text-[#ff0055] border border-[#ff0055]/50 shadow-[0_0_8px_rgba(255,0,85,0.3)]'
                   : 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/50 shadow-[0_0_8px_rgba(0,240,255,0.3)]' 
                   : 'bg-[#1E293B] text-[#64748B] border border-[#334155]'
               }`}>
