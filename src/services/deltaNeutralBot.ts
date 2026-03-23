@@ -90,7 +90,10 @@ export class DeltaNeutralBot {
        ON CONFLICT(slave_id, asset) DO UPDATE SET balance = excluded.balance
     `).run(slaveId, baseAsset, newBal);
 
-    if (this.io) this.io.emit('trade_copied');
+    if (this.io) {
+       this.io.emit('trade_copied');
+       this.io.emit('new_trade');
+    }
   }
 
   private addVisualGuard(idPrefix: string, limitPrice: number, side: 'buy' | 'sell', type: 'limit' | 'stop') {

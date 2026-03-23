@@ -859,7 +859,7 @@ async function startServer() {
   // Open / Pending Orders Endpoint
   app.get('/api/backend/openOrders', (req, res) => {
     try {
-      const openOrders = pendingShadowOrders.filter((o: any) => o.status === 'open');
+      const openOrders = shadowDb.prepare("SELECT * FROM shadow_pending_orders WHERE status = 'open'").all();
       res.json(openOrders);
     } catch (error: any) {
       Logger.error('Failed to fetch open orders:', error);
@@ -872,72 +872,76 @@ async function startServer() {
     try {
       const db = new Database('trades.db', { readonly: true });
       const trades = db.prepare(`
-        SELECT symbol, side, quantity, price 
+        SELECT slave_id, symbol, side, quantity, price 
         FROM copied_fills_v2 
-        WHERE slave_id = 'master'
+        WHERE slave_id IN ('master', 'slave_1')
         ORDER BY timestamp ASC
       `).all() as any[];
       db.close();
 
-      const positions: Record<string, { symbol: string, netQuantity: number, totalCost: number, averageEntryPrice: number, tpPrice?: number, slPrice?: number }> = {};
+      const positions: Record<string, { symbol: string, netQuantity: number, totalCost: number, averageEntryPrice: number, tpPrice?: number, slPrice?: number, isVoltron?: boolean }> = {};
 
       trades.forEach(trade => {
-         const { symbol, side, quantity, price } = trade;
-         if (!positions[symbol]) {
-            positions[symbol] = { symbol, netQuantity: 0, totalCost: 0, averageEntryPrice: 0 };
+         const { slave_id, symbol, side, quantity, price } = trade;
+         // Partition Voltron Hands
+         const isVoltron = slave_id === 'slave_1';
+         const internalSymbol = isVoltron ? `${symbol}-BEAR` : symbol;
+
+         if (!positions[internalSymbol]) {
+            positions[internalSymbol] = { symbol: internalSymbol, netQuantity: 0, totalCost: 0, averageEntryPrice: 0, isVoltron };
          }
 
          const qty = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
          const prc = typeof price === 'string' ? parseFloat(price) : price;
 
          if (side.toUpperCase() === 'BUY') {
-            if (positions[symbol].netQuantity < -0.000001) {
+            if (positions[internalSymbol].netQuantity < -0.000001) {
                // Covering a short
-               const currentShortQty = Math.abs(positions[symbol].netQuantity);
+               const currentShortQty = Math.abs(positions[internalSymbol].netQuantity);
                if (qty > currentShortQty) {
                   // Covered everything AND opened a long
                   const overCoverQty = qty - currentShortQty;
-                  positions[symbol].netQuantity = overCoverQty;
-                  positions[symbol].totalCost = overCoverQty * prc;
+                  positions[internalSymbol].netQuantity = overCoverQty;
+                  positions[internalSymbol].totalCost = overCoverQty * prc;
                } else {
-                  const avgPrice = positions[symbol].totalCost / currentShortQty;
-                  positions[symbol].totalCost -= (qty * avgPrice);
-                  positions[symbol].netQuantity += qty;
+                  const avgPrice = positions[internalSymbol].totalCost / currentShortQty;
+                  positions[internalSymbol].totalCost -= (qty * avgPrice);
+                  positions[internalSymbol].netQuantity += qty;
                }
             } else {
                // Opening or adding to LONG
-               positions[symbol].netQuantity += qty;
-               positions[symbol].totalCost += (qty * prc);
+               positions[internalSymbol].netQuantity += qty;
+               positions[internalSymbol].totalCost += (qty * prc);
             }
          } else if (side.toUpperCase() === 'SELL') {
-            if (positions[symbol].netQuantity > 0.000001) {
+            if (positions[internalSymbol].netQuantity > 0.000001) {
                // Closing a long
-               const currentLongQty = positions[symbol].netQuantity;
+               const currentLongQty = positions[internalSymbol].netQuantity;
                if (qty > currentLongQty) {
                   // Closed everything AND opened a short
                   const overSellQty = qty - currentLongQty;
-                  positions[symbol].netQuantity = -overSellQty;
-                  positions[symbol].totalCost = overSellQty * prc;
+                  positions[internalSymbol].netQuantity = -overSellQty;
+                  positions[internalSymbol].totalCost = overSellQty * prc;
                } else {
-                  const avgPrice = positions[symbol].totalCost / currentLongQty;
-                  positions[symbol].totalCost -= (qty * avgPrice);
-                  positions[symbol].netQuantity -= qty;
+                  const avgPrice = positions[internalSymbol].totalCost / currentLongQty;
+                  positions[internalSymbol].totalCost -= (qty * avgPrice);
+                  positions[internalSymbol].netQuantity -= qty;
                }
             } else {
                // Opening or adding to SHORT
-               positions[symbol].netQuantity -= qty;
-               positions[symbol].totalCost += (qty * prc);
+               positions[internalSymbol].netQuantity -= qty;
+               positions[internalSymbol].totalCost += (qty * prc);
             }
          }
 
          // Update Average Entry Price based dynamically on active cost
-         if (Math.abs(positions[symbol].netQuantity) > 0.000001) { // Floating point safety
-             positions[symbol].averageEntryPrice = Math.max(0, positions[symbol].totalCost / Math.abs(positions[symbol].netQuantity));
+         if (Math.abs(positions[internalSymbol].netQuantity) > 0.000001) { // Floating point safety
+             positions[internalSymbol].averageEntryPrice = Math.max(0, positions[internalSymbol].totalCost / Math.abs(positions[internalSymbol].netQuantity));
          } else {
              // Position completely closed
-             positions[symbol].averageEntryPrice = 0;
-             positions[symbol].totalCost = 0;
-             positions[symbol].netQuantity = 0; // Prevent float artifacts like 1e-16
+             positions[internalSymbol].averageEntryPrice = 0;
+             positions[internalSymbol].totalCost = 0;
+             positions[internalSymbol].netQuantity = 0; // Prevent float artifacts like 1e-16
          }
       });
 
