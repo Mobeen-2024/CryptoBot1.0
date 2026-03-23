@@ -61,6 +61,9 @@ export class TradeCopier {
   private isShadowMode: boolean;
   private io: SocketIOServer | null;
 
+  public getMasterClient() { return this.masterClient; }
+  public getSlaveClient(index: number = 0) { return this.slaveClients[index]?.client; }
+
   constructor(io?: SocketIOServer) {
     this.io = io || null;
     // Robust check for boolean true
@@ -452,6 +455,12 @@ export class TradeCopier {
   }
 
   private async handleExecutionReport(report: ExecutionReport, streamType: 'spot' | 'margin' = 'spot') {
+    // IGNORE ASYMMETRIC BOT ORDERS TO PREVENT ECHO LOOPS
+    if (report.c && report.c.startsWith('STRADDLE_')) {
+        Logger.info(`Trade Copier: Ignoring STRADDLE execution report to prevent infinite copy echo.`);
+        return;
+    }
+
     // Only copy trades that are FILLED or PARTIALLY_FILLED
     if (report.X !== 'FILLED' && report.X !== 'PARTIALLY_FILLED') {
       return;

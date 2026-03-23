@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, AlertTriangle, ArrowRight, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface SyncModalProps {
   isOpen: boolean;
@@ -160,7 +161,7 @@ export const SyncTradesModal: React.FC<SyncModalProps> = ({ isOpen, onClose }) =
                 <button 
                   type="button"
                   onClick={() => {
-                    alert(`Force-Executing ${discrepancies.length} missed trades to Slave Account at Market Price.`);
+                    toast.error(`Force-Executing ${discrepancies.length} missed trades to Slave Account at Market Price.`, { icon: '⚠️' });
                     onClose();
                   }}
                   className="flex-[2] flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm font-semibold transition-all hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]"

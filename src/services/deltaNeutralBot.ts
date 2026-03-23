@@ -43,6 +43,9 @@ export class DeltaNeutralBot {
   private publicClient: any;
   private io: SocketIOServer | null;
   private db: Database.Database;
+  private tradeCopier: any = null;
+  
+  public setTradeCopier(copier: any) { this.tradeCopier = copier; }
   
   public state: BotState = {
     isActive: false, symbol: '', qty: 0,
@@ -220,6 +223,24 @@ export class DeltaNeutralBot {
       this.addVisualGuard('UPPER_GUARD', this.state.upperGuard, 'sell', 'limit');
       this.addVisualGuard('LOWER_GUARD', this.state.lowerGuard, 'buy', 'limit');
 
+      const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+      if (!isShadowMode && this.tradeCopier) {
+         try {
+           const master = this.tradeCopier.getMasterClient();
+           const slave = this.tradeCopier.getSlaveClient(0);
+           const straddleId = `STRADDLE_${Date.now()}`;
+           if (master && slave) {
+             this.logEvent('LIVE_EXECUTION', currentPrice, `Deploying Live Margin Borrow Hedge to Binance API...`);
+             // Master: BUY (Bullish) cross margin
+             await master.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `${straddleId}_M` });
+             // Slave: SELL (Bearish/Short) cross margin with auto-borrow
+             await slave.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'MARGIN_BUY', newClientOrderId: `${straddleId}_S` });
+           }
+         } catch (apiErr: any) {
+           this.logEvent('LIVE_ERROR', currentPrice, `API Hedge Execution Failed: ${apiErr.message}`);
+         }
+      }
+
       this.emitStatus();
       this.startStateEngine();
     } catch (error) {
@@ -278,11 +299,18 @@ export class DeltaNeutralBot {
              // Phase III: Whipsaw Protection -> Move Survivor (Account A Bullish) Stop Loss to Breakeven
              this.state.lowerGuard = this.state.masterEntryPrice; 
              this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Long) Stop Loss to Breakeven @ ${this.state.lowerGuard}`);
-             
-             // Clear visual pending orders & update trades
+
              this.clearPendingShadowOrders();
              this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice); // Buy back short
              this.addVisualGuard('MASTER_BE', this.state.lowerGuard, 'sell', 'limit'); // Visual BE SL
+
+             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+             if (!isShadowMode && this.tradeCopier) {
+               try {
+                 const slave = this.tradeCopier.getSlaveClient(0);
+                 if (slave) await slave.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'AUTO_REPAY', newClientOrderId: `STRADDLE_CLOSES_${Date.now()}` });
+               } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 2 Slave Liquidation Failed: ${e.message}`); }
+             }
 
              this.state.phase = 'NAKED_LONG';
              this.emitStatus();
@@ -302,6 +330,14 @@ export class DeltaNeutralBot {
              this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice); // Sell long
              this.addVisualGuard('SLAVE_BE', this.state.upperGuard, 'buy', 'limit'); // Visual BE SL
 
+             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+             if (!isShadowMode && this.tradeCopier) {
+               try {
+                 const master = this.tradeCopier.getMasterClient();
+                 if (master) await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `STRADDLE_CLOSEM_${Date.now()}` });
+               } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 2 Master Liquidation Failed: ${e.message}`); }
+             }
+
              this.state.phase = 'NAKED_SHORT';
              this.emitStatus();
           } else {
@@ -320,9 +356,18 @@ export class DeltaNeutralBot {
              this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Long safely at Breakeven. Total loss capped.`);
              this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
+
+             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+             if (!isShadowMode && this.tradeCopier) {
+               try {
+                 const master = this.tradeCopier.getMasterClient();
+                 if (master) await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `STRADDLE_WHIPM_${Date.now()}` });
+               } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 Master Liquidation Failed: ${e.message}`); }
+             }
+
              this.state.phase = 'CLOSED';
              this.emitStatus();
-             clearInterval(this.priceCheckInterval!);
+             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
           } else {
              this.emitStatus();
           }
@@ -339,9 +384,18 @@ export class DeltaNeutralBot {
              this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Short safely at Breakeven. Total loss capped.`);
              this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
+
+             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+             if (!isShadowMode && this.tradeCopier) {
+               try {
+                 const slave = this.tradeCopier.getSlaveClient(0);
+                 if (slave) await slave.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'AUTO_REPAY', newClientOrderId: `STRADDLE_WHIPS_${Date.now()}` });
+               } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 Slave Liquidation Failed: ${e.message}`); }
+             }
+
              this.state.phase = 'CLOSED';
              this.emitStatus();
-             clearInterval(this.priceCheckInterval!);
+             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
           } else {
              this.emitStatus();
           }

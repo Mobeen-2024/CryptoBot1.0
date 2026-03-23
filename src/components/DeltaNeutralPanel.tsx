@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { 
   Activity, ShieldCheck, Crosshair, Zap, Cpu, Terminal,
   Network, AlertTriangle, TrendingUp, Infinity, RotateCw,
@@ -51,7 +52,9 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
 
   const handleStart = async () => {
     setLoading(true);
+    let toastId;
     try {
+      toastId = toast.loading('Initiating Asymmetric Pipeline...');
       const res = await fetch('/api/bot/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -64,8 +67,9 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
       if (!res.ok) throw new Error(data.error);
       
       setStatus(prev => ({ ...prev, isActive: true, phase: entryMode === 'SCHEDULED' ? 'SCHEDULED' : 'HEDGED' }));
+      toast.success(entryMode === 'SCHEDULED' ? 'Hedge Scheduled Successfully' : 'Asymmetric Hedge Deployed!', { id: toastId });
     } catch (err: any) {
-      alert(`Start failed: ${err.message}`);
+      toast.error(`Start failed: ${err.message}`, { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -73,12 +77,15 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
 
   const handleStop = async () => {
     setLoading(true);
+    let toastId;
     try {
+      toastId = toast.loading('Aborting Asymmetric Sequence...');
       const res = await fetch('/api/bot/stop', { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to stop');
+      if (!res.ok) throw new Error('Failed to stop sequence');
       setStatus(prev => ({ ...prev, isActive: false, phase: 'CLOSED' }));
+      toast.success('Strategy sequence terminated', { id: toastId });
     } catch (err: any) {
-      alert(`Stop failed: ${err.message}`);
+      toast.error(`Abort failed: ${err.message}`, { id: toastId });
     } finally {
       setLoading(false);
     }

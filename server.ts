@@ -87,6 +87,7 @@ async function startServer() {
 
   // Initialize Delta Neutral Bot
   const deltaNeutralBot = new DeltaNeutralBot(io);
+  deltaNeutralBot.setTradeCopier(tradeCopier);
 
   let isPendingEngineRunning = false;
   // ─── Shadow Pending Order Price-Matching Engine ────────────────────
