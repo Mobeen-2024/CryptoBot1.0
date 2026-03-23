@@ -123,10 +123,10 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
   };
 
   return (
-    <div className="h-full flex items-center justify-center p-4 bg-transparent transition-colors duration-500">
+    <div className="h-full flex flex-col sm:flex-row gap-4 p-4 items-start justify-center bg-transparent transition-colors duration-500 overflow-y-auto custom-scrollbar">
       
       {/* ── THE MASTER BOT WIDGET ── */}
-      <div className="bg-[#0a0a0c]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-5 w-full max-w-[360px] mx-auto flex flex-col text-white shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
+      <div className="flex-1 shrink-0 bg-[#0a0a0c]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-5 w-full min-w-[300px] max-w-[360px] flex flex-col text-white shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
         
         {/* Ambient Glow */}
         <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-indigo-500/10 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />

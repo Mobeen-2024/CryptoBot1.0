@@ -580,7 +580,7 @@ export default function App() {
           </div>
 
           {/* ─── Side Column: Telemetry + Order Panels ───────────────────── */}
-          <div className={`flex flex-col gap-2 ${activeMode === 'DELTA' ? 'w-full lg:w-[600px] max-w-[360px] shrink-0 z-10' : 'w-full lg:w-[650px] shrink-0 z-10'}`}>
+          <div className="flex flex-col gap-2 w-full lg:w-[650px] shrink-0 z-10">
             
             {/* VOLTRON ARCHITECTURE: PILL SLIDER TOGGLE */}
             <div className="relative flex bg-[#0A0D14] border border-[#1E293B] rounded-full p-1 mx-auto w-[240px] shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
