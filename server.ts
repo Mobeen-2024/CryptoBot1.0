@@ -376,13 +376,14 @@ async function startServer() {
     }
   });
 
-  // Delta Neutral Bot Endpoints
+  // Voltron Master Bot Endpoints
   app.post('/api/bot/start', async (req, res) => {
     try {
       const { 
         symbol, qty, 
-        entryMode, scheduleTimeStr,
-        usePreviousDayAvg, customAnchorPrice, offsetType, offsetValue
+        entryMode, scheduleTimeStr, sessionTarget,
+        usePreviousDayAvg, customAnchorPrice,
+        bullishSL, bullishTP, bearishSL, bearishTP
       } = req.body;
       
       if (!symbol || !qty) {
@@ -392,14 +393,17 @@ async function startServer() {
       const config = {
         entryMode:           entryMode           || 'INSTANT',
         scheduleTimeStr:     scheduleTimeStr     || '',
+        sessionTarget:       sessionTarget       || 'LONDON',
         usePreviousDayAvg:   Boolean(usePreviousDayAvg),
         customAnchorPrice:   customAnchorPrice ? Number(customAnchorPrice) : 0,
-        offsetType:          offsetType          || '%',
-        offsetValue:         Number(offsetValue) || 1.00
+        bullishSL:           Number(bullishSL)   || 0,
+        bullishTP:           Number(bullishTP)   || 0,
+        bearishSL:           Number(bearishSL)   || 0,
+        bearishTP:           Number(bearishTP)   || 0,
       };
 
-      await deltaNeutralBot.start(symbol, Number(qty), config);
-      res.json({ message: 'Asymmetric Hedge scheduled successfully', status: deltaNeutralBot.getStatus() });
+      await deltaNeutralBot.start(symbol, Number(qty), config as any);
+      res.json({ message: 'Voltron Master scheduled successfully', status: deltaNeutralBot.getStatus() });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to initialize straddle' });
     }

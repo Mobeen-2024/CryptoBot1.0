@@ -63,6 +63,7 @@ const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
 
 export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
+  const [activeMode, setActiveMode] = useState<'SPOT'|'DELTA'>('SPOT');
   const [chartInterval, setChartInterval] = useState('1h');
   const [marketData, setMarketData] = useState<any[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
@@ -557,27 +558,49 @@ export default function App() {
 
           {/* ─── Right Column: Telemetry + Order Panels ───────────────────── */}
           <div className="flex flex-col gap-2 w-full lg:w-[650px] shrink-0 z-10">
-
-            <div className="flex flex-col md:flex-row gap-2 w-full min-h-0 shrink-0">
-              {/* Bullish Account */}
-              <div className="flex flex-col gap-2 flex-1 min-w-0">
-                <div className="flex items-center justify-center gap-2 bg-[#0ecb81]/8 border border-[#0ecb81]/20 text-[#0ecb81] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg">
-                  <div className="glow-dot-sm bg-[#0ecb81]" />
-                  Bullish
-                </div>
-                <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(balance)} baseBalance={parseFloat(baseBalance)} onPlaceOrder={handlePlaceOrder} />
-              </div>
-
-              {/* Bearish Account */}
-              <div className="flex flex-col gap-2 flex-1 min-w-0">
-                <div className="flex items-center justify-center gap-2 bg-[#f6465d]/8 border border-[#f6465d]/20 text-[#f6465d] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg">
-                  <div className="glow-dot-sm bg-[#f6465d]" />
-                  Bearish
-                </div>
-                <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(slaveBalance)} baseBalance={parseFloat(slaveBaseBalance)} onPlaceOrder={handlePlaceOrder} />
-              </div>
+            
+            {/* VOLTRON ARCHITECTURE: PILL SLIDER TOGGLE */}
+            <div className="relative flex bg-[#0A0D14] border border-[#1E293B] rounded-full p-1 mx-auto w-[240px] shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+              <div 
+                className={`absolute top-1 bottom-1 w-[114px] bg-[#1E293B] border border-cyan-500/30 rounded-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_0_15px_rgba(6,182,212,0.15)] z-0 ${activeMode === 'SPOT' ? 'left-1' : 'left-[120px]'}`}
+              />
+              <button 
+                onClick={() => setActiveMode('SPOT')}
+                className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'SPOT' ? 'text-cyan-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
+              >
+                Spot Margin
+              </button>
+              <button 
+                onClick={() => setActiveMode('DELTA')}
+                className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'DELTA' ? 'text-cyan-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
+              >
+                Delta Master
+              </button>
             </div>
 
+            {activeMode === 'SPOT' ? (
+              <div className="flex flex-col md:flex-row gap-2 w-full min-h-0 shrink-0 animate-in fade-in slide-in-from-left-4 duration-500">
+                {/* Bullish Account */}
+                <div className="flex flex-col gap-2 flex-1 min-w-0">
+                  <div className="flex items-center justify-center gap-2 bg-[#0ecb81]/8 border border-[#0ecb81]/20 text-[#0ecb81] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg shadow-[0_4px_20px_rgba(14,203,129,0.05)]">
+                    <div className="glow-dot-sm bg-[#0ecb81]" /> Bullish Hand
+                  </div>
+                  <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(balance)} baseBalance={parseFloat(baseBalance)} onPlaceOrder={handlePlaceOrder} />
+                </div>
+
+                {/* Bearish Account */}
+                <div className="flex flex-col gap-2 flex-1 min-w-0">
+                  <div className="flex items-center justify-center gap-2 bg-[#f6465d]/8 border border-[#f6465d]/20 text-[#f6465d] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg shadow-[0_4px_20px_rgba(246,70,93,0.05)]">
+                    <div className="glow-dot-sm bg-[#f6465d]" /> Bearish Hand
+                  </div>
+                  <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(slaveBalance)} baseBalance={parseFloat(slaveBaseBalance)} onPlaceOrder={handlePlaceOrder} />
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 w-full min-h-0 shrink-0 animate-in fade-in slide-in-from-right-4 duration-500 border border-indigo-500/20 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(99,102,241,0.05)] bg-[#0B0E14]/80 backdrop-blur-xl">
+                 <DeltaNeutralPanel symbol={symbol} currentPrice={currentPrice} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -591,7 +614,6 @@ export default function App() {
               { id: 'history', icon: <History className="w-3.5 h-3.5" />, label: 'History' },
               { id: 'ai', icon: <Bot className="w-3.5 h-3.5" />, label: 'AI' },
               { id: 'database', icon: <Database className="w-3.5 h-3.5" />, label: 'DB' },
-              { id: 'delta', icon: <Activity className="w-3.5 h-3.5" />, label: 'Strategy' },
               { id: 'bot', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, label: 'Bots' },
             ] as { id: typeof activeTab; icon: React.ReactNode; label: string }[]).map(tab => (
               <button

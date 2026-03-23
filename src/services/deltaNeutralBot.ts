@@ -9,10 +9,13 @@ dotenv.config({ quiet: true });
 export interface BotConfig {
   entryMode: 'INSTANT' | 'SCHEDULED';
   scheduleTimeStr: string;
+  sessionTarget: 'LONDON' | 'NEW_YORK' | 'ASIA';
   usePreviousDayAvg: boolean;
   customAnchorPrice: number;
-  offsetType: '%' | 'USDT';
-  offsetValue: number;
+  bullishSL: number;
+  bullishTP: number;
+  bearishSL: number;
+  bearishTP: number;
 }
 
 export interface BotState {
@@ -25,9 +28,14 @@ export interface BotState {
   phase: 'IDLE' | 'SCHEDULED' | 'HEDGED' | 'NAKED_LONG' | 'NAKED_SHORT' | 'ASYMMETRIC_BREAK' | 'CLOSED';
   scheduledTime?: number;
   anchorPrice?: number;
-  upperGuard?: number;
-  lowerGuard?: number;
-  realizedLoss?: number; // Realized loss from the closed node
+  
+  // Voltron Execution Hands
+  bullishSL?: number;
+  bullishTP?: number;
+  bearishSL?: number;
+  bearishTP?: number;
+  
+  realizedLoss?: number;
 }
 
 export interface TradeLogEntry {
@@ -198,16 +206,23 @@ export class DeltaNeutralBot {
 
       this.state.anchorPrice = anchor;
 
-      // Calculate Guards
-      let offset = 0;
-      if (this.config.offsetType === '%') {
-        offset = anchor * (this.config.offsetValue / 100);
-      } else {
-        offset = this.config.offsetValue;
-      }
+      // Voltron Execution Hands Math Calculation
+      // Bullish SL: (P_entry + P_avg) / 2
+      const bullishSL = (currentPrice + anchor) / 2;
+      // Bullish TP: P_entry + 3(P_entry - SL_bull)
+      const bullishTP = currentPrice + 3 * (currentPrice - bullishSL);
 
-      this.state.upperGuard = anchor + offset;
-      this.state.lowerGuard = anchor - offset;
+      // Bearish Math: double the entry offset for SL
+      const offset = Math.abs(currentPrice - anchor);
+      const bearishSL = currentPrice + (offset * 2);
+      // Bearish TP: assign primary P_avg anchor for TP
+      const bearishTP = anchor;
+
+      // Assign to state (override config provided if zero or enforce tightly)
+      this.state.bullishSL = this.config.bullishSL > 0 ? this.config.bullishSL : bullishSL;
+      this.state.bullishTP = this.config.bullishTP > 0 ? this.config.bullishTP : bullishTP;
+      this.state.bearishSL = this.config.bearishSL > 0 ? this.config.bearishSL : bearishSL;
+      this.state.bearishTP = this.config.bearishTP > 0 ? this.config.bearishTP : bearishTP;
 
       this.state.masterEntryPrice = currentPrice;
       this.state.slaveEntryPrice = currentPrice;
@@ -215,13 +230,14 @@ export class DeltaNeutralBot {
       this.state.realizedLoss = 0;
       this.startTime = Date.now();
 
-      this.logEvent('ENTRY', currentPrice, `Hedged Phase 1 Lock established. Anchor: ${anchor.toFixed(2)}, UGuard: ${this.state.upperGuard.toFixed(2)}, LGuard: ${this.state.lowerGuard.toFixed(2)}`);
+      this.logEvent('ENTRY', currentPrice, `Hedged Voltron Phase 1 Lock established. Anchor: ${anchor.toFixed(2)} | Bull[SL:${this.state.bullishSL.toFixed(2)} TP:${this.state.bullishTP.toFixed(2)}] | Bear[SL:${this.state.bearishSL.toFixed(2)} TP:${this.state.bearishTP.toFixed(2)}]`);
       
       this.clearPendingShadowOrders();
       this.insertShadowTrade('master', 'BUY', this.state.qty, currentPrice);
       this.insertShadowTrade('slave_1', 'SELL', this.state.qty, currentPrice);
-      this.addVisualGuard('UPPER_GUARD', this.state.upperGuard, 'sell', 'limit');
-      this.addVisualGuard('LOWER_GUARD', this.state.lowerGuard, 'buy', 'limit');
+      
+      this.addVisualGuard('BULLISH_SL', this.state.bullishSL, 'sell', 'stop');
+      this.addVisualGuard('BEARISH_SL', this.state.bearishSL, 'buy', 'stop');
 
       const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
       if (!isShadowMode && this.tradeCopier) {
@@ -289,52 +305,52 @@ export class DeltaNeutralBot {
           const slavePnL  = (this.state.slaveEntryPrice - currentPrice) * this.state.qty;
           this.state.livePnL = parseFloat((masterPnL + slavePnL).toFixed(4));
 
-          if (this.state.upperGuard && currentPrice >= this.state.upperGuard) {
+          if (this.state.bearishSL && currentPrice >= this.state.bearishSL) {
              // Bearish Account B (Short) hits SL. Close it.
              const slaveLoss = (this.state.slaveEntryPrice - currentPrice) * this.state.qty;
              this.state.realizedLoss = parseFloat(slaveLoss.toFixed(4));
              
-             this.logEvent('GUARD_BREACH_UPPER', currentPrice, `Upper guard hit (${this.state.upperGuard.toFixed(2)}). Liquidated Bearish side for realized loss: ${this.state.realizedLoss} USDT.`);
+             this.logEvent('GUARD_BREACH_UPPER', currentPrice, `Bearish SL hit (${this.state.bearishSL.toFixed(2)}). Liquidated Bearish side for realized loss: ${this.state.realizedLoss} USDT.`);
              
              // Phase III: Whipsaw Protection -> Move Survivor (Account A Bullish) Stop Loss to Breakeven
-             this.state.lowerGuard = this.state.masterEntryPrice; 
-             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Long) Stop Loss to Breakeven @ ${this.state.lowerGuard}`);
+             this.state.bullishSL = this.state.masterEntryPrice; 
+             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Long) Stop Loss to Breakeven @ ${this.state.bullishSL}`);
 
              this.clearPendingShadowOrders();
              this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice); // Buy back short
-             this.addVisualGuard('MASTER_BE', this.state.lowerGuard, 'sell', 'limit'); // Visual BE SL
+             this.addVisualGuard('MASTER_BE', this.state.bullishSL, 'sell', 'limit'); // Visual BE SL
 
              const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const slave = this.tradeCopier.getSlaveClient(0);
-                 if (slave) await slave.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'AUTO_REPAY', newClientOrderId: `STRADDLE_CLOSES_${Date.now()}` });
+                 if (slave) await slave.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'AUTO_REPAY', newClientOrderId: `VOLTRON_CLOSES_${Date.now()}` });
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 2 Slave Liquidation Failed: ${e.message}`); }
              }
 
              this.state.phase = 'NAKED_LONG';
              this.emitStatus();
           }
-          else if (this.state.lowerGuard && currentPrice <= this.state.lowerGuard) {
+          else if (this.state.bullishSL && currentPrice <= this.state.bullishSL) {
              // Bullish Account A (Long) hits SL. Close it.
              const masterLoss = (currentPrice - this.state.masterEntryPrice) * this.state.qty;
              this.state.realizedLoss = parseFloat(masterLoss.toFixed(4));
 
-             this.logEvent('GUARD_BREACH_LOWER', currentPrice, `Lower guard hit (${this.state.lowerGuard.toFixed(2)}). Liquidated Bullish side for realized loss: ${this.state.realizedLoss} USDT.`);
+             this.logEvent('GUARD_BREACH_LOWER', currentPrice, `Bullish SL hit (${this.state.bullishSL.toFixed(2)}). Liquidated Bullish side for realized loss: ${this.state.realizedLoss} USDT.`);
              
              // Phase III: Whipsaw Protection -> Move Survivor (Account B Bearish) Stop Loss to Breakeven
-             this.state.upperGuard = this.state.slaveEntryPrice;
-             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Short) Stop Loss to Breakeven @ ${this.state.upperGuard}`);
+             this.state.bearishSL = this.state.slaveEntryPrice;
+             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Short) Stop Loss to Breakeven @ ${this.state.bearishSL}`);
 
              this.clearPendingShadowOrders();
              this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice); // Sell long
-             this.addVisualGuard('SLAVE_BE', this.state.upperGuard, 'buy', 'limit'); // Visual BE SL
+             this.addVisualGuard('SLAVE_BE', this.state.bearishSL, 'buy', 'limit'); // Visual BE SL
 
              const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const master = this.tradeCopier.getMasterClient();
-                 if (master) await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `STRADDLE_CLOSEM_${Date.now()}` });
+                 if (master) await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `VOLTRON_CLOSEM_${Date.now()}` });
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 2 Master Liquidation Failed: ${e.message}`); }
              }
 
@@ -352,7 +368,7 @@ export class DeltaNeutralBot {
           this.state.livePnL = parseFloat((nakedPnL + (this.state.realizedLoss || 0)).toFixed(4));
           
           // Whipsaw Breakeven Check
-          if (this.state.lowerGuard && currentPrice <= this.state.lowerGuard) {
+          if (this.state.bullishSL && currentPrice <= this.state.bullishSL) {
              this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Long safely at Breakeven. Total loss capped.`);
              this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
@@ -361,14 +377,33 @@ export class DeltaNeutralBot {
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const master = this.tradeCopier.getMasterClient();
-                 if (master) await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `STRADDLE_WHIPM_${Date.now()}` });
+                 if (master) await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `VOLTRON_WHIPM_${Date.now()}` });
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 Master Liquidation Failed: ${e.message}`); }
              }
 
              this.state.phase = 'CLOSED';
              this.emitStatus();
              if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
-          } else {
+          }
+          // Voltron Take Profit Check
+          else if (this.state.bullishTP && currentPrice >= this.state.bullishTP) {
+             this.logEvent('TAKE_PROFIT_HIT', currentPrice, `Bullish Take Profit Extracted! Gained max R:R.`);
+             this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice);
+             this.clearPendingShadowOrders();
+
+             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+             if (!isShadowMode && this.tradeCopier) {
+               try {
+                 const master = this.tradeCopier.getMasterClient();
+                 if (master) await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `VOLTRON_TP_M_${Date.now()}` });
+               } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 TP Master Liquidation Failed: ${e.message}`); }
+             }
+
+             this.state.phase = 'CLOSED';
+             this.emitStatus();
+             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
+          }
+          else {
              this.emitStatus();
           }
         }
@@ -380,7 +415,7 @@ export class DeltaNeutralBot {
           this.state.livePnL = parseFloat((nakedPnL + (this.state.realizedLoss || 0)).toFixed(4));
           
           // Whipsaw Breakeven Check
-          if (this.state.upperGuard && currentPrice >= this.state.upperGuard) {
+          if (this.state.bearishSL && currentPrice >= this.state.bearishSL) {
              this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Short safely at Breakeven. Total loss capped.`);
              this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
@@ -389,14 +424,33 @@ export class DeltaNeutralBot {
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const slave = this.tradeCopier.getSlaveClient(0);
-                 if (slave) await slave.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'AUTO_REPAY', newClientOrderId: `STRADDLE_WHIPS_${Date.now()}` });
+                 if (slave) await slave.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'AUTO_REPAY', newClientOrderId: `VOLTRON_WHIPS_${Date.now()}` });
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 Slave Liquidation Failed: ${e.message}`); }
              }
 
              this.state.phase = 'CLOSED';
              this.emitStatus();
              if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
-          } else {
+          }
+          // Voltron Take Profit Check
+          else if (this.state.bearishTP && currentPrice <= this.state.bearishTP) {
+             this.logEvent('TAKE_PROFIT_HIT', currentPrice, `Bearish Mean-Reversion Take Profit Extracted!`);
+             this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice);
+             this.clearPendingShadowOrders();
+
+             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+             if (!isShadowMode && this.tradeCopier) {
+               try {
+                 const slave = this.tradeCopier.getSlaveClient(0);
+                 if (slave) await slave.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'AUTO_REPAY', newClientOrderId: `VOLTRON_TP_S_${Date.now()}` });
+               } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 TP Slave Liquidation Failed: ${e.message}`); }
+             }
+
+             this.state.phase = 'CLOSED';
+             this.emitStatus();
+             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
+          }
+          else {
              this.emitStatus();
           }
         }
