@@ -516,10 +516,10 @@ export default function App() {
         )}
 
         {/* ─── TOP ROW: Chart + Order Panels ──────────────────────── */}
-        <div className="flex flex-col lg:flex-row gap-2 shrink-0 items-stretch">
+        <div className={`flex flex-col gap-2 shrink-0 items-stretch ${activeMode === 'DELTA' ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
           
           {/* Chart Panel */}
-          <div className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full">
+          <div className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full z-0">
             {/* Chart Toolbar */}
             <div className="px-3 py-1.5 border-b border-[#2b3139] flex items-center justify-between bg-[#181a20] shrink-0">
               <div className="flex items-center gap-3">
@@ -579,8 +579,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* ─── Right Column: Telemetry + Order Panels ───────────────────── */}
-          <div className="flex flex-col gap-2 w-full lg:w-[650px] shrink-0 z-10">
+          {/* ─── Side Column: Telemetry + Order Panels ───────────────────── */}
+          <div className={`flex flex-col gap-2 ${activeMode === 'DELTA' ? 'w-full lg:w-[600px] max-w-[360px] shrink-0 z-10' : 'w-full lg:w-[650px] shrink-0 z-10'}`}>
             
             {/* VOLTRON ARCHITECTURE: PILL SLIDER TOGGLE */}
             <div className="relative flex bg-[#0A0D14] border border-[#1E293B] rounded-full p-1 mx-auto w-[240px] shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
