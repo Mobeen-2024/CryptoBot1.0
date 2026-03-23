@@ -11,8 +11,11 @@ import { ExecutionHand } from './CommandCenter/ExecutionHand';
 interface BotState {
   isActive: boolean; symbol: string; qty: number; 
   masterEntryPrice: number; slaveEntryPrice: number;
-  livePnL?: number; phase?: 'IDLE' | 'SCHEDULED' | 'HEDGED' | 'NAKED_LONG' | 'NAKED_SHORT' | 'ASYMMETRIC_BREAK' | 'CLOSED';
+  livePnL?: number; phase?: 'IDLE' | 'ARMED' | 'SCHEDULED' | 'HEDGED' | 'NAKED_LONG' | 'NAKED_SHORT' | 'PARTIAL_EXIT' | 'RECOVERY_MODE' | 'ASYMMETRIC_BREAK' | 'CLOSED';
   scheduledTime?: number;
+  recoveryTarget?: number;
+  recoveryDeadline?: number;
+  reAnchorCount?: number;
 }
 
 interface DeltaNeutralPanelProps { 

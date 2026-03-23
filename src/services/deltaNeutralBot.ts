@@ -25,7 +25,7 @@ export interface BotState {
   masterEntryPrice: number;
   slaveEntryPrice: number;
   livePnL: number;
-  phase: 'IDLE' | 'SCHEDULED' | 'HEDGED' | 'NAKED_LONG' | 'NAKED_SHORT' | 'ASYMMETRIC_BREAK' | 'CLOSED';
+  phase: 'IDLE' | 'ARMED' | 'SCHEDULED' | 'HEDGED' | 'NAKED_LONG' | 'NAKED_SHORT' | 'PARTIAL_EXIT' | 'RECOVERY_MODE' | 'ASYMMETRIC_BREAK' | 'CLOSED';
   scheduledTime?: number;
   anchorPrice?: number;
   
@@ -36,6 +36,14 @@ export interface BotState {
   bearishTP?: number;
   
   realizedLoss?: number;
+
+  // Recovery System (§6)
+  recoveryTarget?: number;
+  recoveryMode?: 'AUTO' | 'CONFIRM' | 'HOLD';
+  recoveryDeadline?: number;
+  
+  // Re-Anchoring System (§7)
+  reAnchorCount?: number;
 }
 
 export interface TradeLogEntry {
@@ -181,7 +189,9 @@ export class DeltaNeutralBot {
   }
 
   private async executeHedge() {
-    this.state.phase = 'HEDGED';
+    // §3: ARMED → HEDGED transition
+    this.state.phase = 'ARMED';
+    this.state.reAnchorCount = this.state.reAnchorCount || 0;
     this.emitStatus();
     Logger.info(`[ASYMMETRIC STRADDLE] Phase 1 Execution for ${this.state.qty} ${this.state.symbol}`);
 
@@ -210,18 +220,13 @@ export class DeltaNeutralBot {
       this.state.anchorPrice = anchor;
 
       // Voltron Execution Hands Math Calculation
-      // Bullish SL: (P_entry + P_avg) / 2
       const bullishSL = (currentPrice + anchor) / 2;
-      // Bullish TP: P_entry + 3(P_entry - SL_bull)
       const bullishTP = currentPrice + 3 * (currentPrice - bullishSL);
-
-      // Bearish Math: double the entry offset for SL
       const offset = Math.abs(currentPrice - anchor);
       const bearishSL = currentPrice + (offset * 2);
-      // Bearish TP: assign primary P_avg anchor for TP
       const bearishTP = anchor;
 
-      // Assign to state (override config provided if zero or enforce tightly)
+      // Assign to state (override config provided if zero)
       this.state.bullishSL = this.config.bullishSL > 0 ? this.config.bullishSL : bullishSL;
       this.state.bullishTP = this.config.bullishTP > 0 ? this.config.bullishTP : bullishTP;
       this.state.bearishSL = this.config.bearishSL > 0 ? this.config.bearishSL : bearishSL;
@@ -242,24 +247,72 @@ export class DeltaNeutralBot {
       this.addVisualGuard('BULLISH_SL', this.state.bullishSL, 'sell', 'stop');
       this.addVisualGuard('BEARISH_SL', this.state.bearishSL, 'buy', 'stop');
 
+      // §5: ATOMIC EXECUTION with rollback
       const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
       if (!isShadowMode && this.tradeCopier) {
-         try {
-           const master = this.tradeCopier.getMasterClient();
-           const slave = this.tradeCopier.getSlaveClient(0);
-           const straddleId = `STRADDLE_${Date.now()}`;
-           if (master && slave) {
-             this.logEvent('LIVE_EXECUTION', currentPrice, `Deploying Live Margin Borrow Hedge to Binance API...`);
-             // Master: BUY (Bullish) cross margin
-             await master.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `${straddleId}_M` });
-             // Slave: SELL (Bearish/Short) cross margin with auto-borrow
-             await slave.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'MARGIN_BUY', newClientOrderId: `${straddleId}_S` });
-           }
-         } catch (apiErr: any) {
-           this.logEvent('LIVE_ERROR', currentPrice, `API Hedge Execution Failed: ${apiErr.message}`);
-         }
+        const master = this.tradeCopier.getMasterClient();
+        const slave = this.tradeCopier.getSlaveClient(0);
+        const straddleId = `STRADDLE_${Date.now()}`;
+        if (master && slave) {
+          this.logEvent('LIVE_EXECUTION', currentPrice, `Deploying Atomic Margin Hedge to Binance API...`);
+          let masterOrder: any = null;
+          try {
+            // Step 1: Execute Bullish leg (BUY)
+            masterOrder = await master.createOrder(this.state.symbol, 'market', 'buy', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `${straddleId}_M` });
+            
+            // Step 2: Execute Bearish leg (SELL) — if this fails, rollback Step 1
+            let slaveOrder: any = null;
+            try {
+              slaveOrder = await slave.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', sideEffectType: 'MARGIN_BUY', newClientOrderId: `${straddleId}_S` });
+            } catch (slaveErr: any) {
+              // §5 ATOMIC ROLLBACK: Cancel/reverse the master order immediately
+              this.logEvent('ATOMIC_ROLLBACK', currentPrice, `Bearish leg FAILED (${slaveErr.message}). Rolling back Bullish order...`);
+              try {
+                await master.createOrder(this.state.symbol, 'market', 'sell', this.state.qty, undefined, { marginMode: 'cross', newClientOrderId: `${straddleId}_ROLLBACK` });
+                this.logEvent('ATOMIC_ROLLBACK_OK', currentPrice, `Bullish leg successfully reversed. System safe.`);
+              } catch (rollbackErr: any) {
+                this.logEvent('ATOMIC_ROLLBACK_FAIL', currentPrice, `CRITICAL: Rollback FAILED (${rollbackErr.message}). Manual intervention required!`);
+              }
+              if (this.io) this.io.emit('execution_failed', { error: slaveErr.message, side: 'BEARISH' });
+              this.stop();
+              return;
+            }
+
+            // §5 FILL PRICE ADJUSTMENT: Recalculate SL/TP from actual fills
+            const masterFillPrice = masterOrder?.average || masterOrder?.price || currentPrice;
+            const slaveFillPrice = slaveOrder?.average || slaveOrder?.price || currentPrice;
+            this.state.masterEntryPrice = masterFillPrice;
+            this.state.slaveEntryPrice = slaveFillPrice;
+            
+            // Recalculate bounds from actual fill prices
+            const fillAnchor = this.state.anchorPrice || anchor;
+            const adjBullSL = (masterFillPrice + fillAnchor) / 2;
+            const adjBullTP = masterFillPrice + 3 * (masterFillPrice - adjBullSL);
+            const adjOffset = Math.abs(slaveFillPrice - fillAnchor);
+            const adjBearSL = slaveFillPrice + (adjOffset * 2);
+            
+            this.state.bullishSL = adjBullSL;
+            this.state.bullishTP = adjBullTP;
+            this.state.bearishSL = adjBearSL;
+            this.state.bearishTP = fillAnchor;
+            
+            this.logEvent('FILL_ADJUSTED', masterFillPrice, `SL/TP recalculated from actual fills. Master: $${masterFillPrice.toFixed(2)}, Slave: $${slaveFillPrice.toFixed(2)}`);
+            this.clearPendingShadowOrders();
+            this.addVisualGuard('BULLISH_SL', this.state.bullishSL, 'sell', 'stop');
+            this.addVisualGuard('BEARISH_SL', this.state.bearishSL, 'buy', 'stop');
+
+          } catch (masterErr: any) {
+            // Master (Bullish) order itself failed — nothing to rollback
+            this.logEvent('LIVE_ERROR', currentPrice, `Bullish leg FAILED: ${masterErr.message}. No orders placed.`);
+            if (this.io) this.io.emit('execution_failed', { error: masterErr.message, side: 'BULLISH' });
+            this.stop();
+            return;
+          }
+        }
       }
 
+      // Transition ARMED → HEDGED
+      this.state.phase = 'HEDGED';
       this.emitStatus();
       this.startStateEngine();
     } catch (error) {
@@ -285,6 +338,27 @@ export class DeltaNeutralBot {
     if (this.io) this.io.emit('delta_neutral_status', this.state);
   }
 
+  // §6: Set recovery mode from external UI 
+  public setRecoveryMode(mode: 'AUTO' | 'CONFIRM' | 'HOLD', deadlineMs?: number) {
+    this.state.recoveryMode = mode;
+    if (deadlineMs) this.state.recoveryDeadline = Date.now() + deadlineMs;
+    this.logEvent('RECOVERY_CONFIG', 0, `Recovery mode set to ${mode}${deadlineMs ? `, deadline in ${deadlineMs / 1000}s` : ''}`);
+    this.emitStatus();
+  }
+
+  // §7: Re-Anchor from external UI
+  public async reAnchor(newAnchorPrice: number) {
+    if ((this.state.reAnchorCount || 0) >= 4) {
+      this.logEvent('REANCHOR_LIMIT', newAnchorPrice, `Re-anchor limit (4) reached. System halted.`);
+      this.stop();
+      return;
+    }
+    this.state.reAnchorCount = (this.state.reAnchorCount || 0) + 1;
+    this.config.customAnchorPrice = newAnchorPrice;
+    this.logEvent('REANCHOR', newAnchorPrice, `Re-anchored to $${newAnchorPrice.toFixed(2)} (cycle ${this.state.reAnchorCount}/4)`);
+    await this.executeHedge();
+  }
+
   private startStateEngine() {
     if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
 
@@ -299,9 +373,10 @@ export class DeltaNeutralBot {
         const currentPrice = ticker.last;
         if (!currentPrice) return;
 
-// ... inside State Engine ...
+        const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+
         // ──────────────────────────────────────────────────
-        //  STATE: HEDGED (Phase 1)
+        //  STATE: HEDGED (Both legs active)
         // ──────────────────────────────────────────────────
         if (this.state.phase === 'HEDGED') {
           const masterPnL = (currentPrice - this.state.masterEntryPrice) * this.state.qty;
@@ -309,21 +384,19 @@ export class DeltaNeutralBot {
           this.state.livePnL = parseFloat((masterPnL + slavePnL).toFixed(4));
 
           if (this.state.bearishSL && currentPrice >= this.state.bearishSL) {
-             // Bearish Account B (Short) hits SL. Close it.
              const slaveLoss = (this.state.slaveEntryPrice - currentPrice) * this.state.qty;
              this.state.realizedLoss = parseFloat(slaveLoss.toFixed(4));
+             this.state.recoveryTarget = currentPrice; // §6: Store recovery target
              
-             this.logEvent('GUARD_BREACH_UPPER', currentPrice, `Bearish SL hit (${this.state.bearishSL.toFixed(2)}). Liquidated Bearish side for realized loss: ${this.state.realizedLoss} USDT.`);
+             this.logEvent('GUARD_BREACH_UPPER', currentPrice, `Bearish SL hit (${this.state.bearishSL.toFixed(2)}). Realized loss: ${this.state.realizedLoss} USDT.`);
              
-             // Phase III: Whipsaw Protection -> Move Survivor (Account A Bullish) Stop Loss to Breakeven
              this.state.bullishSL = this.state.masterEntryPrice; 
-             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Long) Stop Loss to Breakeven @ ${this.state.bullishSL}`);
+             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Long) SL to Breakeven @ ${this.state.bullishSL}`);
 
              this.clearPendingShadowOrders();
-             this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice); // Buy back short
-             this.addVisualGuard('MASTER_BE', this.state.bullishSL, 'sell', 'limit'); // Visual BE SL
+             this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice);
+             this.addVisualGuard('MASTER_BE', this.state.bullishSL, 'sell', 'limit');
 
-             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const slave = this.tradeCopier.getSlaveClient(0);
@@ -335,21 +408,19 @@ export class DeltaNeutralBot {
              this.emitStatus();
           }
           else if (this.state.bullishSL && currentPrice <= this.state.bullishSL) {
-             // Bullish Account A (Long) hits SL. Close it.
              const masterLoss = (currentPrice - this.state.masterEntryPrice) * this.state.qty;
              this.state.realizedLoss = parseFloat(masterLoss.toFixed(4));
+             this.state.recoveryTarget = currentPrice; // §6: Store recovery target
 
-             this.logEvent('GUARD_BREACH_LOWER', currentPrice, `Bullish SL hit (${this.state.bullishSL.toFixed(2)}). Liquidated Bullish side for realized loss: ${this.state.realizedLoss} USDT.`);
+             this.logEvent('GUARD_BREACH_LOWER', currentPrice, `Bullish SL hit (${this.state.bullishSL.toFixed(2)}). Realized loss: ${this.state.realizedLoss} USDT.`);
              
-             // Phase III: Whipsaw Protection -> Move Survivor (Account B Bearish) Stop Loss to Breakeven
              this.state.bearishSL = this.state.slaveEntryPrice;
-             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Short) Stop Loss to Breakeven @ ${this.state.bearishSL}`);
+             this.logEvent('WHIPSAW_PROTECT', currentPrice, `Moved Survivor (Short) SL to Breakeven @ ${this.state.bearishSL}`);
 
              this.clearPendingShadowOrders();
-             this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice); // Sell long
-             this.addVisualGuard('SLAVE_BE', this.state.bearishSL, 'buy', 'limit'); // Visual BE SL
+             this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice);
+             this.addVisualGuard('SLAVE_BE', this.state.bearishSL, 'buy', 'limit');
 
-             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const master = this.tradeCopier.getMasterClient();
@@ -370,13 +441,12 @@ export class DeltaNeutralBot {
           const nakedPnL = (currentPrice - this.state.masterEntryPrice) * this.state.qty;
           this.state.livePnL = parseFloat((nakedPnL + (this.state.realizedLoss || 0)).toFixed(4));
           
-          // Whipsaw Breakeven Check
+          // §5: Catastrophic Close — whipsaw hits survivor SL
           if (this.state.bullishSL && currentPrice <= this.state.bullishSL) {
-             this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Long safely at Breakeven. Total loss capped.`);
+             this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Long at Breakeven.`);
              this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
 
-             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const master = this.tradeCopier.getMasterClient();
@@ -384,17 +454,19 @@ export class DeltaNeutralBot {
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 Master Liquidation Failed: ${e.message}`); }
              }
 
-             this.state.phase = 'CLOSED';
+             // §6: Enter RECOVERY_MODE instead of immediate CLOSED
+             this.state.phase = 'RECOVERY_MODE';
+             if (!this.state.recoveryDeadline) this.state.recoveryDeadline = Date.now() + (4 * 60 * 60 * 1000); // Default: 4 hours
+             this.logEvent('RECOVERY_ENTER', currentPrice, `Entering Recovery Mode. Target: $${(this.state.recoveryTarget || currentPrice).toFixed(2)}, Deadline: ${new Date(this.state.recoveryDeadline).toISOString()}`);
+             if (this.io) this.io.emit('recovery_triggered', { target: this.state.recoveryTarget, deadline: this.state.recoveryDeadline });
              this.emitStatus();
-             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
           }
-          // Voltron Take Profit Check
+          // §7: Take Profit → PARTIAL_EXIT (allows re-anchor)
           else if (this.state.bullishTP && currentPrice >= this.state.bullishTP) {
              this.logEvent('TAKE_PROFIT_HIT', currentPrice, `Bullish Take Profit Extracted! Gained max R:R.`);
              this.insertShadowTrade('master', 'SELL', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
 
-             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const master = this.tradeCopier.getMasterClient();
@@ -402,9 +474,9 @@ export class DeltaNeutralBot {
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 TP Master Liquidation Failed: ${e.message}`); }
              }
 
-             this.state.phase = 'CLOSED';
+             this.state.phase = 'PARTIAL_EXIT';
+             if (this.io) this.io.emit('tp_hit', { side: 'BULLISH', price: currentPrice, reAnchorCount: this.state.reAnchorCount || 0 });
              this.emitStatus();
-             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
           }
           else {
              this.emitStatus();
@@ -417,13 +489,12 @@ export class DeltaNeutralBot {
           const nakedPnL = (this.state.slaveEntryPrice - currentPrice) * this.state.qty;
           this.state.livePnL = parseFloat((nakedPnL + (this.state.realizedLoss || 0)).toFixed(4));
           
-          // Whipsaw Breakeven Check
+          // §5: Catastrophic Close — whipsaw hits survivor SL
           if (this.state.bearishSL && currentPrice >= this.state.bearishSL) {
-             this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Short safely at Breakeven. Total loss capped.`);
+             this.logEvent('WHIPSAW_TRIGGERED', currentPrice, `Market reversed! Stopped out Naked Short at Breakeven.`);
              this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
 
-             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const slave = this.tradeCopier.getSlaveClient(0);
@@ -431,17 +502,19 @@ export class DeltaNeutralBot {
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 Slave Liquidation Failed: ${e.message}`); }
              }
 
-             this.state.phase = 'CLOSED';
+             // §6: Enter RECOVERY_MODE
+             this.state.phase = 'RECOVERY_MODE';
+             if (!this.state.recoveryDeadline) this.state.recoveryDeadline = Date.now() + (4 * 60 * 60 * 1000);
+             this.logEvent('RECOVERY_ENTER', currentPrice, `Entering Recovery Mode. Target: $${(this.state.recoveryTarget || currentPrice).toFixed(2)}`);
+             if (this.io) this.io.emit('recovery_triggered', { target: this.state.recoveryTarget, deadline: this.state.recoveryDeadline });
              this.emitStatus();
-             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
           }
-          // Voltron Take Profit Check
+          // §7: Take Profit → PARTIAL_EXIT
           else if (this.state.bearishTP && currentPrice <= this.state.bearishTP) {
              this.logEvent('TAKE_PROFIT_HIT', currentPrice, `Bearish Mean-Reversion Take Profit Extracted!`);
              this.insertShadowTrade('slave_1', 'BUY', this.state.qty, currentPrice);
              this.clearPendingShadowOrders();
 
-             const isShadowMode = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
              if (!isShadowMode && this.tradeCopier) {
                try {
                  const slave = this.tradeCopier.getSlaveClient(0);
@@ -449,12 +522,62 @@ export class DeltaNeutralBot {
                } catch (e: any) { this.logEvent('LIVE_ERROR', currentPrice, `Phase 3 TP Slave Liquidation Failed: ${e.message}`); }
              }
 
-             this.state.phase = 'CLOSED';
+             this.state.phase = 'PARTIAL_EXIT';
+             if (this.io) this.io.emit('tp_hit', { side: 'BEARISH', price: currentPrice, reAnchorCount: this.state.reAnchorCount || 0 });
              this.emitStatus();
-             if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
           }
           else {
              this.emitStatus();
+          }
+        }
+        // ──────────────────────────────────────────────────
+        //  STATE: RECOVERY_MODE (§6 — monitoring for recovery target)
+        // ──────────────────────────────────────────────────
+        else if (this.state.phase === 'RECOVERY_MODE') {
+          // §6: Check deadline first
+          if (this.state.recoveryDeadline && Date.now() >= this.state.recoveryDeadline) {
+            this.logEvent('RECOVERY_TIMEOUT', currentPrice, `Recovery deadline expired. Force closing system.`);
+            if (this.io) this.io.emit('recovery_timeout');
+            this.state.phase = 'CLOSED';
+            this.emitStatus();
+            if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
+            return;
+          }
+
+          // §6: Check if price returned to recovery target
+          if (this.state.recoveryTarget) {
+            const distanceToTarget = Math.abs(currentPrice - this.state.recoveryTarget);
+            const tolerance = this.state.recoveryTarget * 0.001; // 0.1% tolerance
+
+            if (distanceToTarget <= tolerance) {
+              if (this.state.recoveryMode === 'AUTO' || !this.state.recoveryMode) {
+                this.logEvent('RECOVERY_HIT', currentPrice, `Price returned to recovery target $${this.state.recoveryTarget.toFixed(2)}. Auto-closing at break-even.`);
+                this.state.phase = 'CLOSED';
+                if (this.io) this.io.emit('recovery_completed', { action: 'breakeven', price: currentPrice });
+                this.emitStatus();
+                if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
+              } else if (this.state.recoveryMode === 'CONFIRM') {
+                // Emit event for UI to show confirmation dialog
+                if (this.io) this.io.emit('recovery_confirm_needed', { price: currentPrice, target: this.state.recoveryTarget });
+              }
+              // HOLD mode: do nothing, just keep monitoring
+            }
+          }
+          this.emitStatus();
+        }
+        // ──────────────────────────────────────────────────
+        //  STATE: PARTIAL_EXIT (§7 — waiting for re-anchor decision)
+        // ──────────────────────────────────────────────────
+        else if (this.state.phase === 'PARTIAL_EXIT') {
+          // Idle state — waiting for user to call reAnchor() or stop()
+          // Auto-close after 30 minutes if no decision
+          if (this.startTime && Date.now() - this.startTime > 30 * 60 * 1000) {
+            this.logEvent('PARTIAL_TIMEOUT', currentPrice, `No re-anchor decision within 30 minutes. Closing.`);
+            this.state.phase = 'CLOSED';
+            this.emitStatus();
+            if (this.priceCheckInterval) clearInterval(this.priceCheckInterval);
+          } else {
+            this.emitStatus();
           }
         }
 
