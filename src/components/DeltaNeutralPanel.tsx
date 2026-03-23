@@ -193,6 +193,17 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
                 <Radio className={`w-2.5 h-2.5 ${!usePreviousDayAvg && !status.isActive ? "animate-pulse" : ""}`} />
                 Candle Sync: {!usePreviousDayAvg && !status.isActive ? 'Active' : 'Offline'}
               </span>
+
+              {/* Live Spread Telemetry */}
+              {currentPrice > 0 && customAnchorPrice > 0 && (
+                <span className={`flex justify-center items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
+                  Math.abs(currentPrice - customAnchorPrice) < 0.0001 
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' 
+                    : 'bg-[#1E293B] text-[#94A3B8] border-[#334155]'
+                }`}>
+                  Spread: ${Math.abs(currentPrice - customAnchorPrice).toFixed(2)}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -202,13 +213,24 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
         
         {/* ── Top Level: Global Session Controls ── */}
         <div className="p-4 space-y-4 bg-gradient-to-b from-[#0A0D14] to-[#0A0D14]/80">
-          <div className="flex justify-between items-center bg-[#0F172A] border border-[#1E293B] rounded-xl p-3">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              <Database className="w-4 h-4 text-indigo-400" /> Position Size Per Leg
+          <div className="flex flex-col bg-[#0F172A] border border-[#1E293B] rounded-xl p-3 gap-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <Database className="w-4 h-4 text-indigo-400" /> Position Size Per Leg
+              </div>
+              <div className="flex items-center bg-[#0A0D14] border border-[#1E293B] rounded-md px-2 py-1 transition-colors">
+                <input type="number" value={qty} onChange={(e) => setQty(e.target.value)} className="w-[80px] bg-transparent text-right font-mono text-[13px] text-white focus:outline-none" />
+                <span className="text-gray-500 font-bold ml-2 text-[10px] uppercase">{symbol.split('/')[0]}</span>
+              </div>
             </div>
-            <div className="flex items-center bg-[#0A0D14] border border-[#1E293B] rounded-md px-2 py-1">
-              <input type="number" value={qty} onChange={(e) => setQty(e.target.value)} className="w-[80px] bg-transparent text-right font-mono text-[13px] text-white focus:outline-none" />
-              <span className="text-gray-500 font-bold ml-2 text-[10px] uppercase">{symbol.split('/')[0]}</span>
+            
+            {/* Macro Position Chips */}
+            <div className="flex gap-2">
+               {['0.001', '0.01', '0.05', '0.1'].map(size => (
+                  <button key={size} onClick={() => setQty(size)} className={`flex-1 py-1 text-[10px] font-mono font-bold rounded transition-colors ${qty === size ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.2)]' : 'bg-[#1E293B]/50 hover:bg-[#1E293B] border border-[#334155] text-gray-400 hover:text-indigo-300 hover:border-indigo-500/30'}`}>
+                    {size}
+                  </button>
+               ))}
             </div>
           </div>
 
@@ -248,6 +270,19 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
                <span className={`text-[10px] font-mono font-bold transition-colors ${riskAppetite > 75 ? 'text-rose-400' : riskAppetite < 25 ? 'text-cyan-400' : 'text-gray-400'}`}>{riskAppetite}%</span>
              </div>
              <input type="range" min="1" max="100" value={riskAppetite} onChange={(e) => setRiskAppetite(Number(e.target.value))} className="w-full h-1.5 bg-[#1E293B] rounded-lg appearance-none cursor-pointer hover:bg-[#334155] transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/50" />
+             
+             {/* Risk Profile Presets */}
+             <div className="flex justify-between gap-2 mt-3">
+                {[
+                  { label: 'Conservative', val: 15, baseColor: 'text-cyan-400', activeBg: 'bg-cyan-500/20', activeBorder: 'border-cyan-500/50' },
+                  { label: 'Balanced', val: 50, baseColor: 'text-emerald-400', activeBg: 'bg-emerald-500/20', activeBorder: 'border-emerald-500/50' },
+                  { label: 'Aggressive', val: 85, baseColor: 'text-rose-400', activeBg: 'bg-rose-500/20', activeBorder: 'border-rose-500/50' }
+                ].map(p => (
+                   <button key={p.label} onClick={() => setRiskAppetite(p.val)} className={`flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded border transition-colors ${riskAppetite === p.val ? `${p.activeBg} ${p.baseColor} ${p.activeBorder} shadow-[0_0_10px_currentColor]` : 'bg-[#1E293B]/50 hover:bg-[#1E293B] text-gray-500 border-[#334155]'}`}>
+                     {p.label}
+                   </button>
+                ))}
+             </div>
           </div>
 
         </div>
