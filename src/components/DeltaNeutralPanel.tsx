@@ -14,9 +14,13 @@ interface BotState {
   scheduledTime?: number;
 }
 
-interface DeltaNeutralPanelProps { symbol: string; currentPrice?: number; }
+interface DeltaNeutralPanelProps { 
+  symbol: string; 
+  currentPrice?: number; 
+  lastClosedCandle?: { price: number, time: number } | null;
+}
 
-export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, currentPrice = 0 }) => {
+export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, currentPrice = 0, lastClosedCandle }) => {
   // ── Core Params ────────────────────────────────────────
   const [qty, setQty] = useState<string>('0.001');
 
@@ -26,7 +30,7 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
   const [scheduleTimeStr, setScheduleTimeStr] = useState<string>('');
   
   // ── Phase 1: Asymmetric Guards ─────────────────────────
-  const [usePreviousDayAvg, setUsePreviousDayAvg] = useState(true);
+  const [usePreviousDayAvg, setUsePreviousDayAvg] = useState(false); // Default to Custom Anchor for Master Hub Candle Sync
   const [customAnchorPrice, setCustomAnchorPrice] = useState<number>(currentPrice || 0);
 
   // ── Smart Execution Bounds ─────────────────────────────
@@ -57,6 +61,14 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
       (window as any).socket.on('delta_neutral_status', (data: BotState) => setStatus(data));
     }
   }, []);
+
+  // MASTER BOT: Candle Detection Sync
+  useEffect(() => {
+    if (lastClosedCandle && !usePreviousDayAvg && !status.isActive) {
+      setCustomAnchorPrice(lastClosedCandle.price);
+      toast.success(`Candle Closed! Master Hub synchronized Anchor to $${lastClosedCandle.price.toLocaleString()}`, { id: 'candle-sync-toast', duration: 3000 });
+    }
+  }, [lastClosedCandle, usePreviousDayAvg, status.isActive]);
 
   // Update Custom Anchor automatically if standard mode is selected and price ticks initially
   useEffect(() => {
@@ -122,9 +134,11 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
           <div className="h-10 w-10 rounded bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.2)] flex-shrink-0">
             <Cpu className="w-6 h-6 text-indigo-400" />
           </div>
-          <div>
-            <h2 className="text-[14px] font-black tracking-[0.25em] text-indigo-100 uppercase drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">Voltron Master</h2>
-            <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex-1">
+            <h2 className="text-[13px] sm:text-[14px] font-black tracking-[0.1em] sm:tracking-[0.2em] text-indigo-100 uppercase drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">
+               Command Center (Master Bot)
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
               <span className={`flex justify-center items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
                 status.isActive 
                   ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50' 
@@ -132,6 +146,16 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
               }`}>
                 {status.isActive ? <Activity className="w-2.5 h-2.5 animate-pulse" /> : <Network className="w-2.5 h-2.5" />}
                 Sys state: {status.isActive ? status.phase : 'Standby'}
+              </span>
+              
+              {/* Candle Synchronization Indicator */}
+              <span className={`flex justify-center items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest border shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
+                !usePreviousDayAvg && !status.isActive 
+                  ? 'bg-[#FCD535]/10 text-[#FCD535] border-[#FCD535]/30' 
+                  : 'bg-[#1E293B] text-[#64748B] border-[#334155]'
+              }`}>
+                <Radio className={`w-2.5 h-2.5 ${!usePreviousDayAvg && !status.isActive ? "animate-pulse" : ""}`} />
+                Candle Sync: {!usePreviousDayAvg && !status.isActive ? 'Active' : 'Offline'}
               </span>
             </div>
           </div>

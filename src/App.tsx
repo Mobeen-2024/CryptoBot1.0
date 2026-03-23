@@ -77,6 +77,8 @@ export default function App() {
   const [slaveBalance, setSlaveBalance] = useState<string>('1500.00');
   const [slaveBaseBalance, setSlaveBaseBalance] = useState<string>('0.00');
 
+  const [lastClosedCandle, setLastClosedCandle] = useState<{ price: number, time: number } | null>(null);
+
   const [ticker24h, setTicker24h] = useState<any>(null);
   const [orderBook, setOrderBook] = useState<{ bids: [string, string][], asks: [string, string][] }>({ bids: [], asks: [] });
   const [recentTrades, setRecentTrades] = useState<any[]>([]);
@@ -297,6 +299,10 @@ export default function App() {
           low: parseFloat(kline.l),
           close: parseFloat(kline.c),
         };
+
+        if (kline.x) {
+          setLastClosedCandle({ price: updatedCandle.close, time: updatedCandle.time });
+        }
 
         setCurrentPrice(updatedCandle.close);
 
@@ -598,7 +604,7 @@ export default function App() {
               </div>
             ) : (
               <div className="flex-1 w-full min-h-0 shrink-0 animate-in fade-in slide-in-from-right-4 duration-500 border border-indigo-500/20 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(99,102,241,0.05)] bg-[#0B0E14]/80 backdrop-blur-xl">
-                 <DeltaNeutralPanel symbol={symbol} currentPrice={currentPrice} />
+                 <DeltaNeutralPanel symbol={symbol} currentPrice={currentPrice} lastClosedCandle={lastClosedCandle} />
               </div>
             )}
           </div>
