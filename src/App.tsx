@@ -516,7 +516,7 @@ export default function App() {
         )}
 
         {/* ─── TOP ROW: Chart + Order Panels ──────────────────────── */}
-        <div className={`flex flex-col gap-2 shrink-0 items-stretch ${activeMode === 'DELTA' ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
+        <div className="flex flex-col lg:flex-row gap-2 shrink-0 items-stretch">
           
           {/* Chart Panel */}
           <div className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full z-0">
