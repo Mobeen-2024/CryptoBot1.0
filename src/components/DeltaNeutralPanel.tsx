@@ -43,6 +43,8 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
 
   // ── System State ───────────────────────────────────────
   const [loading, setLoading] = useState(false);
+  const [riskAppetite, setRiskAppetite] = useState<number>(50);
+  const [isShimmering, setIsShimmering] = useState(false);
   const [status, setStatus] = useState<BotState>({
     isActive: false, symbol: '', qty: 0,
     masterEntryPrice: 0, slaveEntryPrice: 0,
@@ -76,6 +78,42 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
       setCustomAnchorPrice(currentPrice);
     }
   }, [currentPrice]);
+
+  // Semantic Refactoring (Risk Intuition Mathematical Engine)
+  useEffect(() => {
+    // Cannot simulate math if relying on the Node.js backend to fetch the 1D Avg 
+    if (usePreviousDayAvg || customAnchorPrice === 0 || currentPrice === 0) return;
+    
+    // Trigger visual shimmer effect
+    setIsShimmering(true);
+    const timer = setTimeout(() => setIsShimmering(false), 800);
+
+    const anchor = customAnchorPrice;
+    const distance = Math.abs(currentPrice - anchor);
+    if (distance === 0) return;
+
+    // Scale from 0.02x (1%) to 2.0x (100%), where 50% = 1.0x standard logic
+    const riskMult = riskAppetite / 50;
+    
+    // Bullish Vector (Long)
+    const bullOffset = distance * 0.5 * riskMult;
+    const newBullishSL = currentPrice - bullOffset;
+    const newBullishTP = currentPrice + (bullOffset * 3 * riskMult);
+    
+    // Bearish Vector (Short)
+    const bearOffset = distance * 2 * riskMult;
+    const newBearishSL = currentPrice + bearOffset;
+    const newBearishTP = anchor; // Target always snaps back to average anchor
+
+    setBullishSL(parseFloat(newBullishSL.toFixed(4)));
+    setBullishTP(parseFloat(newBullishTP.toFixed(4)));
+    setBearishSL(parseFloat(newBearishSL.toFixed(4)));
+    setBearishTP(parseFloat(newBearishTP.toFixed(4)));
+
+    return () => clearTimeout(timer);
+  }, [riskAppetite]); 
+
+  const activeAnchor = usePreviousDayAvg ? "1D AVG" : customAnchorPrice;
 
   const handleStart = async () => {
     setLoading(true);
@@ -121,8 +159,6 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
       setLoading(false);
     }
   };
-
-  const activeAnchor = usePreviousDayAvg ? "1D AVG" : customAnchorPrice;
 
   return (
     <div className={`h-full flex flex-col transition-colors duration-500`}>
@@ -202,6 +238,18 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
               />
             </div>
           )}
+
+          {/* ── Semantic Refactoring: Risk Intuition Slider ── */}
+          <div className={`mt-2 bg-[#0F172A] border border-[#1E293B] rounded-xl p-3 transition-all duration-700 ${isShimmering ? 'shadow-[0_0_20px_rgba(16,185,129,0.3)] border-emerald-500/50 scale-[1.01]' : ''}`}>
+             <div className="flex justify-between items-center mb-2">
+               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 list-none">
+                 <Zap className="w-3.5 h-3.5" /> Risk Intuition (Auto-Scaling)
+               </span>
+               <span className={`text-[10px] font-mono font-bold transition-colors ${riskAppetite > 75 ? 'text-rose-400' : riskAppetite < 25 ? 'text-cyan-400' : 'text-gray-400'}`}>{riskAppetite}%</span>
+             </div>
+             <input type="range" min="1" max="100" value={riskAppetite} onChange={(e) => setRiskAppetite(Number(e.target.value))} className="w-full h-1.5 bg-[#1E293B] rounded-lg appearance-none cursor-pointer hover:bg-[#334155] transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/50" />
+          </div>
+
         </div>
 
         {/* ── Upper Split: Bullish Execution Hand ── */}
