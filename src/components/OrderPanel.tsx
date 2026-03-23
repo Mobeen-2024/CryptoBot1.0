@@ -196,11 +196,14 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   const tpTotal = os.quantity && os.takeProfit ? Number((Number(os.quantity) * Number(os.takeProfit)).toFixed(4)) : 0;
   const slTotal = os.quantity && os.slTrigger ? Number((Number(os.quantity) * Number(os.slTrigger)).toFixed(4)) : 0;
   
-  // Max calculations
-  const avbl = os.mode === 'BUY' ? balance : baseBalance;
+  // Max calculations  // Determine available collateral based on order intent
+  const isShorting = os.mode === 'SELL' && isSpotMargin && os.autoBorrow;
+  const avbl = (os.mode === 'BUY' || isShorting) ? balance : baseBalance;
+  
   const effectiveLeverage = Math.max(1, isSpotMargin ? os.leverage : 1); // Treat 0x as 1x for math purposes so we don't get 0 max
-  const maxUsdt = os.mode === 'BUY' ? avbl * effectiveLeverage : 0;
-  const maxQuantity = os.mode === 'BUY' 
+  const maxUsdt = (os.mode === 'BUY' || isShorting) ? avbl * effectiveLeverage : 0;
+  
+  const maxQuantity = (os.mode === 'BUY' || isShorting)
     ? (executionPrice > 0 ? (avbl * effectiveLeverage) / executionPrice : 0)
     : (baseBalance * effectiveLeverage);
 
@@ -387,7 +390,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   }
 
   if (quantity > 0) {
-    if (os.mode === 'BUY') {
+    if (os.mode === 'BUY' || isShorting) {
       const checkTotal = os.orderType === 'MARKET' ? (quantity * currentPrice) : total;
       if (checkTotal > maxUsdt) {
         isInvalid = true;

@@ -638,8 +638,13 @@ async function startServer() {
          const parts = ccxtSymbol.split('/');
          const baseAsset = parts[0];
          const quoteAsset = parts[1] || 'USDT';
+         
+         // If Spot Sell, you must own the physical Base Asset (e.g. BTC)
+         // If Margin Sell (Short), you use Quote Asset (USDT) as collateral to auto-borrow Base Asset
          let balanceAsset = quoteAsset;
-         if (orderSide === 'sell') balanceAsset = baseAsset;
+         if (orderSide === 'sell' && !marginMode) {
+            balanceAsset = baseAsset;
+         }
 
          if (orderType !== 'market' || takeProfit || slTrigger) {
              const pendingOrderId = `sim_pending_${Date.now()}`;
@@ -674,14 +679,16 @@ async function startServer() {
          }
 
          // Shadow balance validation
-         // If `isClosingPosition` is passed from the client, bypass the balance check completely
-         // because the balance was already validated at entry.
          if (!ccxtParams.isClosingPosition) {
            const shadowBalance = await tradeCopier.getBalance(publicExchange, balanceAsset, 'master');
-           const orderValue = amount * executePrice;
+           
+           // If requiring Base Asset (Spot Sell), we just need 'amount' coins.
+           // If requiring Quote Asset (Spot Buy or Margin Trade), we need (amount * price) value in USDT.
+           const requiredBalance = (balanceAsset === baseAsset) ? amount : (amount * executePrice);
            const effectiveLeverage = marginMode ? (Number(leverage) || 1) : 1;
-           if ((shadowBalance * effectiveLeverage) < orderValue) {
-             return res.status(400).json({ error: `Insufficient Virtual Shadow Balance (Leverage ${effectiveLeverage}x)` });
+           
+           if ((shadowBalance * effectiveLeverage) < requiredBalance) {
+             return res.status(400).json({ error: `Insufficient Virtual Shadow Balance. Required: ${requiredBalance.toFixed(4)} ${balanceAsset} (Effective Leverage ${effectiveLeverage}x) - Available: ${shadowBalance.toFixed(4)}` });
            }
          }
 
