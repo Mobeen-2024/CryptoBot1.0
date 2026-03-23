@@ -5,6 +5,7 @@ import { Cpu, TrendingUp, XCircle } from 'lucide-react';
 import { useVoltronMath } from '../hooks/useVoltronMath';
 import { RecoveryPanel } from './CommandCenter/RecoveryPanel';
 import { ReAnchorPanel } from './CommandCenter/ReAnchorPanel';
+import { BearishBotPanel } from './CommandCenter/BearishBotPanel';
 
 interface BotState {
   isActive: boolean; symbol: string; qty: number; 
@@ -253,6 +254,9 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
         </div>
         
       </div>
+      
+      {/* ── THE BEARISH BOT WIDGET ── */}
+      <BearishBotPanel masterEntryPrice={customAnchorPrice} />
     </div>
   );
 };
