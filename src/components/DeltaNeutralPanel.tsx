@@ -7,6 +7,8 @@ import { CommandHeader } from './CommandCenter/CommandHeader';
 import { SessionControls } from './CommandCenter/SessionControls';
 import { RiskSlider } from './CommandCenter/RiskSlider';
 import { ExecutionHand } from './CommandCenter/ExecutionHand';
+import { RecoveryPanel } from './CommandCenter/RecoveryPanel';
+import { ReAnchorPanel } from './CommandCenter/ReAnchorPanel';
 
 interface BotState {
   isActive: boolean; symbol: string; qty: number; 
@@ -145,6 +147,21 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
           setRiskAppetite={setRiskAppetite} 
           isShimmering={isShimmering} 
         />
+
+        {status.phase === 'RECOVERY_MODE' && (
+          <RecoveryPanel 
+            recoveryTarget={status.recoveryTarget} 
+            recoveryDeadline={status.recoveryDeadline} 
+          />
+        )}
+
+        {status.phase === 'PARTIAL_EXIT' && (
+          <ReAnchorPanel 
+            currentPrice={currentPrice} 
+            reAnchorCount={status.reAnchorCount || 0} 
+            onStop={handleStop} 
+          />
+        )}
 
         <ExecutionHand 
           title="Bullish Execution Hand" icon={TrendingUp} colorTheme="emerald"

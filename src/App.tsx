@@ -441,7 +441,9 @@ export default function App() {
 
         {/* Right: Controls + Status */}
         <div className="flex items-center gap-1.5 sm:gap-3 h-full shrink-0">
-          <span className="hidden lg:flex"><CopierControls /></span>
+          {activeMode === 'SPOT' && (
+            <span className="hidden lg:flex"><CopierControls /></span>
+          )}
 
           {/* Wallet Balance Pill */}
           <div className="hidden md:flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 sm:px-3 py-1.5">
@@ -449,18 +451,20 @@ export default function App() {
             <span className="text-[10px] sm:text-xs font-mono font-bold text-[#eaecef]">${parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
 
-          {/* §9.1 Nav Action Buttons */}
-          <div className="hidden md:flex items-center gap-1">
-            <button onClick={() => { refreshBalance(); toast.success('Synced'); }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#fcd535] bg-[#fcd535]/5 hover:bg-[#fcd535]/15 border border-[#fcd535]/20 rounded-md transition-all" title="Force Sync">
-              <RefreshCw className="w-3 h-3" /> Sync
-            </button>
-            <button onClick={async () => { try { const r = await fetch('/api/bot/pause', { method: 'POST' }); const d = await r.json(); toast(r.ok ? d.message : d.error, { icon: r.ok ? '⏸️' : '❌' }); } catch { toast.error('Pause failed'); } }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 border border-amber-500/20 rounded-md transition-all" title="Pause Engine">
-              ⏸ Pause
-            </button>
-            <button onClick={async () => { if (!confirm('Close ALL positions and terminate?')) return; try { const r = await fetch('/api/bot/close-all', { method: 'POST' }); const d = await r.json(); toast(r.ok ? d.message : d.error, { icon: r.ok ? '🛑' : '❌' }); } catch { toast.error('Close All failed'); } }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/5 hover:bg-red-500/15 border border-red-500/20 rounded-md transition-all" title="Emergency Close All">
-              🛑 Close All
-            </button>
-          </div>
+          {/* §9.1 Nav Action Buttons (Delta Master Context) */}
+          {activeMode === 'DELTA' && (
+            <div className="hidden md:flex items-center gap-1">
+              <button onClick={() => { refreshBalance(); toast.success('Synced'); }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#fcd535] bg-[#fcd535]/5 hover:bg-[#fcd535]/15 border border-[#fcd535]/20 rounded-md transition-all" title="Force Sync">
+                <RefreshCw className="w-3 h-3" /> Sync
+              </button>
+              <button onClick={async () => { try { const r = await fetch('/api/bot/pause', { method: 'POST' }); const d = await r.json(); toast(r.ok ? d.message : d.error, { icon: r.ok ? '⏸️' : '❌' }); } catch { toast.error('Pause failed'); } }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 border border-amber-500/20 rounded-md transition-all" title="Pause Engine">
+                ⏸ Pause
+              </button>
+              <button onClick={async () => { if (!confirm('Close ALL positions and terminate?')) return; try { const r = await fetch('/api/bot/close-all', { method: 'POST' }); const d = await r.json(); toast(r.ok ? d.message : d.error, { icon: r.ok ? '🛑' : '❌' }); } catch { toast.error('Close All failed'); } }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-red-400 bg-red-500/5 hover:bg-red-500/15 border border-red-500/20 rounded-md transition-all" title="Emergency Close All">
+                🛑 Close All
+              </button>
+            </div>
+          )}
 
           {/* 24h Change (mobile only - compact) */}
           {ticker24h && (
