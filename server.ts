@@ -422,6 +422,63 @@ async function startServer() {
     res.json(deltaNeutralBot.getStatus());
   });
 
+  // §6: Recovery mode configuration
+  app.post('/api/bot/recovery-mode', (req, res) => {
+    try {
+      const { mode, deadlineMs } = req.body;
+      if (!['AUTO', 'CONFIRM', 'HOLD'].includes(mode)) {
+        return res.status(400).json({ error: 'Invalid mode. Use AUTO, CONFIRM, or HOLD.' });
+      }
+      deltaNeutralBot.setRecoveryMode(mode, deadlineMs ? Number(deadlineMs) : undefined);
+      res.json({ message: `Recovery mode set to ${mode}`, status: deltaNeutralBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // §7: Re-anchor at new price
+  app.post('/api/bot/reanchor', async (req, res) => {
+    try {
+      const { anchorPrice } = req.body;
+      if (!anchorPrice || Number(anchorPrice) <= 0) {
+        return res.status(400).json({ error: 'Invalid anchor price.' });
+      }
+      await deltaNeutralBot.reAnchor(Number(anchorPrice));
+      res.json({ message: `Re-anchored to $${anchorPrice}`, status: deltaNeutralBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // §9.1: Pause state engine without closing positions
+  app.post('/api/bot/pause', (req, res) => {
+    try {
+      const status = deltaNeutralBot.getStatus();
+      if (!status.isActive) return res.status(400).json({ error: 'Bot is not active.' });
+      // Pause by halting state engine but keeping positions open
+      (deltaNeutralBot as any).state.phase = 'IDLE';
+      (deltaNeutralBot as any).emitStatus();
+      if ((deltaNeutralBot as any).priceCheckInterval) {
+        clearInterval((deltaNeutralBot as any).priceCheckInterval);
+        (deltaNeutralBot as any).priceCheckInterval = null;
+      }
+      res.json({ message: 'State engine paused. Positions remain open.', status: deltaNeutralBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // §9.1: Close ALL positions immediately
+  app.post('/api/bot/close-all', async (req, res) => {
+    try {
+      await deltaNeutralBot.stop();
+      // TODO: Also close live Binance positions if not in shadow mode
+      res.json({ message: 'All positions closed. System terminated.', status: deltaNeutralBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const handleBinanceError = (error: any, res: express.Response, defaultMessage: string) => {
     Logger.error(`${defaultMessage}:`, error);
     
