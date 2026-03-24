@@ -378,7 +378,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         const bottomEl = document.getElementById('recent-bottom-marker');
         if (bottomEl && low) {
            const x = timeScale.timeToCoordinate(low.time);
-           const y = series.priceToCoordinate(low.close); // Pinned to the Close as requested
+           const y = series.priceToCoordinate(low.low); // Pinned to the Low as requested
            if (x !== null && y !== null) {
               bottomEl.style.transform = `translate(${x}px, ${y}px)`;
               bottomEl.style.opacity = '1';
