@@ -1556,7 +1556,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       )}
 
       {/* ── Brand Watermark 2050 ─────────────────────────────── */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[-1] overflow-hidden w-full h-full">
         <div className="flex flex-col items-center gap-2 max-w-full px-4">
           <span 
             className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.03] whitespace-nowrap"
@@ -1573,30 +1573,29 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       </div>
 
       {/* ── Recent Top & Bottom Price Tags ── */}
-      {visibleHighLow && visibleHighLow.high && (
-        <div 
-          className="absolute z-[15] pointer-events-none px-1.5 py-px rounded-sm text-[9px] font-mono font-bold text-[var(--holo-cyan)] bg-black/80"
-          style={{ 
-            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.high.high) || 0) - 18, 
-            left: chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.high.time) || 0,
-            transform: 'translateX(-50%)' 
-          }}
-        >
-          {visibleHighLow.high.high.toFixed(2)}
-        </div>
-      )}
-      {visibleHighLow && visibleHighLow.low && (
-        <div 
-          className="absolute z-[15] pointer-events-none px-1.5 py-px rounded-sm text-[9px] font-mono font-bold text-[var(--holo-magenta)] bg-black/80"
-          style={{ 
-            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.low.low) || 0) + 6, 
-            left: chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.low.time) || 0,
-            transform: 'translateX(-50%)' 
-          }}
-        >
-          {visibleHighLow.low.low.toFixed(2)}
-        </div>
-      )}
+      {visibleHighLow?.high && (() => {
+        const topY = seriesRef.current?.priceToCoordinate(visibleHighLow.high.high);
+        const topX = chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.high.time);
+        const botY = seriesRef.current?.priceToCoordinate(visibleHighLow.low.low);
+        const botX = chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.low.time);
+        if (!topY || !topX || !botY || !botX) return null;
+        return (
+          <>
+            <div
+              className="absolute z-[16] pointer-events-none text-[9px] font-mono font-bold text-[var(--holo-cyan)] bg-[#0b0e11] px-1.5 py-px rounded-sm"
+              style={{ top: topY - 18, left: topX, transform: 'translateX(-50%)' }}
+            >
+              {visibleHighLow.high.high.toFixed(2)}
+            </div>
+            <div
+              className="absolute z-[16] pointer-events-none text-[9px] font-mono font-bold text-[var(--holo-magenta)] bg-[#0b0e11] px-1.5 py-px rounded-sm"
+              style={{ top: botY + 6, left: botX, transform: 'translateX(-50%)' }}
+            >
+              {visibleHighLow.low.low.toFixed(2)}
+            </div>
+          </>
+        );
+      })()}
 
       {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
       {showAvgLines && avgPositions.buyPrice > 0 && (
