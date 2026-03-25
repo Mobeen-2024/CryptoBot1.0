@@ -1582,7 +1582,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             transform: 'translateX(-50%)' 
           }}
         >
-          TOP {visibleHighLow.high.high.toFixed(2)}
+          {visibleHighLow.high.high.toFixed(2)}
         </div>
       )}
       {visibleHighLow && visibleHighLow.low && (
@@ -1594,7 +1594,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             transform: 'translateX(-50%)' 
           }}
         >
-          BOT {visibleHighLow.low.low.toFixed(2)}
+          {visibleHighLow.low.low.toFixed(2)}
         </div>
       )}
 
