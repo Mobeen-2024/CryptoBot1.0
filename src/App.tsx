@@ -526,7 +526,7 @@ export default function App() {
           
           {/* Chart Panel */}
           <div 
-            className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300"
+            className="h-[450px] sm:h-[550px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300"
           >
             {/* Chart Toolbar: Command Center */}
             <div 

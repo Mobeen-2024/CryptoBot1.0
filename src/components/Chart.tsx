@@ -1498,7 +1498,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         <div 
           className="absolute z-20 pointer-events-none select-none"
           style={{
-            left: `${crosshairData.x > 150 ? crosshairData.x - 125 : crosshairData.x + 15}px`,
+            left: `clamp(4px, ${crosshairData.x > 150 ? crosshairData.x - 125 : crosshairData.x + 15}px, calc(100% - 130px))`,
             top: `${Math.max(10, (seriesRef.current?.priceToCoordinate(crosshairData.high) || crosshairData.y) - 10)}px`,
           }}
         >
@@ -1555,10 +1555,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       )}
 
       {/* ── Brand Watermark 2050 ─────────────────────────────── */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1]">
-        <div className="flex flex-col items-center gap-2">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1] overflow-hidden w-full h-full">
+        <div className="flex flex-col items-center gap-2 max-w-full px-4">
           <span 
-            className="text-[72px] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-20"
+            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-10 whitespace-nowrap"
             style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
           >
             MOBEEN

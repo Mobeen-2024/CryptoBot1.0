@@ -31,9 +31,9 @@ export type Drawing = TrendLineDrawing | HorizontalDrawing | AnnotationDrawing;
 
 const TOOL_COLORS: Record<DrawingTool, string> = {
   none:       '#ffffff',
-  trendline:  '#fcd535',
-  horizontal: '#0ecb81',
-  annotation: '#2962FF',
+  trendline:  '#00E5FF', // Holo-Cyan
+  horizontal: '#fcd535', // Gold
+  annotation: '#FF007F', // Deep Magenta
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -155,20 +155,56 @@ export const ChartDrawingLayer: React.FC<Props> = ({
     for (const d of drawings) {
       const isSelected = d.id === selectedId;
       ctx.save();
-      ctx.strokeStyle = isSelected ? '#ffffff' : (d.color);
-      ctx.fillStyle = isSelected ? '#ffffff' : (d.color);
+      
+      const themeColor = isSelected ? '#ffffff' : (d.color);
+      ctx.strokeStyle = themeColor;
+      ctx.fillStyle = themeColor;
       ctx.lineWidth = (('width' in d ? d.width : 1.5) as number) + (isSelected ? 1 : 0);
+      
+      // 2050 Canvas Glow Filters
+      ctx.shadowBlur = isSelected ? 20 : 10;
+      ctx.shadowColor = themeColor;
 
       if (d.type === 'trendline') {
         const x1 = timeToX(d.p1.time); const y1 = priceToY(d.p1.price);
         const x2 = timeToX(d.p2.time); const y2 = priceToY(d.p2.price);
         if (x1 != null && y1 != null && x2 != null && y2 != null) {
           drawArrow(ctx, x1, y1, x2, y2, d.extended);
-          // Anchor dots
+          
+          // High-Tech Anchor Targeting Nodes
+          ctx.shadowBlur = 0; // Turn off glow for inner node clarity
           [{ x: x1, y: y1 }, { x: x2, y: y2 }].forEach(p => {
-            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-            ctx.fill();
+             // Outer ring
+             ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.stroke();
+             // Inner core
+             ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill();
           });
+          
+          // Ultra 2050 Pro Feature: Trendline Dynamic Measurement Plate
+          const isHovered = isSelected || activeTool === 'none'; // Could restrict text to hover/select
+          if (isHovered) {
+             const cx = (x1 + x2) / 2;
+             const cy = (y1 + y2) / 2;
+             const priceDelta = d.p2.price - d.p1.price;
+             const pctChange = (priceDelta / d.p1.price) * 100;
+             const sign = priceDelta >= 0 ? '+' : '';
+             const text = `${sign}${priceDelta.toFixed(2)} (${sign}${pctChange.toFixed(2)}%)`;
+             
+             ctx.font = 'bold 10px monospace';
+             const tw = ctx.measureText(text).width;
+             
+             // Glass panel background simulation (dark transparent)
+             ctx.shadowBlur = 10;
+             ctx.fillStyle = 'rgba(5, 11, 20, 0.85)';
+             ctx.beginPath();
+             ctx.roundRect(cx - (tw/2) - 8, cy - 24, tw + 16, 18, 4);
+             ctx.fill();
+             
+             // Text print
+             ctx.shadowBlur = 0;
+             ctx.fillStyle = priceDelta >= 0 ? '#00E5FF' : '#FF007F';
+             ctx.fillText(text, cx - (tw/2), cy - 12);
+          }
         }
       }
 
@@ -221,14 +257,45 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       ctx.save();
       ctx.strokeStyle = TOOL_COLORS.trendline;
       ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 4]);
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = TOOL_COLORS.trendline;
+      
+      // Dashed laser beam
+      ctx.setLineDash([8, 6]);
       ctx.beginPath();
       ctx.moveTo(draftStart.px, draftStart.py);
       ctx.lineTo(mousePos.x, mousePos.y);
       ctx.stroke();
       ctx.setLineDash([]);
+      
+      // Draft Anchor point (Targeting Node)
       ctx.fillStyle = TOOL_COLORS.trendline;
-      ctx.beginPath(); ctx.arc(draftStart.px, draftStart.py, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(draftStart.px, draftStart.py, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(draftStart.px, draftStart.py, 2, 0, Math.PI * 2); ctx.fill();
+      
+      // Dynamic Draft Measurement rendering
+      const draftPrice = candleSeries?.coordinateToPrice(mousePos.y) || 0;
+      const priceDelta = draftPrice - draftStart.price;
+      const pctChange = (priceDelta / draftStart.price) * 100;
+      const sign = priceDelta >= 0 ? '+' : '';
+      const text = `${sign}${priceDelta.toFixed(2)} (${sign}${pctChange.toFixed(2)}%)`;
+      
+      ctx.font = 'bold 10px monospace';
+      const tw = ctx.measureText(text).width;
+      const cx = (draftStart.px + mousePos.x) / 2;
+      const cy = (draftStart.py + mousePos.y) / 2;
+      
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = 'rgba(5, 11, 20, 0.85)';
+      ctx.beginPath();
+      ctx.roundRect(cx - (tw/2) - 8, cy - 24, tw + 16, 18, 4);
+      ctx.fill();
+      
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = priceDelta >= 0 ? '#00E5FF' : '#FF007F';
+      ctx.fillText(text, cx - (tw/2), cy - 12);
+      
       ctx.restore();
     }
 
@@ -388,6 +455,34 @@ export const ChartDrawingLayer: React.FC<Props> = ({
     onToolChange('none');
   };
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (activeTool === 'none') return;
+    const touch = e.touches[0];
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const mockEvent = {
+      button: 0,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      preventDefault: () => e.preventDefault(),
+    } as unknown as React.MouseEvent;
+    
+    handleMouseDown(mockEvent);
+  }, [activeTool, handleMouseDown]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (activeTool === 'none' && !draftStart) return;
+    const touch = e.touches[0];
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMousePos({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
+  }, [activeTool, draftStart]);
+
+  const handleTouchEnd = useCallback(() => {
+    // Optional cleanup on touch end
+  }, []);
+
   // ── Cursor ────────────────────────────────────────────────────────────────
 
   const cursor =
@@ -401,19 +496,25 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       {/* Drawing Canvas Overlay */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 z-30 pointer-events-auto"
+        className="absolute inset-0 z-30 pointer-events-auto touch-none"
         style={{ cursor, display: activeTool === 'none' && drawings.length === 0 ? 'none' : 'block' }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onContextMenu={handleRightClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
 
       {/* Annotation Input Popup */}
       {annotationDraft && (
-        <div className="absolute z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1e2329] border border-[#3b4351] rounded-xl shadow-2xl p-4 w-72 font-sans">
-          <h4 className="text-[#eaecef] text-sm font-bold mb-3 flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2962FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            Add Annotation
+        <div className="absolute z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 glass-tooltip p-4 w-72 font-sans overflow-hidden">
+          {/* Neon Border Glow Wrapper */}
+          <div className="absolute inset-0 border border-[var(--holo-magenta)] opacity-20 bg-gradient-to-br from-[var(--holo-magenta)]/10 to-transparent pointer-events-none rounded-lg" />
+          
+          <h4 className="text-white text-sm font-black mb-3 flex items-center gap-2 uppercase tracking-widest relative z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--holo-magenta)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            System Log
           </h4>
           <input
             autoFocus
@@ -421,37 +522,37 @@ export const ChartDrawingLayer: React.FC<Props> = ({
             value={annotationText}
             onChange={e => setAnnotationText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') confirmAnnotation(); if (e.key === 'Escape') setAnnotationDraft(null); }}
-            placeholder="Type your note…"
-            className="w-full bg-[#0b0e11] border border-[#2b3139] focus:border-[#2962FF] rounded-lg px-3 py-2 text-[#eaecef] text-sm outline-none font-mono mb-3"
+            placeholder="Type transmission..."
+            className="w-full bg-[#050B14]/80 border border-white/10 focus:border-[var(--holo-magenta)] rounded-md px-3 py-2 text-[#00E5FF] text-sm outline-none font-mono font-bold mb-3 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] relative z-10 transition-colors"
           />
-          <div className="flex gap-2">
-            <button onClick={() => setAnnotationDraft(null)} className="flex-1 py-2 bg-[#2b3139] hover:bg-[#474d57] text-[#eaecef] text-xs font-bold rounded-lg transition-colors">Cancel</button>
-            <button onClick={confirmAnnotation} disabled={!annotationText.trim()} className="flex-1 py-2 bg-[#2962FF] hover:bg-[#1e4dc7] disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors">Add Note</button>
+          <div className="flex gap-2 relative z-10">
+            <button onClick={() => setAnnotationDraft(null)} className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[#848e9c] text-xs font-bold uppercase tracking-wider rounded-md transition-colors hover-lift">Abort</button>
+            <button onClick={confirmAnnotation} disabled={!annotationText.trim()} className="flex-1 py-1.5 bg-[var(--holo-magenta)]/20 hover:bg-[var(--holo-magenta)]/30 border border-[var(--holo-magenta)] disabled:opacity-50 text-[var(--holo-magenta)] text-xs font-black drop-shadow-[0_0_8px_var(--holo-magenta)] uppercase tracking-wider rounded-md transition-all hover-lift">Commit</button>
           </div>
         </div>
       )}
 
       {/* Selected Drawing Context Menu */}
       {selectedId && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 bg-[#1e2329] border border-[#3b4351] rounded-full shadow-xl px-3 py-1.5 font-sans">
-          <span className="text-[#848e9c] text-[10px] uppercase tracking-wider font-bold mr-2">Drawing</span>
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 glass-tooltip rounded-full px-4 py-2 font-sans shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+          <span className="text-[#00E5FF] drop-shadow-[0_0_8px_var(--holo-cyan)] text-[9px] uppercase tracking-[0.2em] font-black mr-2">Target Lock</span>
           {/* Toggle extend for trendlines */}
           {drawings.find(d => d.id === selectedId)?.type === 'trendline' && (
             <button
               onClick={() => setDrawings(prev => prev.map(d => d.id === selectedId && d.type === 'trendline' ? { ...d, extended: !d.extended } : d))}
-              className="flex items-center gap-1 bg-[#2b3139] hover:bg-[#474d57] text-[#fcd535] text-[10px] font-bold px-2.5 py-1 rounded-full transition-colors"
+              className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[var(--holo-cyan)] drop-shadow-[0_0_4px_var(--holo-cyan)] text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors hover-lift"
               title="Toggle ray extension"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-              RAY
+              Ray Ext
             </button>
           )}
           <button
             onClick={deleteSelected}
-            className="flex items-center gap-1 bg-[#f6465d]/10 hover:bg-[#f6465d]/20 text-[#f6465d] text-[10px] font-bold px-2.5 py-1 rounded-full transition-colors"
+            className="flex items-center gap-1.5 bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 border border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)] drop-shadow-[0_0_4px_var(--holo-magenta)] text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full transition-colors hover-lift"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-            Delete
+            Destroy
           </button>
           <button onClick={() => setSelectedId(null)} className="text-[#848e9c] hover:text-white p-1 rounded-full transition-colors">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
