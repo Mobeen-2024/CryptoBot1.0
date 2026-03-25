@@ -1556,7 +1556,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       )}
 
       {/* ── Brand Watermark 2050 ─────────────────────────────── */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1] overflow-hidden w-full h-full">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
         <div className="flex flex-col items-center gap-2 max-w-full px-4">
           <span 
             className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.03] whitespace-nowrap"
@@ -1572,12 +1572,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
       </div>
 
-      {/* ── Recent Top & Bottom Labels ── */}
+      {/* ── Recent Top & Bottom Price Tags ── */}
       {visibleHighLow && visibleHighLow.high && (
         <div 
-          className="absolute z-[15] pointer-events-none px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/30 backdrop-blur-sm shadow-[0_4px_10px_rgba(0,229,255,0.2)] transition-transform duration-100 ease-out"
+          className="absolute z-[15] pointer-events-none px-1.5 py-px rounded-sm text-[9px] font-mono font-bold text-[var(--holo-cyan)] bg-black/80"
           style={{ 
-            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.high.high) || 0) - 24, 
+            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.high.high) || 0) - 18, 
             left: chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.high.time) || 0,
             transform: 'translateX(-50%)' 
           }}
@@ -1587,9 +1587,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       )}
       {visibleHighLow && visibleHighLow.low && (
         <div 
-          className="absolute z-[15] pointer-events-none px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border border-[var(--holo-magenta)]/30 backdrop-blur-sm shadow-[0_4px_10px_rgba(255,0,127,0.2)] transition-transform duration-100 ease-out"
+          className="absolute z-[15] pointer-events-none px-1.5 py-px rounded-sm text-[9px] font-mono font-bold text-[var(--holo-magenta)] bg-black/80"
           style={{ 
-            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.low.low) || 0) + 12, 
+            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.low.low) || 0) + 6, 
             left: chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.low.time) || 0,
             transform: 'translateX(-50%)' 
           }}
