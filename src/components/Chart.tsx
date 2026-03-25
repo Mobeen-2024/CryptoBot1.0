@@ -267,6 +267,34 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     // Generate Dummy SuperTrend Data matching the input `data` length
     if (data.length > 0) {
+      // Map existing historical data for indicators
+      const emaData = data.filter(d => d.ema200 !== undefined && d.ema200 !== null).map(d => ({ time: d.time, value: d.ema200 }));
+      if (emaData.length > 0) emaSeries.setData(emaData);
+
+      const smaData = data.filter(d => d.sma !== undefined && d.sma !== null).map(d => ({ time: d.time, value: d.sma }));
+      if (smaData.length > 0) smaSeries.setData(smaData);
+
+      const sarData = data.filter(d => d.sar !== undefined && d.sar !== null).map(d => ({ time: d.time, value: d.sar }));
+      if (sarData.length > 0) sarSeries.setData(sarData);
+
+      const bollUp = data.filter(d => d.boll?.upper !== undefined).map(d => ({ time: d.time, value: d.boll.upper }));
+      const bollMid = data.filter(d => d.boll?.middle !== undefined).map(d => ({ time: d.time, value: d.boll.middle }));
+      const bollLow = data.filter(d => d.boll?.lower !== undefined).map(d => ({ time: d.time, value: d.boll.lower }));
+      if (bollUp.length > 0) {
+        bollUpper.setData(bollUp);
+        bollMiddle.setData(bollMid);
+        bollLower.setData(bollLow);
+      }
+
+      const jaw = data.filter(d => d.alligator?.jaw !== undefined && d.alligator?.jaw !== null).map(d => ({ time: d.time, value: d.alligator.jaw }));
+      const teeth = data.filter(d => d.alligator?.teeth !== undefined && d.alligator?.teeth !== null).map(d => ({ time: d.time, value: d.alligator.teeth }));
+      const lips = data.filter(d => d.alligator?.lips !== undefined && d.alligator?.lips !== null).map(d => ({ time: d.time, value: d.alligator.lips }));
+      if (jaw.length > 0) {
+        alligatorJaw.setData(jaw);
+        alligatorTeeth.setData(teeth);
+        alligatorLips.setData(lips);
+      }
+
       let trend = 1;
       let st = data[0]?.close || 0;
       const stData = data.map((d: any, i: number) => {
@@ -486,6 +514,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             bollUpperRef.current.update({ time: t, value: lastValid.boll.upper });
             bollMiddleRef.current.update({ time: t, value: lastValid.boll.middle });
             bollLowerRef.current.update({ time: t, value: lastValid.boll.lower });
+          }
+          if (alligatorJawRef.current && lastValid.alligator) {
+            if (lastValid.alligator.jaw !== null) alligatorJawRef.current.update({ time: t, value: lastValid.alligator.jaw });
+            if (lastValid.alligator.teeth !== null) alligatorTeethRef.current.update({ time: t, value: lastValid.alligator.teeth });
+            if (lastValid.alligator.lips !== null) alligatorLipsRef.current.update({ time: t, value: lastValid.alligator.lips });
           }
         }
 
