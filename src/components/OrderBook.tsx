@@ -59,14 +59,14 @@ export const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
           </button>
           <button 
             onClick={() => setViewMode('BIDS')}
-            className={`p-1 rounded transition-colors ${viewMode === 'BIDS' ? 'bg-emerald-500/20 text-emerald-500' : 'text-gray-500 hover:text-emerald-500/70'}`}
+            className={`p-1 rounded transition-colors ${viewMode === 'BIDS' ? 'bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)]' : 'text-gray-500 hover:text-[var(--holo-cyan)]/70'}`}
             title="Buy Orders"
           >
             <ArrowDown className="w-3 h-3" />
           </button>
           <button 
             onClick={() => setViewMode('ASKS')}
-            className={`p-1 rounded transition-colors ${viewMode === 'ASKS' ? 'bg-rose-500/20 text-rose-500' : 'text-gray-500 hover:text-rose-500/70'}`}
+            className={`p-1 rounded transition-colors ${viewMode === 'ASKS' ? 'bg-[var(--holo-magenta)]/20 text-[var(--holo-magenta)]' : 'text-gray-500 hover:text-[var(--holo-magenta)]/70'}`}
             title="Sell Orders"
           >
             <ArrowUp className="w-3 h-3" />
@@ -102,8 +102,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
               const depth = maxTotal > 0 ? (ask.total / maxTotal) * 100 : 0;
               return (
                 <div key={`ask-${i}`} className="relative flex justify-between hover:bg-white/5 px-2 py-[2px] cursor-pointer group">
-                  <div className="absolute top-0 right-0 h-full bg-rose-500/10 transition-all duration-200" style={{ width: `${depth}%` }} />
-                  <span className="w-1/3 text-left text-rose-500 relative z-10">{formatNumber(ask.price, precision)}</span>
+                  <div className="absolute top-0 right-0 h-full bg-[var(--holo-magenta)]/10 transition-all duration-200" style={{ width: `${depth}%` }} />
+                  <span className="w-1/3 text-left text-[var(--holo-magenta)] relative z-10">{formatNumber(ask.price, precision)}</span>
                   <span className="w-1/3 text-right text-gray-300 relative z-10">{formatNumber(ask.amount, 4)}</span>
                   <span className="w-1/3 text-right text-gray-500 relative z-10">{formatNumber(ask.total, 4)}</span>
                 </div>
@@ -115,11 +115,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
         {/* Spread / Current Price Indicator */}
         <div className="my-1 py-1.5 px-2 flex items-center justify-between bg-black/20 border-y border-white/5">
            <div className="flex items-center gap-2">
-             <span className={`text-sm font-bold ${asks.length > 0 && bids.length > 0 ? 'text-emerald-500' : 'text-gray-400'}`}>
+             <span className={`text-sm font-bold ${asks.length > 0 && bids.length > 0 ? 'text-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan)]' : 'text-gray-400'}`}>
                {asks.length > 0 ? formatNumber(asks[0][0], precision) : '---'}
              </span>
              {asks.length > 0 && bids.length > 0 && (
-               <ArrowUp className="w-3 h-3 text-emerald-500" />
+               <ArrowUp className="w-3 h-3 text-[var(--holo-cyan)]" />
              )}
            </div>
            <div className="flex flex-col items-end">
@@ -135,8 +135,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
               const depth = maxTotal > 0 ? (bid.total / maxTotal) * 100 : 0;
               return (
                 <div key={`bid-${i}`} className="relative flex justify-between hover:bg-white/5 px-2 py-[2px] cursor-pointer group">
-                  <div className="absolute top-0 right-0 h-full bg-emerald-500/10 transition-all duration-200" style={{ width: `${depth}%` }} />
-                  <span className="w-1/3 text-left text-emerald-500 relative z-10">{formatNumber(bid.price, precision)}</span>
+                  <div className="absolute top-0 right-0 h-full bg-[var(--holo-cyan)]/10 transition-all duration-200" style={{ width: `${depth}%` }} />
+                  <span className="w-1/3 text-left text-[var(--holo-cyan)] relative z-10">{formatNumber(bid.price, precision)}</span>
                   <span className="w-1/3 text-right text-gray-300 relative z-10">{formatNumber(bid.amount, 4)}</span>
                   <span className="w-1/3 text-right text-gray-500 relative z-10">{formatNumber(bid.total, 4)}</span>
                 </div>

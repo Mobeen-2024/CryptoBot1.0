@@ -79,14 +79,14 @@ export const RecoveryPanel: React.FC<RecoveryPanelProps> = ({ recoveryTarget, re
         </button>
         <button 
           onClick={() => setSelectedMode('CONFIRM')}
-          className={`flex flex-col gap-1 items-center justify-center p-2 rounded-lg border transition-all ${selectedMode === 'CONFIRM' ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-400 shadow-[inset_0_0_10px_rgba(6,182,212,0.1)]' : 'bg-white/5 border-transparent text-[#5e6673] hover:text-[#eaecef]'}`}
+          className={`flex flex-col gap-1 items-center justify-center p-2 rounded-lg border transition-all ${selectedMode === 'CONFIRM' ? 'bg-[var(--holo-cyan)]/15 border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[inset_0_0_10px_rgba(6,182,212,0.1)]' : 'bg-white/5 border-transparent text-[#5e6673] hover:text-[#eaecef]'}`}
         >
           <ShieldCheck className="w-4 h-4" />
           <span className="text-[9px] font-bold tracking-widest uppercase">Ask Confirm</span>
         </button>
         <button 
           onClick={() => setSelectedMode('HOLD')}
-          className={`flex flex-col gap-1 items-center justify-center p-2 rounded-lg border transition-all ${selectedMode === 'HOLD' ? 'bg-rose-500/15 border-rose-500/50 text-rose-400 shadow-[inset_0_0_10px_rgba(244,63,94,0.1)]' : 'bg-white/5 border-transparent text-[#5e6673] hover:text-[#eaecef]'}`}
+          className={`flex flex-col gap-1 items-center justify-center p-2 rounded-lg border transition-all ${selectedMode === 'HOLD' ? 'bg-[var(--holo-magenta)]/15 border-[var(--holo-magenta)]/50 text-[var(--holo-magenta)] shadow-[inset_0_0_10px_rgba(244,63,94,0.1)]' : 'bg-white/5 border-transparent text-[#5e6673] hover:text-[#eaecef]'}`}
         >
           <AlertTriangle className="w-4 h-4" />
           <span className="text-[9px] font-bold tracking-widest uppercase">Hold Position</span>

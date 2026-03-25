@@ -45,7 +45,7 @@ type OrderState = {
 
   // Neon Cyber Elements Components
   const CyberInput = ({ label, suffix, value, onChange, placeholder, disabled, stepBtn, type = 'number', customPaddingRight, align = 'right', mode = 'BUY' }: any) => {
-    const focusBorderClass = mode === 'BUY' ? 'focus-within:border-[#10b981] focus-within:shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'focus-within:border-[#ef4444] focus-within:shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+    const focusBorderClass = mode === 'BUY' ? 'focus-within:border-[var(--holo-cyan)] focus-within:shadow-[0_0_10px_rgba(0,229,255,0.2)]' : 'focus-within:border-[var(--holo-magenta)] focus-within:shadow-[0_0_10px_rgba(255,0,127,0.2)]';
     const [localValue, setLocalValue] = React.useState<string | number>(value);
     const [isFocused, setIsFocused] = React.useState(false);
     const previousValueRef = React.useRef(value);
@@ -180,11 +180,11 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   const updateOs = (updates: Partial<OrderState>) => setOs(prev => ({ ...prev, ...updates }));
 
   // 2035 Cyberpunk Color Palette 
-  const activeColor = os.mode === 'BUY' ? '#10b981' : '#ef4444'; // Emerald / Crimson
-  const neonGlow = os.mode === 'BUY' ? 'shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'shadow-[0_0_15px_rgba(239,68,68,0.4)]';
-  const textNeon = os.mode === 'BUY' ? 'text-[#10b981] drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-[#ef4444] drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]';
-  const borderNeon = os.mode === 'BUY' ? 'border-[#10b981]/50' : 'border-[#ef4444]/50';
-  const focusBorderClass = os.mode === 'BUY' ? 'focus-within:border-[#10b981] focus-within:shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'focus-within:border-[#ef4444] focus-within:shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+  const activeColor = os.mode === 'BUY' ? 'var(--holo-cyan)' : 'var(--holo-magenta)'; // Emerald / Crimson
+  const neonGlow = os.mode === 'BUY' ? 'shadow-[0_0_15px_rgba(0,229,255,0.4)]' : 'shadow-[0_0_15px_rgba(255,0,127,0.4)]';
+  const textNeon = os.mode === 'BUY' ? 'text-[var(--holo-cyan)] drop-shadow-[0_0_8px_rgba(0,229,255,0.8)]' : 'text-[var(--holo-magenta)] drop-shadow-[0_0_8px_rgba(255,0,127,0.8)]';
+  const borderNeon = os.mode === 'BUY' ? 'border-[var(--holo-cyan)]/50' : 'border-[var(--holo-magenta)]/50';
+  const focusBorderClass = os.mode === 'BUY' ? 'focus-within:border-[var(--holo-cyan)] focus-within:shadow-[0_0_10px_rgba(0,229,255,0.2)]' : 'focus-within:border-[var(--holo-magenta)] focus-within:shadow-[0_0_10px_rgba(255,0,127,0.2)]';
   
   // Derived values
   const executionPrice = os.orderType === 'MARKET' 
@@ -488,8 +488,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-0"
           style={{
             left: os.mode === 'BUY' ? '4px' : 'calc(50%)',
-            backgroundColor: os.mode === 'BUY' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-            border: `1px solid ${os.mode === 'BUY' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            backgroundColor: os.mode === 'BUY' ? 'rgba(0,229,255,0.15)' : 'rgba(255,0,127,0.15)',
+            border: `1px solid ${os.mode === 'BUY' ? 'rgba(0,229,255,0.3)' : 'rgba(255,0,127,0.3)'}`,
             boxShadow: neonGlow
           }}
         />
@@ -547,7 +547,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
                 {os.orderType !== 'STOP_LIMIT' && os.orderType !== 'OCO' && (
                   <div className="absolute right-[8px] top-1/2 -translate-y-1/2 flex items-center gap-2 z-20 pointer-events-none">
                     {priceDelta && (
-                      <span className={`text-[10px] font-mono font-bold ${Number(priceDelta) > 0 ? 'text-[#10b981] drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]' : Number(priceDelta) < 0 ? 'text-[#ef4444] drop-shadow-[0_0_5px_rgba(239,68,68,0.5)]' : 'text-gray-500'}`}>
+                      <span className={`text-[10px] font-mono font-bold ${Number(priceDelta) > 0 ? 'text-[var(--holo-cyan)] drop-shadow-[0_0_5px_rgba(0,229,255,0.5)]' : Number(priceDelta) < 0 ? 'text-[var(--holo-magenta)] drop-shadow-[0_0_5px_rgba(255,0,127,0.5)]' : 'text-gray-500'}`}>
                         {Number(priceDelta) > 0 ? '+' : ''}{priceDelta}%
                       </span>
                     )}
@@ -568,7 +568,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
                customPaddingRight="80px"
                align="center"
              />
-             <button type="button" onClick={setMaxQuantity} className={`absolute right-[46px] top-1/2 -translate-y-1/2 text-[9px] font-bold px-2 py-1 rounded transition-all uppercase z-20 ${os.mode === 'BUY' ? 'bg-[#10b981]/10 text-[#10b981] hover:bg-[#10b981]/20' : 'bg-[#ef4444]/10 text-[#ef4444] hover:bg-[#ef4444]/20'}`}>MAX</button>
+             <button type="button" onClick={setMaxQuantity} className={`absolute right-[46px] top-1/2 -translate-y-1/2 text-[9px] font-bold px-2 py-1 rounded transition-all uppercase z-20 ${os.mode === 'BUY' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] hover:bg-[var(--holo-cyan)]/20' : 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/20'}`}>MAX</button>
           </div>
         </div>
 
@@ -686,7 +686,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
         {/* Execution Engine Button */}
         <div className="mt-auto relative">
           {validationError && (
-            <div className="absolute -top-10 left-0 right-0 text-[10px] text-[#ef4444] text-center font-bold bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg py-1.5 px-3 backdrop-blur-md flex items-center justify-center gap-2 animate-pulse">
+            <div className="absolute -top-10 left-0 right-0 text-[10px] text-[var(--holo-magenta)] text-center font-bold bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/20 rounded-lg py-1.5 px-3 backdrop-blur-md flex items-center justify-center gap-2 animate-pulse">
                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
                {validationError}
             </div>
@@ -695,8 +695,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           <button
             type="submit"
             disabled={isInvalid}
-            className={`w-full h-[52px] rounded-xl font-black text-white text-[15px] uppercase tracking-[0.2em] transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 relative overflow-hidden ${os.mode === 'BUY' ? 'bg-[#10b981]' : 'bg-[#ef4444]'}`}
-            style={{ boxShadow: os.mode === 'BUY' ? '0 10px 30px -10px rgba(16,185,129,0.8)' : '0 10px 30px -10px rgba(239,68,68,0.8)' }}
+            className={`w-full h-[52px] rounded-xl font-black text-white text-[15px] uppercase tracking-[0.2em] transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 relative overflow-hidden ${os.mode === 'BUY' ? 'bg-[var(--holo-cyan)]' : 'bg-[var(--holo-magenta)]'}`}
+            style={{ boxShadow: os.mode === 'BUY' ? '0 10px 30px -10px rgba(0,229,255,0.8)' : '0 10px 30px -10px rgba(255,0,127,0.8)' }}
           >
              {/* Diagonal Cyber Stripes overlay */}
             <div className={`absolute inset-0 opacity-20 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.5)_10px,rgba(0,0,0,0.5)_20px)] pointer-events-none`}></div>
@@ -715,7 +715,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
           <div className="bg-[#0a0a0c] w-full max-w-sm rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden animate-in fade-in zoom-in-95 duration-200 relative">
             
             {/* Modal Accents */}
-            <div className={`absolute top-0 left-0 right-0 h-1 ${os.mode === 'BUY' ? 'bg-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.8)]' : 'bg-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}></div>
+            <div className={`absolute top-0 left-0 right-0 h-1 ${os.mode === 'BUY' ? 'bg-[var(--holo-cyan)] shadow-[0_0_15px_rgba(0,229,255,0.8)]' : 'bg-[var(--holo-magenta)] shadow-[0_0_15px_rgba(255,0,127,0.8)]'}`}></div>
 
             <div className="p-5 border-b border-white/5 flex justify-between items-center">
               <h3 className="text-sm font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
@@ -793,7 +793,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
               <button 
                 onClick={confirmOrder}
                 disabled={isSpotMargin && os.leverage > 1 && !riskAccepted}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-[11px] font-black text-white uppercase tracking-widest rounded-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed ${os.mode === 'BUY' ? 'bg-[#10b981] shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)]' : 'bg-[#ef4444] shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:shadow-[0_0_20px_rgba(239,68,68,0.5)]'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-[11px] font-black text-white uppercase tracking-widest rounded-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed ${os.mode === 'BUY' ? 'bg-[var(--holo-cyan)] shadow-[0_0_15px_rgba(0,229,255,0.3)] hover:shadow-[0_0_20px_rgba(0,229,255,0.5)]' : 'bg-[var(--holo-magenta)] shadow-[0_0_15px_rgba(255,0,127,0.3)] hover:shadow-[0_0_20px_rgba(255,0,127,0.5)]'}`}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 Transmit

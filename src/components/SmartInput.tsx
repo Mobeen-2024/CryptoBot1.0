@@ -21,15 +21,15 @@ export const SmartInput: React.FC<SmartInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const colors = {
-    cyan: 'border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.2)] text-cyan-400',
-    emerald: 'border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)] text-emerald-400',
-    rose: 'border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.2)] text-rose-400',
+    cyan: 'border-[var(--holo-cyan)]/50 shadow-[0_0_10px_rgba(6,182,212,0.2)] text-[var(--holo-cyan)]',
+    emerald: 'border-[var(--holo-cyan)]/50 shadow-[0_0_10px_rgba(16,185,129,0.2)] text-[var(--holo-cyan)]',
+    rose: 'border-[var(--holo-magenta)]/50 shadow-[0_0_10px_rgba(244,63,94,0.2)] text-[var(--holo-magenta)]',
   };
   
   const hoverColors = {
-    cyan: 'hover:text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/30 text-cyan-500/70 bg-cyan-500/5 border-cyan-500/10',
-    emerald: 'hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 text-emerald-500/70 bg-emerald-500/5 border-emerald-500/10',
-    rose: 'hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 text-rose-500/70 bg-rose-500/5 border-rose-500/10',
+    cyan: 'hover:text-[var(--holo-cyan)] hover:bg-[var(--holo-cyan)]/10 hover:border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]/70 bg-[var(--holo-cyan)]/5 border-[var(--holo-cyan)]/10',
+    emerald: 'hover:text-[var(--holo-cyan)] hover:bg-[var(--holo-cyan)]/10 hover:border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]/70 bg-[var(--holo-cyan)]/5 border-[var(--holo-cyan)]/10',
+    rose: 'hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 hover:border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]/70 bg-[var(--holo-magenta)]/5 border-[var(--holo-magenta)]/10',
   };
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export const SmartInput: React.FC<SmartInputProps> = ({
 
   return (
     <div className={`flex flex-col gap-1 w-full ${className}`}>
-      <div className={`relative group h-11 w-full bg-[#0A0D14] border rounded-lg overflow-hidden transition-all duration-300 ${isFocused ? colors[colorTheme] : 'border-[#1E293B]'}`}>
+      <div className={`relative group h-11 w-full bg-black/40 border rounded-lg overflow-hidden transition-all duration-300 ${isFocused ? colors[colorTheme] : 'border-[#1E293B]'}`}>
         
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
           <span className={`text-[10px] uppercase font-bold text-gray-500 tracking-wider transition-colors`}>{label}</span>

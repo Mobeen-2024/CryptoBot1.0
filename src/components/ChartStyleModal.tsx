@@ -96,14 +96,14 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
 
       {/* Sheet Container */}
       <div 
-        className={`relative w-full max-w-lg bg-[#181a20] rounded-t-3xl border-t border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transform transition-transform duration-500 ease-out pointer-events-auto overflow-hidden flex flex-col ${
+        className={`relative w-full max-w-lg glass-panel !bg-black/80 rounded-t-3xl border-t border-[var(--holo-cyan)]/20 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] transform transition-transform duration-500 ease-out pointer-events-auto overflow-hidden flex flex-col ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ maxHeight: '85vh' }}
       >
         {/* Handle & Header */}
         <div className="flex flex-col items-center pt-3 pb-2 shrink-0 border-b border-white/5">
-          <div className="w-12 h-1.5 bg-[#2b3139] rounded-full mb-3" />
+          <div className="w-12 h-1.5 bg-white/20 rounded-full mb-3" />
           
           {/* Tabs */}
           <div className="flex w-full px-6 items-center justify-between mb-2">
@@ -141,11 +141,11 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
               {/* Main Toggle (Candle vs Line) */}
               <div className="flex flex-col gap-3">
                 <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Chart Style</span>
-                <div className="flex bg-[#0b0e11] rounded-xl p-1 border border-[#2b3139] w-full max-w-[240px]">
+                <div className="flex bg-black/40 rounded-xl p-1 border border-white/10 w-full max-w-[240px]">
                   <button
                     onClick={() => setLocalConfig({ ...localConfig, style: 'candle' })}
                     className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-                      localConfig.style === 'candle' ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_4px_12px_rgba(252,213,53,0.2)]' : 'text-[#848e9c] hover:text-white'
+                      localConfig.style === 'candle' ? 'glass-card text-[var(--holo-cyan)] shadow-[0_4px_12px_rgba(0,229,255,0.2)]' : 'text-[#848e9c] hover:text-white'
                     }`}
                   >
                     Candle
@@ -153,7 +153,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                   <button
                     onClick={() => setLocalConfig({ ...localConfig, style: 'line' })}
                     className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-                      localConfig.style === 'line' ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_4px_12px_rgba(252,213,53,0.2)]' : 'text-[#848e9c] hover:text-white'
+                      localConfig.style === 'line' ? 'glass-card text-[var(--holo-cyan)] shadow-[0_4px_12px_rgba(0,229,255,0.2)]' : 'text-[#848e9c] hover:text-white'
                     }`}
                   >
                     Line
@@ -165,9 +165,9 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
               {localConfig.style === 'candle' ? (
                 <div className="space-y-6">
                   {/* Bullish Settings */}
-                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-4">
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-4 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-4 rounded-sm bg-[#00E676]" />
+                      <div className="w-2 h-4 rounded-sm bg-[var(--holo-cyan)]" />
                       <span className="text-sm font-bold text-white uppercase tracking-wider">Bullish Action</span>
                     </div>
                     
@@ -203,9 +203,9 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                   </div>
 
                   {/* Bearish Settings */}
-                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-4">
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-4 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-4 rounded-sm bg-[#FF1744]" />
+                      <div className="w-2 h-4 rounded-sm bg-[var(--holo-magenta)]" />
                       <span className="text-sm font-bold text-white uppercase tracking-wider">Bearish Action</span>
                     </div>
                     
@@ -241,7 +241,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-6">
-                   <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-6">
+                   <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-6 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                      <div className="flex items-center justify-between">
                         <div className="flex flex-col gap-1.5">
                            <span className="text-xs font-bold text-white uppercase tracking-widest">Line Color</span>
@@ -258,13 +258,13 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                      <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
                         <div className="flex items-center justify-between">
                            <span className="text-xs font-bold text-white uppercase tracking-widest">Line Width</span>
-                           <div className="flex bg-[#181a20] rounded-lg p-1 border border-[#2b3139]">
+                           <div className="flex bg-black/40 rounded-lg p-1 border border-white/10">
                               {[1, 2, 3, 4].map((w) => (
                                 <button
                                   key={w}
                                   onClick={() => setLocalConfig({ ...localConfig, line: { ...localConfig.line, width: w } })}
                                   className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
-                                    localConfig.line.width === w ? 'bg-[#fcd535] text-[#0b0e11] font-black' : 'text-[#848e9c] hover:text-white'
+                                    localConfig.line.width === w ? 'glass-card text-[var(--holo-cyan)] font-black' : 'text-[#848e9c] hover:text-white'
                                   }`}
                                 >
                                   {w}px
@@ -282,9 +282,9 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                 <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Global Environment</span>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 flex flex-col gap-3">
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/5 flex flex-col gap-3 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                     <div className="flex items-center gap-2">
-                      <LayoutGrid className="w-4 h-4 text-cyan-400" />
+                      <LayoutGrid className="w-4 h-4 text-[var(--holo-cyan)]" />
                       <span className="text-[10px] font-bold text-white uppercase tracking-widest">Background</span>
                     </div>
                     {colorSwatch(localConfig.global.background, (color) => {
@@ -295,9 +295,9 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                     })}
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 flex flex-col gap-3">
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/5 flex flex-col gap-3 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                     <div className="flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-amber-400" />
+                      <Palette className="w-4 h-4 text-[#fcd535]" />
                       <span className="text-[10px] font-bold text-white uppercase tracking-widest">Grid Lines</span>
                     </div>
                     {colorSwatch(localConfig.global.gridLines, (color) => {
@@ -330,7 +330,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                       className={`p-3 rounded-xl border text-[11px] font-bold uppercase transition-all tracking-wider text-left ${
                         localMain === ind.id 
                           ? 'bg-[#fcd535]/10 border-[#fcd535] text-[#fcd535] shadow-[0_0_15px_rgba(252,213,53,0.1)]' 
-                          : 'bg-[#0b0e11] border-white/5 text-[#848e9c] hover:border-white/20'
+                          : 'bg-black/30 border-white/5 text-[#848e9c] hover:border-white/20'
                       }`}
                     >
                       {ind.label}
@@ -358,8 +358,8 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                       onClick={() => toggleSub(ind.id)}
                       className={`p-3 rounded-xl border text-[11px] font-bold uppercase transition-all tracking-wider text-left ${
                         localSub.includes(ind.id)
-                          ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' 
-                          : 'bg-[#0b0e11] border-white/5 text-[#848e9c] hover:border-white/20'
+                          ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)] text-[var(--holo-cyan)] shadow-[0_0_15px_var(--holo-cyan-glow)]' 
+                          : 'bg-black/30 border-white/5 text-[#848e9c] hover:border-white/20'
                       }`}
                     >
                       {ind.label}
@@ -373,7 +373,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="absolute bottom-0 inset-x-0 p-6 bg-[#181a20] border-t border-white/10 flex gap-4">
+        <div className="absolute bottom-0 inset-x-0 p-6 bg-black/40 border-t border-[var(--holo-cyan)]/20 flex gap-4 backdrop-blur-3xl">
           <button
             onClick={onReset}
             className="flex-1 h-14 rounded-xl border border-white/10 text-white font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/5 transition-all"
@@ -383,10 +383,10 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
           </button>
           <button
             onClick={handleApply}
-            className="flex-[2] h-14 rounded-xl bg-[#fcd535] text-[#0b0e11] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-[0_8px_24px_rgba(252,213,53,0.3)] hover:brightness-110 active:scale-[0.98] transition-all"
+            className="flex-[2] h-14 rounded-xl bg-[var(--holo-cyan)] text-black font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-[0_0_20px_var(--holo-cyan-glow)] hover:brightness-110 active:scale-[0.98] transition-all"
           >
             <Check className="w-5 h-5" />
-            Confirm
+            Initialize Structure
           </button>
         </div>
       </div>

@@ -48,18 +48,18 @@ export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
   const totalSells = history.filter(t => t.side?.toUpperCase() === 'SELL').length;
 
   return (
-    <div className="flex flex-col h-full bg-[#0b0e11] overflow-hidden">
+    <div className="flex flex-col h-full glass-panel overflow-hidden">
 
       {/* ── Header Bar ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-[#0d1117] shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-black/40 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)] animate-pulse" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-white">Trade History</span>
           </div>
           <div className="flex items-center gap-2 text-[9px] font-mono">
-            <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{totalBuys} BUY</span>
-            <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">{totalSells} SELL</span>
+            <span className="px-1.5 py-0.5 rounded bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/20">{totalBuys} BUY</span>
+            <span className="px-1.5 py-0.5 rounded bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border border-[var(--holo-magenta)]/20">{totalSells} SELL</span>
           </div>
         </div>
 
@@ -72,19 +72,19 @@ export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
               placeholder="Symbol..."
               value={searchSymbol}
               onChange={e => setSearchSymbol(e.target.value)}
-              className="bg-[#1a1d24] border border-white/5 text-white text-[10px] font-mono pl-6 pr-3 py-1 rounded-lg w-24 focus:outline-none focus:border-cyan-500/50 placeholder-gray-600"
+              className="bg-white/5 border border-white/5 text-white text-[10px] font-mono pl-6 pr-3 py-1 rounded-lg w-24 focus:outline-none focus:border-cyan-500/50 placeholder-gray-600"
             />
           </div>
 
           {/* Filter pills */}
-          <div className="flex bg-[#1a1d24] border border-white/5 rounded-lg p-0.5">
+          <div className="flex bg-white/5 border border-white/5 rounded-lg p-0.5">
             {(['ALL', 'BUY', 'SELL'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-2.5 py-0.5 text-[9px] font-bold rounded-md transition-all ${
                   filter === f
-                    ? f === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : f === 'SELL' ? 'bg-rose-500/20 text-rose-400' : 'bg-white/10 text-white'
+                    ? f === 'BUY' ? 'bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)]' : f === 'SELL' ? 'bg-[var(--holo-magenta)]/20 text-[var(--holo-magenta)]' : 'bg-white/10 text-white'
                     : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
@@ -94,7 +94,7 @@ export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
           </div>
 
           {/* Refresh */}
-          <button onClick={fetchHistory} className="p-1.5 rounded-lg bg-[#1a1d24] border border-white/5 text-gray-500 hover:text-cyan-400 hover:border-cyan-500/30 transition-all">
+          <button onClick={fetchHistory} className="p-1.5 rounded-lg bg-white/5 border border-white/5 text-gray-500 hover:text-cyan-400 hover:border-cyan-500/30 transition-all">
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
         </div>
@@ -139,8 +139,8 @@ export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
                 <div>
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
                     isBuy
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/20'
+                      : 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border border-[var(--holo-magenta)]/20'
                   }`}>
                     {isBuy ? (
                       <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="18 15 12 9 6 15"/></svg>
@@ -157,7 +157,7 @@ export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
                 </span>
 
                 {/* Price */}
-                <span className={`text-[11px] font-mono text-right font-semibold ${isBuy ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <span className={`text-[11px] font-mono text-right font-semibold ${isBuy ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>
                   {isNaN(price) ? '—' : price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
 
@@ -188,7 +188,7 @@ export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
 
       {/* ── Footer Summary ── */}
       {filtered.length > 0 && (
-        <div className="px-4 py-2 border-t border-white/5 bg-[#0d1117] shrink-0 flex items-center justify-between">
+        <div className="px-4 py-2 border-t border-white/5 bg-black/40 shrink-0 flex items-center justify-between">
           <span className="text-[9px] text-gray-600 font-mono">{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
           <span className="text-[9px] text-gray-600 font-mono">
             Total Volume: <span className="text-gray-400 font-bold">

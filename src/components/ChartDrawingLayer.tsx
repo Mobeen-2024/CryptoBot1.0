@@ -223,7 +223,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           ctx.beginPath();
           ctx.roundRect(12, y - 10, tw + 10, 18, 3);
           ctx.fill();
-          ctx.fillStyle = '#0b0e11';
+          ctx.fillStyle = '#050b14'; // Darker contrast for 2050 theme
           ctx.fillText(label, 17, y + 3);
         }
       }
@@ -534,8 +534,8 @@ export const ChartDrawingLayer: React.FC<Props> = ({
 
       {/* Selected Drawing Context Menu */}
       {selectedId && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 glass-tooltip rounded-full px-4 py-2 font-sans shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
-          <span className="text-[#00E5FF] drop-shadow-[0_0_8px_var(--holo-cyan)] text-[9px] uppercase tracking-[0.2em] font-black mr-2">Target Lock</span>
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 glass-panel rounded-full px-4 py-2 font-sans shadow-[0_10px_30px_rgba(0,0,0,0.8)] border border-[var(--holo-cyan)]/20">
+          <span className="text-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan)] text-[9px] uppercase tracking-[0.2em] font-black mr-2">Target Lock</span>
           {/* Toggle extend for trendlines */}
           {drawings.find(d => d.id === selectedId)?.type === 'trendline' && (
             <button

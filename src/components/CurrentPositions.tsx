@@ -154,9 +154,9 @@ export function CurrentPositions() {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-[#181a20] shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" />
           <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Active Positions</h2>
-          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">{positions.length}</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/20 text-[var(--holo-cyan)]">{positions.length}</span>
         </div>
         <span className="text-[9px] text-gray-500 font-mono tracking-widest">REAL-TIME PNL</span>
       </div>
@@ -185,25 +185,25 @@ export function CurrentPositions() {
           return (
             <div key={pos.symbol} className="bg-[#1e2329] rounded-lg border border-transparent hover:border-[#2b3139] transition-colors relative overflow-hidden">
               {/* Left accent bar */}
-              <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500 rounded-l-lg opacity-80" />
+              <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--holo-cyan)] rounded-l-lg opacity-80" />
 
               {/* ── MOBILE LAYOUT (hidden on xl+) ── */}
               <div className="xl:hidden p-3 pl-4">
                 {/* Top row: pair + PNL */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-emerald-500/15 flex items-center justify-center text-[9px] font-black text-emerald-400">{base.slice(0,2)}</div>
+                    <div className="w-6 h-6 rounded bg-[var(--holo-cyan)]/15 flex items-center justify-center text-[9px] font-black text-[var(--holo-cyan)]">{base.slice(0,2)}</div>
                     <div>
                       <div className="text-[12px] font-bold text-white font-mono">{displaySymbol}</div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className={`text-[8px] font-bold px-1 rounded ${isLong ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
+                        <span className={`text-[8px] font-bold px-1 rounded ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
                         <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/10 px-1 rounded">{marginTag}</span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-[14px] font-bold font-mono ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</div>
-                    <div className={`text-[10px] font-mono ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</div>
+                    <div className={`text-[14px] font-bold font-mono ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</div>
+                    <div className={`text-[10px] font-mono ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</div>
                   </div>
                 </div>
                 {/* Mid row: entry / mark / cost */}
@@ -225,10 +225,10 @@ export function CurrentPositions() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] text-gray-600">TP</span>
-                    <span className="text-[10px] font-mono text-emerald-400">{pos.tpPrice ? pos.tpPrice.toFixed(2) : '—'}</span>
+                    <span className="text-[10px] font-mono text-[var(--holo-cyan)]">{pos.tpPrice ? pos.tpPrice.toFixed(2) : '—'}</span>
                     <span className="text-[9px] text-gray-700">/</span>
                     <span className="text-[9px] text-gray-600">SL</span>
-                    <span className="text-[10px] font-mono text-rose-400">{pos.slPrice ? pos.slPrice.toFixed(2) : '—'}</span>
+                    <span className="text-[10px] font-mono text-[var(--holo-magenta)]">{pos.slPrice ? pos.slPrice.toFixed(2) : '—'}</span>
                   </div>
                   <span className="text-[9px] font-mono text-gray-600">${pos.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
@@ -237,7 +237,7 @@ export function CurrentPositions() {
                   <button onClick={() => { setTpslModal({ symbol: pos.symbol, quantity: Math.abs(pos.netQuantity), mode: pos.netQuantity > 0 ? 'SELL' : 'BUY', entryPrice: pos.averageEntryPrice, totalCost: pos.totalCost }); setTpPrice(pos.tpPrice ? pos.tpPrice.toString() : ''); setSlPrice(pos.slPrice ? pos.slPrice.toString() : ''); }}
                     className="flex-1 py-1.5 rounded bg-[#2b3139] hover:bg-[#474d57] text-yellow-400 text-[10px] font-bold transition-colors">TP / SL</button>
                   <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
-                    className="flex-1 py-1.5 rounded bg-[#2b3139] hover:bg-rose-500/80 text-rose-400 hover:text-white text-[10px] font-bold transition-colors">Close</button>
+                    className="flex-1 py-1.5 rounded bg-[#2b3139] hover:bg-[var(--holo-magenta)]/80 text-[var(--holo-magenta)] hover:text-white text-[10px] font-bold transition-colors">Close</button>
                 </div>
               </div>
 
@@ -245,9 +245,9 @@ export function CurrentPositions() {
               <div className="hidden xl:flex xl:items-center xl:gap-8 p-2 pl-4">
                 {/* Symbol + margin tag */}
                 <div className="flex items-center gap-2 w-[200px] shrink-0">
-                  <div className="w-5 h-5 bg-emerald-500/20 rounded flex items-center justify-center text-emerald-500 font-bold text-[10px]">B</div>
+                  <div className="w-5 h-5 bg-[var(--holo-cyan)]/20 rounded flex items-center justify-center text-[var(--holo-cyan)] font-bold text-[10px]">B</div>
                   <h3 className="font-bold text-[#eaecef] text-sm tracking-wide">{displaySymbol}</h3>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${isLong ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/20' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10 border-[var(--holo-magenta)]/20'}`}>
                     {isLong ? 'LONG' : 'SHORT'}
                   </span>
                   {marginTag && (
@@ -260,10 +260,10 @@ export function CurrentPositions() {
                   {/* PNL */}
                   <div className="flex flex-col w-1/4">
                     <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Unrealized PNL (USDT)</span>
-                    <span className={`text-base font-bold font-mono ${isProfit ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+                    <span className={`text-base font-bold font-mono ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>
                       {pnl >= 0 ? '+' : ''}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
-                    <span className={`text-[11px] font-mono font-medium ${isProfit ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</span>
+                    <span className={`text-[11px] font-mono font-medium ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</span>
                   </div>
                   {/* Size */}
                   <div className="flex flex-col w-1/4">
@@ -278,9 +278,9 @@ export function CurrentPositions() {
                   <div className="flex flex-col w-1/4">
                     <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Take Profit / Stop Loss</span>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[12px] font-bold font-mono text-[#0ecb81]">{pos.tpPrice ? pos.tpPrice.toFixed(4) : '-'}</span>
+                      <span className="text-[12px] font-bold font-mono text-[var(--holo-cyan)]">{pos.tpPrice ? pos.tpPrice.toFixed(4) : '-'}</span>
                       <span className="text-[#5e6673] text-[10px]">&frasl;</span>
-                      <span className="text-[12px] font-bold font-mono text-[#f6465d]">{pos.slPrice ? pos.slPrice.toFixed(4) : '-'}</span>
+                      <span className="text-[12px] font-bold font-mono text-[var(--holo-magenta)]">{pos.slPrice ? pos.slPrice.toFixed(4) : '-'}</span>
                     </div>
                   </div>
                   {/* Cost & Entry */}
@@ -306,7 +306,7 @@ export function CurrentPositions() {
                     Stop Profit &amp; Loss
                   </button>
                   <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
-                    className="bg-[#2b3139] hover:bg-[#f6465d] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
+                    className="bg-[#2b3139] hover:bg-[var(--holo-magenta)] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
                     Close Position
                   </button>
                 </div>
@@ -399,15 +399,15 @@ export function CurrentPositions() {
               {/* ─── Header ───────────────────────────────────────── */}
               <div className="relative px-5 pt-5 pb-4 border-b border-[var(--border-subtle)]">
                 {/* coloured side bar */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-tl-2xl ${isLong ? 'bg-[var(--tp-green)]' : 'bg-[var(--sl-red)]'}`} />
+                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-tl-2xl ${isLong ? 'bg-[var(--holo-cyan)]' : 'bg-[var(--holo-magenta)]'}`} />
                 <div className="flex items-center justify-between pl-2">
                   <div className="flex items-center gap-3">
-                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${isLong ? 'bg-[var(--tp-green)]/15 text-[var(--tp-green)]' : 'bg-[var(--sl-red)]/15 text-[var(--sl-red)]'}`}>
+                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${isLong ? 'bg-[var(--holo-cyan)]/15 text-[var(--holo-cyan)]' : 'bg-[var(--holo-magenta)]/15 text-[var(--holo-magenta)]'}`}>
                       {isLong ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                     </div>
                     <div>
                       <p className="text-[var(--text-primary)] font-bold text-base leading-tight">{cleanSym}</p>
-                      <p className={`text-[11px] font-semibold ${isLong ? 'text-[var(--tp-green)]' : 'text-[var(--sl-red)]'}`}>
+                      <p className={`text-[11px] font-semibold ${isLong ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>
                         {positionSide} Â· {tpslModal.quantity} units
                       </p>
                     </div>
@@ -447,22 +447,22 @@ export function CurrentPositions() {
                   {/* Label + live P&L */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[var(--tp-green)]" />
+                      <div className="w-2 h-2 rounded-full bg-[var(--holo-cyan)]" />
                       <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Take Profit</span>
                     </div>
                     {tpVal > 0 && !tpWarning && (
-                      <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${tpPnl >= 0 ? 'text-[var(--tp-green)] bg-[var(--tp-green)]/10' : 'text-[var(--sl-red)] bg-[var(--sl-red)]/10'}`}>
+                      <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${tpPnl >= 0 ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>
                         {tpPnl >= 0 ? '+' : ''}{tpPnl.toFixed(2)} USDT&nbsp;
                         <span className="opacity-70">({tpRoi >= 0 ? '+' : ''}{tpRoi.toFixed(1)}%)</span>
                       </span>
                     )}
-                    {tpWarning && <span className="text-[10px] font-bold text-[var(--sl-red)]">{tpWarning}</span>}
+                    {tpWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)]">{tpWarning}</span>}
                   </div>
 
                   {/* Input */}
-                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${tpWarning ? 'border-[var(--sl-red)]' : 'border-[var(--border-subtle)] hover:border-[var(--tp-green)]/40 focus-within:border-[var(--tp-green)] focus-within:shadow-[0_0_0_1px_var(--tp-green)]'}`}>
+                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${tpWarning ? 'border-[var(--holo-magenta)]' : 'border-[var(--border-subtle)] hover:border-[var(--holo-cyan)]/40 focus-within:border-[var(--holo-cyan)] focus-within:shadow-[0_0_0_1px_var(--holo-cyan)]'}`}>
                     <div className="w-10 flex items-center justify-center shrink-0">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tp-green)" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--holo-cyan)" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
                     </div>
                     <input
                       type="number"
@@ -479,7 +479,7 @@ export function CurrentPositions() {
                   <div className="flex gap-1.5 mt-2">
                     {[1, 2, 5, 10, 20].map(pct => (
                       <button key={pct} onClick={() => setTargetByRoi('TP', pct)}
-                        className="flex-1 py-1.5 rounded-lg text-[var(--tp-green)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--tp-green)]/10 hover:border-[var(--tp-green)]/30 active:bg-[var(--tp-green)] active:text-[var(--surface-modal)]">
+                        className="flex-1 py-1.5 rounded-lg text-[var(--holo-cyan)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--holo-cyan)]/10 hover:border-[var(--holo-cyan)]/30 active:bg-[var(--holo-cyan)] active:text-[var(--surface-modal)]">
                         +{pct}%
                       </button>
                     ))}
@@ -497,21 +497,21 @@ export function CurrentPositions() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[var(--sl-red)]" />
+                      <div className="w-2 h-2 rounded-full bg-[var(--holo-magenta)]" />
                       <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Stop Loss</span>
                     </div>
                     {slVal > 0 && !slWarning && (
-                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md text-[var(--sl-red)] bg-[var(--sl-red)]/10">
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10">
                         {slPnl.toFixed(2)} USDT&nbsp;
                         <span className="opacity-70">({slRoi.toFixed(1)}%)</span>
                       </span>
                     )}
-                    {slWarning && <span className="text-[10px] font-bold text-[var(--sl-red)]">{slWarning}</span>}
+                    {slWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)]">{slWarning}</span>}
                   </div>
 
-                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${slWarning ? 'border-[var(--sl-red)]' : 'border-[var(--border-subtle)] hover:border-[var(--sl-red)]/40 focus-within:border-[var(--sl-red)] focus-within:shadow-[0_0_0_1px_var(--sl-red)]'}`}>
+                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${slWarning ? 'border-[var(--holo-magenta)]' : 'border-[var(--border-subtle)] hover:border-[var(--holo-magenta)]/40 focus-within:border-[var(--holo-magenta)] focus-within:shadow-[0_0_0_1px_var(--holo-magenta)]'}`}>
                     <div className="w-10 flex items-center justify-center shrink-0">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sl-red)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--holo-magenta)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                     <input
                       type="number"
@@ -527,7 +527,7 @@ export function CurrentPositions() {
                   <div className="flex gap-1.5 mt-2">
                     {[1, 2, 5, 10, 20].map(pct => (
                       <button key={pct} onClick={() => setTargetByRoi('SL', pct)}
-                        className="flex-1 py-1.5 rounded-lg text-[var(--sl-red)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--sl-red)]/10 hover:border-[var(--sl-red)]/30 active:bg-[var(--sl-red)] active:text-[var(--surface-modal)]">
+                        className="flex-1 py-1.5 rounded-lg text-[var(--holo-magenta)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--holo-magenta)]/10 hover:border-[var(--holo-magenta)]/30 active:bg-[var(--holo-magenta)] active:text-[var(--surface-modal)]">
                         -{pct}%
                       </button>
                     ))}

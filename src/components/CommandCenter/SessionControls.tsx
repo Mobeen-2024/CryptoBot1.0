@@ -23,16 +23,16 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
       <div className="flex flex-col bg-white/[0.02] border border-white/5 rounded-2xl p-4 gap-4 shadow-sm backdrop-blur-md">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-            <Database className="w-4 h-4 text-indigo-400 opacity-80" /> Volume Array
+            <Database className="w-4 h-4 text-[var(--holo-cyan)] opacity-80" /> Volume Array
           </div>
-          <div className="flex items-center bg-black/40 border border-white/5 rounded-lg px-3 py-1.5 transition-colors focus-within:border-indigo-500/50 shadow-inner">
+          <div className="flex items-center bg-black/40 border border-white/5 rounded-lg px-3 py-1.5 transition-colors focus-within:border-[var(--holo-cyan)]/50 shadow-inner">
             <input 
               type="number" 
               value={qty} 
               onChange={(e) => setQty(e.target.value)} 
               className="w-[90px] bg-transparent text-right font-mono text-[14px] font-medium text-white focus:outline-none" 
             />
-            <span className="text-indigo-300/50 font-bold ml-2 text-[10px] uppercase tracking-wider">{symbol.split('/')[0]}</span>
+            <span className="text-[var(--holo-cyan)]/50 font-bold ml-2 text-[10px] uppercase tracking-wider">{symbol.split('/')[0]}</span>
           </div>
         </div>
         
@@ -44,8 +44,8 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
                 onClick={() => setQty(size)} 
                 className={`flex-1 py-1.5 text-[11px] font-mono font-bold rounded-lg transition-all duration-300 ${
                   qty === size 
-                    ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.15)] scale-[1.02]' 
-                    : 'bg-white/5 hover:bg-white/10 border border-white/5 text-gray-400 hover:text-indigo-200'
+                    ? 'bg-[var(--holo-cyan)]/15 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/40 shadow-[0_0_15px_rgba(99,102,241,0.15)] scale-[1.02]' 
+                    : 'bg-white/5 hover:bg-white/10 border border-white/5 text-gray-400 hover:text-[var(--holo-cyan)]'
                 }`}
               >
                 {size}
@@ -60,7 +60,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
           onClick={() => setEntryMode('INSTANT')} 
           className={`py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 border ${
             entryMode === 'INSTANT' 
-              ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300 shadow-[0_4px_20px_rgba(99,102,241,0.15)] scale-[1.02]' 
+              ? 'bg-[var(--holo-cyan)]/15 border-[var(--holo-cyan)]/40 text-[var(--holo-cyan)] shadow-[0_4px_20px_rgba(99,102,241,0.15)] scale-[1.02]' 
               : 'bg-white/[0.02] hover:bg-white/5 border-white/5 text-gray-400'
           }`}
         >

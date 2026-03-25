@@ -419,7 +419,7 @@ export default function App() {
 
           {/* Price Display */}
           <div className="flex items-center gap-1.5 sm:gap-3">
-            <span className={`font-mono font-bold text-base sm:text-xl tracking-tight ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+            <span className={`font-mono font-bold text-base sm:text-xl tracking-tight ${priceChange >= 0 ? 'text-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan-glow)]' : 'text-[var(--holo-magenta)] drop-shadow-[0_0_8px_var(--holo-magenta-glow)]'}`}>
               {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <span className="hidden sm:flex">
@@ -431,10 +431,10 @@ export default function App() {
           {ticker24h && (
             <div className="hidden xl:flex items-center gap-5 pl-4 border-l border-[#2b3139] h-full">
               {[
-                { label: '24h Change', value: `${priceChange >= 0 ? '+' : ''}${parseFloat(ticker24h.priceChangePercent).toFixed(2)}%`, color: priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]' },
-                { label: '24h High', value: parseFloat(ticker24h.high).toLocaleString(), color: 'text-[#eaecef]' },
-                { label: '24h Low', value: parseFloat(ticker24h.low).toLocaleString(), color: 'text-[#eaecef]' },
-                { label: '24h Vol', value: parseFloat(ticker24h.volume).toLocaleString(undefined, { maximumFractionDigits: 0 }), color: 'text-[#eaecef]' },
+                { label: '24h Change', value: `${priceChange >= 0 ? '+' : ''}${parseFloat(ticker24h.priceChangePercent).toFixed(2)}%`, color: priceChange >= 0 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]' },
+                { label: '24h High', value: parseFloat(ticker24h.high).toLocaleString(), color: 'text-white' },
+                { label: '24h Low', value: parseFloat(ticker24h.low).toLocaleString(), color: 'text-white' },
+                { label: '24h Vol', value: parseFloat(ticker24h.volume).toLocaleString(undefined, { maximumFractionDigits: 0 }), color: 'text-white' },
               ].map((s, i) => (
                 <div key={i} className="flex flex-col gap-0.5">
                   <span className="text-[10px] text-[#5e6673] uppercase tracking-wider font-medium">{s.label}</span>
@@ -482,9 +482,9 @@ export default function App() {
           )}
 
           {/* API Status */}
-          <div className="flex items-center gap-1.5 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 py-1">
-            <div className={`glow-dot-sm ${apiConnected ? 'bg-[#0ecb81]' : 'bg-[#f6465d]'}`} />
-            <span className="text-[9px] sm:text-[10px] font-mono font-bold text-[#5e6673]">{apiConnected ? 'LIVE' : 'OFF'}</span>
+          <div className="flex items-center gap-1.5 glass-panel rounded-lg px-2 py-1">
+            <div className={`glow-dot-sm ${apiConnected ? 'bg-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan-glow)]' : 'bg-[var(--holo-magenta)] drop-shadow-[0_0_8px_var(--holo-magenta-glow)]'}`} />
+            <span className="text-[9px] sm:text-[10px] font-mono font-bold text-white uppercase tracking-widest">{apiConnected ? 'LIVE' : 'OFF'}</span>
           </div>
 
           {/* Sandbox Badge */}
@@ -565,7 +565,7 @@ export default function App() {
                     </button>
                     
                     {isTimeframeDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-32 bg-[#1e2329] border border-[#2b3139] rounded-lg shadow-2xl z-[100] py-1 animate-in fade-in slide-in-from-top-1">
+                      <div className="absolute top-full left-0 mt-1 w-32 glass-tooltip rounded-lg z-[100] py-1 animate-in fade-in slide-in-from-top-1 overflow-hidden">
                         {['1m', '3m', '2h', '4h', '12h', '1d', '1w'].map(tf => (
                           <button
                             key={tf}
@@ -577,7 +577,7 @@ export default function App() {
                               if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
                               setIsTimeframeDropdownOpen(false);
                             }}
-                            className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-[#848e9c] hover:text-[#fcd535] hover:bg-white/5 transition-colors uppercase"
+                            className="w-full text-left px-3 py-2 text-[11px] font-bold text-[#848e9c] hover:text-[var(--holo-cyan)] hover:bg-white/5 transition-colors uppercase"
                           >
                             {tf}
                           </button>
@@ -678,17 +678,17 @@ export default function App() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xs font-black text-[#5e6673] uppercase tracking-[0.3em]">Market Depth</h3>
                     <div className="flex items-center gap-4 text-[10px] font-bold uppercase">
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#0ecb81]" /> Bids</div>
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f6465d]" /> Asks</div>
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--holo-cyan)]" /> Bids</div>
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[var(--holo-magenta)]" /> Asks</div>
                     </div>
                   </div>
                   <div className="flex-1 grid grid-cols-2 gap-4">
-                    <div className="border border-[#0ecb81]/10 bg-[#0ecb81]/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
-                       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[#0ecb81]/20 blur-xl" />
+                    <div className="border border-[var(--holo-cyan)]/10 bg-[var(--holo-cyan)]/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[var(--holo-cyan)]/20 blur-xl" />
                        <OrderBook bids={orderBook.bids.slice(0, 5)} asks={orderBook.asks.slice(0, 5)} />
                     </div>
-                    <div className="border border-[#f6465d]/10 bg-[#f6465d]/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
-                       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[#f6465d]/20 blur-xl" />
+                    <div className="border border-[var(--holo-magenta)]/10 bg-[var(--holo-magenta)]/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[var(--holo-magenta)]/20 blur-xl" />
                        <OrderBook bids={orderBook.bids.slice(0, 5)} asks={orderBook.asks.slice(0, 5)} />
                     </div>
                   </div>
@@ -723,16 +723,16 @@ export default function App() {
               <div className="flex flex-col md:flex-row gap-2 w-full min-h-0 shrink-0 animate-in fade-in slide-in-from-left-4 duration-500">
                 {/* Bullish Account */}
                 <div className="flex flex-col gap-2 flex-1 min-w-0">
-                  <div className="flex items-center justify-center gap-2 bg-[#0ecb81]/8 border border-[#0ecb81]/20 text-[#0ecb81] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg shadow-[0_4px_20px_rgba(14,203,129,0.05)]">
-                    <div className="glow-dot-sm bg-[#0ecb81]" /> Bullish Hand
+                  <div className="flex items-center justify-center gap-2 bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan-glow)] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg shadow-[0_4px_20px_var(--holo-cyan-glow)] backdrop-blur-md">
+                    <div className="glow-dot-sm bg-[var(--holo-cyan)]" /> Bullish Hand
                   </div>
                   <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(balance)} baseBalance={parseFloat(baseBalance)} onPlaceOrder={handlePlaceOrder} />
                 </div>
 
                 {/* Bearish Account */}
                 <div className="flex flex-col gap-2 flex-1 min-w-0">
-                  <div className="flex items-center justify-center gap-2 bg-[#f6465d]/8 border border-[#f6465d]/20 text-[#f6465d] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg shadow-[0_4px_20px_rgba(246,70,93,0.05)]">
-                    <div className="glow-dot-sm bg-[#f6465d]" /> Bearish Hand
+                  <div className="flex items-center justify-center gap-2 bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)] drop-shadow-[0_0_8px_var(--holo-magenta-glow)] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg shadow-[0_4px_20px_var(--holo-magenta-glow)] backdrop-blur-md">
+                    <div className="glow-dot-sm bg-[var(--holo-magenta)]" /> Bearish Hand
                   </div>
                   <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(slaveBalance)} baseBalance={parseFloat(slaveBaseBalance)} onPlaceOrder={handlePlaceOrder} />
                 </div>
@@ -746,9 +746,9 @@ export default function App() {
         </div>
 
         {/* ─── BOTTOM ROW: Tabbed Terminal ────────────────────────── */}
-        <div className="flex flex-col shrink-0 panel-surface overflow-hidden min-h-[250px] sm:min-h-[300px]">
+        <div className="flex flex-col shrink-0 glass-panel border border-[var(--holo-cyan)]/20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden min-h-[250px] sm:min-h-[300px] rounded-2xl">
           {/* Tab Bar */}
-          <div className="flex border-b border-[#2b3139] bg-[#181a20] shrink-0 overflow-x-auto custom-scrollbar">
+          <div className="flex border-b border-white/5 bg-black/40 backdrop-blur-md shrink-0 overflow-x-auto custom-scrollbar">
             {([
               { id: 'positions', icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Positions' },
               { id: 'analytics', icon: <LineChart className="w-3.5 h-3.5" />, label: 'Analytics' },
@@ -788,17 +788,17 @@ export default function App() {
         <div className="flex flex-col lg:flex-row gap-2 shrink-0">
 
           {/* Market Watchlist */}
-          <div className="flex-1 panel-surface overflow-hidden min-h-[320px]">
+          <div className="flex-1 glass-panel rounded-2xl overflow-hidden min-h-[320px]">
             <MarketWatchlist onSelectSymbol={setSymbol} activeSymbol={symbol} />
           </div>
 
           {/* Order Book */}
-          <div className="lg:w-[320px] shrink-0 panel-surface overflow-hidden min-h-[320px]">
+          <div className="lg:w-[320px] shrink-0 glass-panel rounded-2xl overflow-hidden min-h-[320px]">
             <OrderBook bids={orderBook.bids} asks={orderBook.asks} />
           </div>
 
           {/* Open Orders */}
-          <div className="lg:w-[440px] xl:w-[480px] shrink-0 panel-surface overflow-hidden min-h-[320px]">
+          <div className="lg:w-[440px] xl:w-[480px] shrink-0 glass-panel rounded-2xl overflow-hidden min-h-[320px]">
             <OpenOrdersPanel symbol={symbol} />
           </div>
 

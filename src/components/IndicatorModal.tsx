@@ -52,15 +52,15 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex justify-center md:items-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex justify-center md:items-center bg-black/60 backdrop-blur-md" onClick={onClose}>
       <div 
-        className="bg-[#1e2329] w-full max-w-sm md:max-w-md absolute bottom-0 md:relative md:bottom-auto rounded-t-[20px] md:rounded-[20px] shadow-2xl flex flex-col font-sans animate-in slide-in-from-bottom md:zoom-in-95 border-t md:border border-white/10"
+        className="glass-panel w-full max-w-sm md:max-w-md absolute bottom-0 md:relative md:bottom-auto rounded-t-[20px] md:rounded-[20px] shadow-[0_10px_50px_rgba(0,0,0,0.8)] flex flex-col font-sans animate-in slide-in-from-bottom md:zoom-in-95 border-t md:border border-[var(--holo-cyan)]/20"
         onClick={e => e.stopPropagation()}
         style={{ maxHeight: '90vh' }}
       >
         {/* Handle */}
         <div className="w-full flex justify-center py-3 pb-1 md:hidden">
-          <div className="w-8 h-1 bg-[#474d57] rounded-full"></div>
+          <div className="w-8 h-1 bg-white/20 rounded-full"></div>
         </div>
 
         {/* Header */}
@@ -85,12 +85,12 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
                   <button
                     key={ind.id}
                     onClick={() => setMain(isActive ? null : ind.id)}
-                    className={`relative p-2 py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all ${isActive ? 'bg-[#fcd535]/10 border-[#fcd535] text-[#fcd535]' : 'bg-[#2b3139] border-transparent text-[#eaecef] hover:bg-[#474d57]'}`}
+                    className={`relative p-2 py-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${isActive ? 'bg-[#fcd535]/10 border-[#fcd535] text-[#fcd535] shadow-[inset_0_0_15px_rgba(252,213,53,0.1)]' : 'bg-black/30 border-white/5 text-[#848e9c] hover:bg-white/5 hover:text-white'}`}
                     title={ind.desc}
                   >
-                    <span className="font-bold text-[13px] tracking-wide">{ind.title}</span>
+                    <span className="font-bold text-[11px] tracking-widest">{ind.title}</span>
                     {isActive && (
-                      <div className="absolute -top-1.5 -right-1.5 bg-[#fcd535] text-black w-4 h-4 rounded-full flex items-center justify-center">
+                      <div className="absolute -top-1.5 -right-1.5 bg-[#fcd535] text-black w-4 h-4 rounded-full flex items-center justify-center shadow-[0_0_10px_#fcd535]">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                       </div>
                     )}
@@ -113,12 +113,12 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
                   <button
                     key={ind.id}
                     onClick={() => toggleSub(ind.id)}
-                    className={`relative p-2 py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all ${isActive ? 'bg-[#fcd535]/10 border-[#fcd535] text-[#fcd535]' : 'bg-[#2b3139] border-transparent text-[#eaecef] hover:bg-[#474d57]'}`}
+                    className={`relative p-2 py-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${isActive ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)] text-[var(--holo-cyan)] shadow-[inset_0_0_15px_var(--holo-cyan-glow)]' : 'bg-black/30 border-white/5 text-[#848e9c] hover:bg-white/5 hover:text-white'}`}
                     title={ind.desc}
                   >
-                    <span className="font-bold text-[13px] tracking-wide">{ind.title}</span>
+                    <span className="font-bold text-[11px] tracking-widest">{ind.title}</span>
                     {isActive && (
-                      <div className="absolute -top-1.5 -right-1.5 bg-[#fcd535] text-black w-4 h-4 rounded-full flex items-center justify-center">
+                      <div className="absolute -top-1.5 -right-1.5 bg-[var(--holo-cyan)] text-black w-4 h-4 rounded-full flex items-center justify-center shadow-[0_0_10px_var(--holo-cyan)]">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                       </div>
                     )}
@@ -130,12 +130,12 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 px-5 border-t border-white/5 bg-[#181a20] rounded-b-[20px] shrink-0">
+        <div className="p-4 px-5 border-t border-[var(--holo-cyan)]/20 bg-black/40 rounded-b-[20px] shrink-0">
            <button 
              onClick={handleApply}
-             className="w-full bg-[#fcd535] text-black font-bold py-3.5 rounded-[12px] hover:brightness-110 active:scale-95 transition-all uppercase tracking-wide text-sm shadow-lg shadow-[#fcd535]/10"
+             className="w-full bg-[var(--holo-cyan)] text-black font-black py-3.5 rounded-xl hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.2em] text-xs shadow-[0_0_20px_var(--holo-cyan-glow)]"
            >
-             Apply Indicators
+             Initialize Overlay
            </button>
         </div>
       </div>

@@ -119,12 +119,12 @@ export const DatabasePanel: React.FC = () => {
     : 'Awaiting Genesis Block...';
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-[#0A0D14] text-[#E0E7FF] font-sans selection:bg-[#34D399]/30">
+    <div className="h-full flex flex-col overflow-hidden bg-black/40 text-[#E0E7FF] font-sans selection:bg-[var(--holo-cyan)]/30">
       
       {/* ─── HEADER COMMAND CENTER ───────────────────────────────────────── */}
-      <div className="shrink-0 p-4 border-b border-[#1E293B] bg-gradient-to-r from-[#0F172A] to-[#0A0D14] relative overflow-hidden">
+      <div className="shrink-0 p-4 border-b border-[#1E293B] bg-gradient-to-r bg-[#0F172A] to-[#0A0D14] relative overflow-hidden">
         {/* Abstract Tech Background */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#34D399]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--holo-cyan)]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#3B82F6]/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
@@ -139,7 +139,7 @@ export const DatabasePanel: React.FC = () => {
                 <div className="flex items-center gap-2 text-[10px] text-[#94A3B8] font-mono mt-0.5">
                   <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {dateRange}</span>
                   <span className="hidden sm:inline opacity-30">|</span>
-                  <span className="flex items-center gap-1 text-[#34D399] drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]"><Activity className="w-3 h-3 animate-pulse" /> NETWORK SECURE</span>
+                  <span className="flex items-center gap-1 text-[var(--holo-cyan)] drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]"><Activity className="w-3 h-3 animate-pulse" /> NETWORK SECURE</span>
                 </div>
               </div>
             </div>
@@ -170,7 +170,7 @@ export const DatabasePanel: React.FC = () => {
                 <button
                   onClick={wipeDatabase}
                   disabled={isWiping}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-400 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--holo-magenta)]/20 hover:bg-[var(--holo-magenta)]/30 border border-[var(--holo-magenta)]/50 text-[var(--holo-magenta)] rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all"
                 >
                   {isWiping ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
                   {isWiping ? 'WIPING...' : 'CONFIRM NUKE'}
@@ -179,7 +179,7 @@ export const DatabasePanel: React.FC = () => {
             ) : (
               <button 
                 onClick={() => setShowWipeConfirm(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-transparent hover:bg-red-500/10 border border-red-500/30 text-red-500/70 hover:text-red-400 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all group"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-transparent hover:bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]/70 hover:text-[var(--holo-magenta)] rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all group"
               >
                 <Database className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">FORMAT DB</span>
@@ -202,10 +202,10 @@ export const DatabasePanel: React.FC = () => {
       </div>
 
       {/* ─── FILTERS & SUB-NAVIGATION ────────────────────────────────────── */}
-      <div className="shrink-0 p-3 bg-[#0F172A]/80 border-b border-[#1E293B] flex flex-col sm:flex-row gap-3 items-center justify-between backdrop-blur-sm z-20">
+      <div className="shrink-0 p-3 bg-black/40/80 border-b border-[#1E293B] flex flex-col sm:flex-row gap-3 items-center justify-between backdrop-blur-sm z-20">
         
         {/* Segmented Account Control */}
-        <div className="flex bg-[#0A0D14] p-1 rounded-lg border border-[#334155]/40 w-full sm:w-auto overflow-x-auto custom-scrollbar">
+        <div className="flex bg-black/40 p-1 rounded-lg border border-[#334155]/40 w-full sm:w-auto overflow-x-auto custom-scrollbar">
           {(['ALL', 'BULLISH', 'BEARISH'] as const).map(mode => (
             <button
               key={mode}
@@ -217,8 +217,8 @@ export const DatabasePanel: React.FC = () => {
               }`}
             >
               <div className="flex items-center justify-center gap-1.5">
-                {mode === 'BULLISH' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[#34D399] shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-transparent'}`} />}
-                {mode === 'BEARISH' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[#f6465d] shadow-[0_0_8px_rgba(246,70,93,0.8)]' : 'bg-transparent'}`} />}
+                {mode === 'BULLISH' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[var(--holo-cyan)] shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-transparent'}`} />}
+                {mode === 'BEARISH' && <div className={`w-1.5 h-1.5 rounded-full ${accountFilter === mode ? 'bg-[var(--holo-magenta)] shadow-[0_0_8px_rgba(246,70,93,0.8)]' : 'bg-transparent'}`} />}
                 {mode}
               </div>
             </button>
@@ -232,7 +232,7 @@ export const DatabasePanel: React.FC = () => {
           </div>
           <input
             type="text"
-            className="block w-full pl-9 pr-3 py-1.5 bg-[#0A0D14] border border-[#334155]/40 rounded-lg text-[11px] font-mono text-[#E0E7FF] placeholder-[#475569] focus:outline-none focus:border-[#3B82F6]/50 focus:ring-1 focus:ring-[#3B82F6]/50 transition-all shadow-inner"
+            className="block w-full pl-9 pr-3 py-1.5 bg-black/40 border border-[#334155]/40 rounded-lg text-[11px] font-mono text-[#E0E7FF] placeholder-[#475569] focus:outline-none focus:border-[#3B82F6]/50 focus:ring-1 focus:ring-[#3B82F6]/50 transition-all shadow-inner"
             placeholder="Search symbol, side, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -241,12 +241,12 @@ export const DatabasePanel: React.FC = () => {
       </div>
 
       {/* ─── FUTURISTIC DATA GRID ───────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto custom-scrollbar relative bg-[#0B0E14] z-10">
+      <div className="flex-1 overflow-auto custom-scrollbar relative bg-black/40 z-10">
         {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-[#64748B] gap-4">
              <div className="w-12 h-12 relative animate-spin">
                 <div className="absolute inset-0 border-t-2 border-b-2 border-[#3B82F6] rounded-full opacity-70"></div>
-                <div className="absolute inset-2 border-l-2 border-r-2 border-[#34D399] rounded-full opacity-50"></div>
+                <div className="absolute inset-2 border-l-2 border-r-2 border-[var(--holo-cyan)] rounded-full opacity-50"></div>
              </div>
              <span className="text-[10px] uppercase tracking-[0.3em] font-bold animate-pulse">Decrypting Ledger...</span>
           </div>
@@ -260,7 +260,7 @@ export const DatabasePanel: React.FC = () => {
         ) : (
           <div className="min-w-[800px]">
             {/* Grid Header */}
-            <div className="grid grid-cols-12 gap-4 px-6 py-3 sticky top-0 bg-[#0F172A]/95 backdrop-blur-md border-b border-[#1E293B] z-20 text-[9px] font-bold uppercase tracking-[0.2em] text-[#64748B]">
+            <div className="grid grid-cols-12 gap-4 px-6 py-3 sticky top-0 bg-black/40/95 backdrop-blur-md border-b border-[#1E293B] z-20 text-[9px] font-bold uppercase tracking-[0.2em] text-[#64748B]">
               <div className="col-span-2 flex items-center gap-1.5"><Clock className="w-3 h-3" /> Timestamp</div>
               <div className="col-span-2">Account</div>
               <div className="col-span-2">Asset Pair</div>
@@ -297,8 +297,8 @@ export const DatabasePanel: React.FC = () => {
                     <div className="col-span-2">
                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-[4px] text-[9px] font-bold uppercase tracking-widest border ${
                          isMaster 
-                          ? 'bg-[#34D399]/10 text-[#34D399] border-[#34D399]/20' 
-                          : 'bg-[#f6465d]/10 text-[#f6465d] border-[#f6465d]/20'
+                          ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' 
+                          : 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20'
                        }`}>
                          {isMaster ? <CheckCircle2 className="w-2.5 h-2.5" /> : <RefreshCw className="w-2.5 h-2.5" />}
                          {isMaster ? 'Bullish' : `Bearish · ${t.slave_id.replace('slave_', '')}`}
@@ -313,7 +313,7 @@ export const DatabasePanel: React.FC = () => {
                     {/* Protocol (Side) */}
                     <div className="col-span-1 flex justify-center">
                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-widest shadow-sm ${
-                         isBuy ? 'bg-[#00E5FF]/10 text-[#00E5FF] shadow-[0_0_8px_rgba(0,229,255,0.2)]' : 'bg-[#FF3366]/10 text-[#FF3366] shadow-[0_0_8px_rgba(255,51,102,0.2)]'
+                         isBuy ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] shadow-[0_0_8px_rgba(0,229,255,0.2)]' : 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] shadow-[0_0_8px_rgba(255,51,102,0.2)]'
                        }`}>
                          {isBuy ? 'LONG' : 'SHRT'}
                        </span>

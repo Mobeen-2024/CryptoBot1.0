@@ -256,7 +256,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     emaSeriesRef.current = emaSeries;
 
     const smaSeries = chart.addSeries(LineSeries, {
-      color: '#00E676',
+      color: '#fcd535',
       lineWidth: 2,
       crosshairMarkerVisible: false,
       lastValueVisible: false,
@@ -266,7 +266,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     smaSeriesRef.current = smaSeries;
 
     const sarSeries = chart.addSeries(LineSeries, {
-      color: '#eaecef',
+      color: '#FF007F',
       lineWidth: 2,
       lineStyle: 3, // Dotted style for SAR
       crosshairMarkerVisible: false,
@@ -276,16 +276,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     });
     sarSeriesRef.current = sarSeries;
 
-    const bollUpper = chart.addSeries(LineSeries, { color: '#848e9c', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
+    const bollUpper = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
     const bollMiddle = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
-    const bollLower = chart.addSeries(LineSeries, { color: '#848e9c', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
+    const bollLower = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
     bollUpperRef.current = bollUpper;
     bollMiddleRef.current = bollMiddle;
     bollLowerRef.current = bollLower;
 
-    const alligatorJaw = chart.addSeries(LineSeries, { color: '#2962FF', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
-    const alligatorTeeth = chart.addSeries(LineSeries, { color: '#E91E63', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
-    const alligatorLips = chart.addSeries(LineSeries, { color: '#00E676', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
+    const alligatorJaw = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
+    const alligatorTeeth = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
+    const alligatorLips = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
     alligatorJawRef.current = alligatorJaw;
     alligatorTeethRef.current = alligatorTeeth;
     alligatorLipsRef.current = alligatorLips;
@@ -322,27 +322,27 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     macdSignalRef.current = mSignal;
 
     // ATR
-    const atrSeries = chart.addSeries(LineSeries, { color: '#fdd835', lineWidth: 2, priceScaleId: 'atr', visible: subIndicators.includes('ATR') });
+    const atrSeries = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, priceScaleId: 'atr', visible: subIndicators.includes('ATR') });
     atrSeriesRef.current = atrSeries;
 
     // WR (Williams %R)
-    const wrSeries = chart.addSeries(LineSeries, { color: '#ff9800', lineWidth: 2, priceScaleId: 'wr', visible: subIndicators.includes('WR') });
+    const wrSeries = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'wr', visible: subIndicators.includes('WR') });
     wrSeriesRef.current = wrSeries;
 
     // OBV
-    const obvSeries = chart.addSeries(LineSeries, { color: '#03a9f4', lineWidth: 2, priceScaleId: 'obv', visible: subIndicators.includes('OBV') });
+    const obvSeries = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'obv', visible: subIndicators.includes('OBV') });
     obvSeriesRef.current = obvSeries;
 
     // STOCH
-    const stochK = chart.addSeries(LineSeries, { color: '#2962FF', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
-    const stochD = chart.addSeries(LineSeries, { color: '#ff5252', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
+    const stochK = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
+    const stochD = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
     stochKRef.current = stochK;
     stochDRef.current = stochD;
 
     // KDJ
-    const kdjK = chart.addSeries(LineSeries, { color: '#2962FF', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
-    const kdjD = chart.addSeries(LineSeries, { color: '#ff5252', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
-    const kdjJ = chart.addSeries(LineSeries, { color: '#9c27b0', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+    const kdjK = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+    const kdjD = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+    const kdjJ = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
     kdjKRef.current = kdjK;
     kdjDRef.current = kdjD;
     kdjJRef.current = kdjJ;
@@ -447,8 +447,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         return {
           time: d.time,
           value: st,
-          lineColor: trend === 1 ? '#00E676' : '#FF1744',
-          topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
+          lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
+          topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
           bottomColor: 'rgba(0, 0, 0, 0)',
         };
       });
@@ -463,18 +463,18 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       
       buyLineRef.current = candlestickSeries.createPriceLine({
         price: mockBuyPrice,
-        color: '#00E676',
+        color: '#00E5FF',
         lineWidth: 1,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: false, // We will draw our own on the left
+        lineStyle: 1, // Solid focus line
+        axisLabelVisible: false,
       });
 
       sellLineRef.current = candlestickSeries.createPriceLine({
         price: mockSellPrice,
-        color: '#FF1744',
+        color: '#FF007F',
         lineWidth: 1,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: false, // We will draw our own on the left
+        lineStyle: 1, // Solid focus line
+        axisLabelVisible: false,
       });
 
       setAvgPositions(prev => ({ ...prev, buyPrice: mockBuyPrice, sellPrice: mockSellPrice }));
@@ -706,8 +706,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           const newStPoint = {
             time: t,
             value: st,
-            lineColor: trend === 1 ? '#00E676' : '#FF1744',
-            topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
+            lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
+            topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
             bottomColor: 'rgba(0, 0, 0, 0)',
           };
           supertrendSeriesRef.current.update(newStPoint);
@@ -782,8 +782,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           supertrendSeriesRef.current.update({
             time: t,
             value: st,
-            lineColor: trend === 1 ? '#00E676' : '#FF1744',
-            topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
+            lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
+            topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
             bottomColor: 'rgba(0, 0, 0, 0)',
           });
         }
@@ -1086,8 +1086,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           return {
             time: d.time,
             value: st,
-            lineColor: trend === 1 ? '#00E676' : '#FF1744',
-            topColor: trend === 1 ? 'rgba(0, 230, 118, 0.2)' : 'rgba(255, 23, 68, 0.2)',
+            lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
+            topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
             bottomColor: 'rgba(0, 0, 0, 0)',
           };
         });
@@ -1111,7 +1111,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       if (!buyLineRef.current && buyP > 0) {
         buyLineRef.current = seriesRef.current.createPriceLine({
-          price: buyP, color: '#00E676', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+          price: buyP, color: '#00E5FF', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
         });
       } else if (buyLineRef.current && buyP > 0) {
         buyLineRef.current.applyOptions({ price: buyP });
@@ -1119,7 +1119,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       if (!sellLineRef.current && sellP > 0) {
         sellLineRef.current = seriesRef.current.createPriceLine({
-          price: sellP, color: '#FF1744', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+          price: sellP, color: '#FF007F', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
         });
       } else if (sellLineRef.current && sellP > 0) {
         sellLineRef.current.applyOptions({ price: sellP });
@@ -1216,7 +1216,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
            if (!currentLineMap.has(lineId)) {
              const isBuy = order.side === 'buy';
              // For OCO: TP is limitPrice and SL is stopPrice. Direction flips based on side.
-             const styleColor = (isBuy && label.includes('Buy')) || (!isBuy && label.includes('Profit')) ? '#00E676' : '#FF1744';
+             const styleColor = (isBuy && label.includes('Buy')) || (!isBuy && label.includes('Profit')) ? '#00E5FF' : '#FF007F';
 
              const line = series.createPriceLine({
                price: price,
@@ -1246,8 +1246,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
             const line = series.createPriceLine({
               price: targetPrice,
-              color: isBuy ? '#00E676' : '#FF1744',
+              color: isBuy ? '#00E5FF' : '#FF007F',
               lineWidth: 2,
+
               lineStyle: 1, // Dotted
               axisLabelVisible: true,
               title: labelTitle,
@@ -1294,24 +1295,24 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           </label>
           {showAvgLines && (
             <div className="flex items-center gap-2 animate-in slide-in-from-left-2 fade-in duration-300">
-              <div className="flex items-center gap-2 bg-[#00E676]/5 border border-[#00E676]/20 shadow-[0_0_15px_rgba(0,230,118,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#00E676]/50 focus-within:shadow-[0_0_20px_rgba(0,230,118,0.15)_inset] transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00E676] shadow-[0_0_8px_#00E676]" />
-                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#00E676]/80 flex-shrink-0">Buy</span>
+              <div className="flex items-center gap-2 bg-[#00E5FF]/5 border border-[#00E5FF]/20 shadow-[0_0_15px_rgba(0,229,255,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#00E5FF]/50 focus-within:shadow-[0_0_20px_rgba(0,229,255,0.15)_inset] transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
+                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#00E5FF]/80 flex-shrink-0">Buy</span>
                 <input 
                   type="number" 
                   placeholder="—" 
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#00E676] font-mono font-bold placeholder:text-[#00E676]/30 text-right selection:bg-[#00E676]/30" 
+                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#00E5FF] font-mono font-bold placeholder:text-[#00E5FF]/30 text-right selection:bg-[#00E5FF]/30" 
                   value={customBuy} 
                   onChange={e => setCustomBuy(e.target.value)} 
                 />
               </div>
-              <div className="flex items-center gap-2 bg-[#FF1744]/5 border border-[#FF1744]/20 shadow-[0_0_15px_rgba(255,23,68,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#FF1744]/50 focus-within:shadow-[0_0_20px_rgba(255,23,68,0.15)_inset] transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#FF1744] shadow-[0_0_8px_#FF1744]" />
-                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#FF1744]/80 flex-shrink-0">Sell</span>
+              <div className="flex items-center gap-2 bg-[#FF007F]/5 border border-[#FF007F]/20 shadow-[0_0_15px_rgba(255,0,127,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#FF007F]/50 focus-within:shadow-[0_0_20px_rgba(255,0,127,0.15)_inset] transition-all">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#FF007F] shadow-[0_0_8px_#FF007F]" />
+                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#FF007F]/80 flex-shrink-0">Sell</span>
                 <input 
                   type="number" 
                   placeholder="—" 
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#FF1744] font-mono font-bold placeholder:text-[#FF1744]/30 text-right selection:bg-[#FF1744]/30" 
+                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#FF007F] font-mono font-bold placeholder:text-[#FF007F]/30 text-right selection:bg-[#FF007F]/30" 
                   value={customSell} 
                   onChange={e => setCustomSell(e.target.value)} 
                 />
@@ -1324,9 +1325,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         <div className="hidden md:flex items-center gap-1 bg-white/[0.02] border border-white/[0.05] shadow-[0_4px_24px_rgba(0,0,0,0.2)] rounded-xl p-1 backdrop-blur-md">
           {([
             { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select',          color: '#ffffff' },
-            { id: 'trendline',  icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',      title: 'Trendline',       color: '#fcd535' },
-            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Support/Resist',  color: '#00E676' },
-            { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#2962FF' },
+            { id: 'trendline',  icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',      title: 'Trendline',       color: '#00E5FF' },
+            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Support/Resist',  color: '#fcd535' },
+            { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#FF007F' },
           ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
             <button
               key={tool.id}
@@ -1357,9 +1358,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               setActiveTool('none');
               window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
             }}
-            className="p-1.5 sm:p-2 rounded-lg text-[#848e9c] hover:text-[#FF1744] hover:bg-[#FF1744]/10 transition-all duration-300 group/clear"
+            className="p-1.5 sm:p-2 rounded-lg text-[#848e9c] hover:text-[#FF007F] hover:bg-[#FF007F]/10 transition-all duration-300 group/clear"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover/clear:drop-shadow-[0_0_8px_#FF1744]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover/clear:drop-shadow-[0_0_8px_#FF007F]">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
             </svg>
           </button>
@@ -1393,13 +1394,13 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               style={{ transition: 'opacity 0.15s ease' }}
             >
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[6px] flex flex-col items-center">
-                <div className="px-1.5 py-0.5 rounded backdrop-blur-md bg-[#00E676]/10 border border-[#00E676]/40 shadow-[0_2px_8px_rgba(0,230,118,0.2)] flex items-center gap-1">
-                  <span className="text-[10px] font-mono font-black text-[#00E676] tracking-tighter">
+                <div className="px-1.5 py-0.5 rounded backdrop-blur-md bg-[#00E5FF]/10 border border-[#00E5FF]/40 shadow-[0_2px_8px_rgba(0,229,255,0.2)] flex items-center gap-1">
+                  <span className="text-[10px] font-mono font-black text-[#00E5FF] tracking-tighter">
                     {visibleHighLow.high.high.toFixed(2)}
                   </span>
                 </div>
                 {/* Connecting Line */}
-                <div className="w-px h-[6px] bg-gradient-to-b from-[#00E676]/60 to-[#00E676]/0" />
+                <div className="w-px h-[6px] bg-gradient-to-b from-[#00E5FF]/60 to-[#00E5FF]/0" />
               </div>
             </div>
 
@@ -1411,9 +1412,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             >
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-[6px] flex flex-col items-center">
                 {/* Connecting Line */}
-                <div className="w-px h-[6px] bg-gradient-to-t from-[#FF1744]/60 to-[#FF1744]/0" />
-                <div className="px-1.5 py-0.5 rounded backdrop-blur-md bg-[#FF1744]/10 border border-[#FF1744]/40 shadow-[0_2px_8px_rgba(255,23,68,0.2)] flex items-center gap-1">
-                  <span className="text-[10px] font-mono font-black text-[#FF1744] tracking-tighter">
+                <div className="w-px h-[6px] bg-gradient-to-t from-[#FF007F]/60 to-[#FF007F]/0" />
+                <div className="px-1.5 py-0.5 rounded backdrop-blur-md bg-[#FF007F]/10 border border-[#FF007F]/40 shadow-[0_2px_8px_rgba(255,0,127,0.2)] flex items-center gap-1">
+                  <span className="text-[10px] font-mono font-black text-[#FF007F] tracking-tighter">
                     {visibleHighLow.low.low.toFixed(2)}
                   </span>
                 </div>
@@ -1433,22 +1434,22 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             >
               {/* Sci-Fi Radar Ping Effect */}
               <div className={`absolute -inset-1 rounded-full animate-ping opacity-20 ${
-                m.isBuy ? 'bg-[#00E676]' : 'bg-[#FF1744]'
+                m.isBuy ? 'bg-[#00E5FF]' : 'bg-[#FF007F]'
               }`} style={{ animationDuration: '2s' }} />
 
               {/* Pointer Triangles */}
               {m.isBuy ? (
-                <div className="absolute left-1/2 -top-[5px] -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-[#00E676] z-0" />
+                <div className="absolute left-1/2 -top-[5px] -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-[#00E5FF] z-0" />
               ) : (
-                <div className="absolute left-1/2 -bottom-[5px] -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-[#FF1744] z-0" />
+                <div className="absolute left-1/2 -bottom-[5px] -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-[#FF007F] z-0" />
               )}
 
               {/* Main Rounded Box Backend */}
               <div 
                 className={`absolute inset-0 border border-white/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)] backdrop-blur-2xl flex justify-center items-center z-10 transition-transform duration-300 group-hover:scale-110 ${
                   m.isBuy 
-                    ? 'bg-gradient-to-br from-[#00E676] to-[#008f4c] rounded-md'
-                    : 'bg-gradient-to-br from-[#FF1744] to-[#b30026] rounded-md'
+                    ? 'bg-gradient-to-br from-[#00E5FF] to-[#00aaee] rounded-md'
+                    : 'bg-gradient-to-br from-[#FF007F] to-[#ee0070] rounded-md'
                 }`}
               >
                 <div className="relative w-full h-full flex justify-center items-center">
@@ -1471,7 +1472,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                   {m.trades.map((t, idx) => (
                     <div key={idx} className="flex flex-col gap-1 border-b border-white/5 pb-2 last:border-0 last:pb-0">
                       <div className="flex justify-between items-center text-[10px] font-mono">
-                        <span className={t.type === 'BUY' ? 'text-[#00E676]' : 'text-[#FF1744]'}>{t.type} @ {Number(t.price).toFixed(2)}</span>
+                        <span className={t.type === 'BUY' ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}>{t.type} @ {Number(t.price).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center text-[10px] font-mono">
                         <span className="text-white/40">Amount</span>
@@ -1503,7 +1504,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           }}
         >
           {/* Cyberpunk Floating Card */}
-          <div className="flex flex-col gap-1.5 glass-tooltip p-2.5 w-[115px]">
+          <div className="flex flex-col gap-1.5 glass-panel p-2.5 w-[115px] animate-float-glow rounded-xl">
             {/* Header / Date */}
             <div className="text-white/60 text-[9px] font-black tracking-widest uppercase border-b border-white/10 pb-1.5 mb-0.5 text-center">
               {(typeof crosshairData.time === 'number') 
@@ -1541,13 +1542,13 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             {subIndicators.includes('MACD') && crosshairData.macd && (
               <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
                 <span className="text-[#848e9c] font-bold tracking-wider">MACD</span>
-                <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
+                <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
               </div>
             )}
             {subIndicators.includes('RSI') && crosshairData.rsi && (
               <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
                 <span className="text-[#848e9c] font-bold tracking-wider">RSI</span>
-                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[#FF1744]' : crosshairData.rsi <= 30 ? 'text-[#00E676]' : 'text-[#fcd535]'}`}>{crosshairData.rsi.toFixed(1)}</span>
+                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[var(--holo-magenta)]' : crosshairData.rsi <= 30 ? 'text-[var(--holo-cyan)]' : 'text-[#fcd535]'}`}>{crosshairData.rsi.toFixed(1)}</span>
               </div>
             )}
           </div>
@@ -1604,22 +1605,36 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
       {showAvgLines && avgPositions.buy > 0 && (
         <div 
-          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#00E676]/90 text-[#07090b] text-[10px] font-bold font-mono px-3 py-[4px] rounded-r-lg shadow-[4px_0_16px_rgba(0,230,118,0.4)] pointer-events-none transition-all duration-100 backdrop-blur-sm"
+          className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-cyan)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(0,229,255,0.2)] pointer-events-none transition-all duration-100"
           style={{ top: avgPositions.buy, transform: 'translateY(-50%)' }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
-          <span className="tracking-widest">BUY</span>
-          <span>{avgPositions.buyPrice.toFixed(2)}</span>
+          <div className="flex items-center gap-1.5 text-[var(--holo-cyan)] pr-2 border-r border-white/10">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
+            <span className="tracking-[0.2em]">BUY</span>
+          </div>
+          <span className="text-[10px]">{avgPositions.buyPrice.toFixed(2)}</span>
+          {data.length > 0 && (
+            <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] ${data[data.length-1].close > avgPositions.buyPrice ? 'bg-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#FF007F]/20 text-[#FF007F]'}`}>
+              {(( (data[data.length-1].close - avgPositions.buyPrice) / avgPositions.buyPrice) * 100).toFixed(2)}%
+            </span>
+          )}
         </div>
       )}
       {showAvgLines && avgPositions.sell > 0 && (
         <div 
-          className="absolute z-10 left-0 flex items-center gap-1.5 bg-[#FF1744]/90 text-white text-[10px] font-bold font-mono px-3 py-[4px] rounded-r-lg shadow-[4px_0_16px_rgba(255,23,68,0.4)] pointer-events-none transition-all duration-100 backdrop-blur-sm"
+          className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-magenta)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(255,0,127,0.2)] pointer-events-none transition-all duration-100"
           style={{ top: avgPositions.sell, transform: 'translateY(-50%)' }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
-          <span className="tracking-widest">SELL</span>
-          <span>{avgPositions.sellPrice.toFixed(2)}</span>
+          <div className="flex items-center gap-1.5 text-[var(--holo-magenta)] pr-2 border-r border-white/10">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
+            <span className="tracking-[0.2em]">SELL</span>
+          </div>
+          <span className="text-[10px]">{avgPositions.sellPrice.toFixed(2)}</span>
+          {data.length > 0 && (
+            <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] ${avgPositions.sellPrice > data[data.length-1].close ? 'bg-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#FF007F]/20 text-[#FF007F]'}`}>
+              {(( (avgPositions.sellPrice - data[data.length-1].close) / avgPositions.sellPrice) * 100).toFixed(2)}%
+            </span>
+          )}
         </div>
       )}
 

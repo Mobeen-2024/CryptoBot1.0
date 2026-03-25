@@ -45,7 +45,7 @@ export const OrderTypeModal: React.FC<OrderTypeModalProps> = ({
   return (
     <div className="fixed inset-0 z-[200] flex justify-center md:items-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div 
-        className="bg-[#1e2329] w-full max-w-sm absolute bottom-0 md:relative md:bottom-auto rounded-t-[20px] md:rounded-[20px] shadow-2xl flex flex-col font-sans animate-in slide-in-from-bottom md:zoom-in-95 border-t md:border border-white/10"
+        className="glass-panel w-full max-w-sm absolute bottom-0 md:relative md:bottom-auto rounded-t-[20px] md:rounded-[20px] shadow-2xl flex flex-col font-sans animate-in slide-in-from-bottom md:zoom-in-95 border-t md:border border-white/10"
         onClick={e => e.stopPropagation()}
       >
         {/* Handle */}
@@ -75,11 +75,11 @@ export const OrderTypeModal: React.FC<OrderTypeModalProps> = ({
                 className={`w-full text-left flex items-center justify-between p-3 rounded-xl transition-colors ${isActive ? 'bg-white/5' : 'hover:bg-white/5'}`}
               >
                 <div className="flex gap-3 items-center w-full pr-2">
-                  <div className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-full ${isActive ? 'bg-[#fcd535]/10 text-[#fcd535]' : 'bg-[#2b3139] text-[#848e9c]'}`}>
+                  <div className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-full ${isActive ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)]' : 'bg-[#2b3139] text-[#848e9c]'}`}>
                     {type.icon}
                   </div>
                   <div className="flex flex-col gap-0.5 max-w-[260px]">
-                    <span className={`font-bold ${isActive ? 'text-[#fcd535]' : 'text-white'}`}>
+                    <span className={`font-bold ${isActive ? 'text-[var(--holo-cyan)]' : 'text-white'}`}>
                       {type.title}
                     </span>
                     <span className="text-[11px] text-[#848e9c] leading-tight">
@@ -89,7 +89,7 @@ export const OrderTypeModal: React.FC<OrderTypeModalProps> = ({
                 </div>
                 {isActive && (
                   <div className="ml-4 shrink-0">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fcd535" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--holo-cyan)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   </div>
                 )}
               </button>

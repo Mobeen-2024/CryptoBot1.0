@@ -35,11 +35,11 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
   }, []);
 
   return (
-    <div className="bg-[#05070a] backdrop-blur-2xl p-4 rounded-xl border border-white/[0.05] flex flex-col h-full relative overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+    <div className="glass-panel backdrop-blur-2xl p-4 rounded-xl border border-white/[0.05] flex flex-col h-full relative overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.8)]">
       
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[#bc13fe]/5 rounded-full blur-[80px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-[#00f0ff]/5 rounded-full blur-[60px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-[var(--holo-cyan)]/5 rounded-full blur-[60px] pointer-events-none" />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4 shrink-0 border-b border-white/[0.05] pb-3">
@@ -54,7 +54,7 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
           <div>
             <h2 className="text-[14px] font-black text-white tracking-[0.15em] uppercase flex items-center gap-2">
               Neural Agent
-              <span className="px-1.5 py-0.5 rounded bg-[#39ff14]/10 border border-[#39ff14]/30 text-[#39ff14] text-[8px] tracking-widest animate-pulse">ONLINE</span>
+              <span className="px-1.5 py-0.5 rounded bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] text-[8px] tracking-widest animate-pulse">ONLINE</span>
             </h2>
             <p className="text-[9px] text-gray-500 font-mono tracking-widest mt-0.5">MODEL: QUANT-X 2035 // CORE: ACTIVE</p>
           </div>
@@ -71,15 +71,15 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
       <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
         
         {/* Left: Interactive Output Terminal */}
-        <div className="flex-1 bg-[#0a0d14] border border-white/[0.05] rounded-lg p-3 flex flex-col relative group">
+        <div className="flex-1 bg-black/20 border border-white/[0.05] rounded-lg p-3 flex flex-col relative group">
           <div className="absolute top-0 right-0 p-2 opacity-30 flex gap-2">
-             <Terminal className="w-3 h-3 text-[#00f0ff]" />
-             <span className="text-[8px] font-mono text-[#00f0ff]">STDOUT // LOG</span>
+             <Terminal className="w-3 h-3 text-[var(--holo-cyan)]" />
+             <span className="text-[8px] font-mono text-[var(--holo-cyan)]">STDOUT // LOG</span>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[11px] leading-relaxed text-[#a0aab8] whitespace-pre-wrap mt-2 pr-2">
             {typedText}
-            <span className="inline-block w-1.5 h-3 bg-[#00f0ff] ml-1 animate-pulse" />
+            <span className="inline-block w-1.5 h-3 bg-[var(--holo-cyan)] ml-1 animate-pulse" />
           </div>
         </div>
 
@@ -99,9 +99,9 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
 
           {/* Action Modules */}
           <div className="grid grid-cols-2 gap-2">
-            <ActionModule icon={Zap} title="Optimize" color="#39ff14" active />
-            <ActionModule icon={Network} title="Hedge Net" color="#00f0ff" />
-            <ActionModule icon={ShieldAlert} title="Risk Audit" color="#ff073a" />
+            <ActionModule icon={Zap} title="Optimize" color="var(--holo-cyan)" active />
+            <ActionModule icon={Network} title="Hedge Net" color="var(--holo-cyan)" />
+            <ActionModule icon={ShieldAlert} title="Risk Audit" color="var(--holo-magenta)" />
             <ActionModule icon={Activity} title="Simulate" color="#fcd535" />
           </div>
 
@@ -111,7 +111,7 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
             <span className="text-[9px] font-bold text-[#bc13fe] tracking-widest uppercase block mb-1">Strategy Confidence</span>
             <div className="flex items-end gap-2">
               <span className="text-3xl font-black font-mono text-white leading-none">84<span className="text-lg text-gray-500">%</span></span>
-              <span className="text-[9px] text-[#39ff14] font-mono pb-1">+2.4% vs benchmark</span>
+              <span className="text-[9px] text-[var(--holo-cyan)] font-mono pb-1">+2.4% vs benchmark</span>
             </div>
           </div>
 
