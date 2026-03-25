@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CandlestickSeries, AreaSeries, LineSeries, UTCTimestamp, IChartApi } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
+import { ChartConfig } from '../types/chart';
 
 interface ChartProps {
   data: any[];
@@ -10,12 +11,14 @@ interface ChartProps {
   subIndicators?: string[];
   trades?: any[];
   openOrders?: any[];
+  config?: ChartConfig;
 }
 
-export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainIndicator, subIndicators = [], trades = [], openOrders = [] }) => {
+export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainIndicator, subIndicators = [], trades = [], openOrders = [], config }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<any>(null);
+  const mainLineSeriesRef = useRef<any>(null);
   const supertrendSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
   const smaSeriesRef = useRef<any>(null);
@@ -109,17 +112,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { 
-          type: ColorType.VerticalGradient, 
-          topColor: '#07090b', // Deep almost-black space
-          bottomColor: '#0b1622', // Subtle deep blue/cyber tint
+          type: ColorType.Solid, 
+          color: config?.global.background || '#0b1622', 
         },
         textColor: '#848e9c', // Standard gray text
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.03)', style: 0, visible: true }, // Ultra-subtle solid grid
-        horzLines: { color: 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
+        vertLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true }, 
+        horzLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
       },
       crosshair: {
         mode: 1, // CrosshairMode.Normal allows free horizontal tracking
@@ -167,18 +169,34 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     chartRef.current = chart;
 
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#00E676', // Cyber Neon Green
-      downColor: '#FF1744', // Cyber Crimson
-      borderVisible: false, 
+      upColor: config?.candle.bull.style === 'solid' ? config.candle.bull.color : 'rgba(0,0,0,0)', 
+      downColor: config?.candle.bear.style === 'solid' ? config.candle.bear.color : 'rgba(0,0,0,0)', 
+      borderVisible: true, 
       wickVisible: true,
-      wickUpColor: '#00E676', 
-      wickDownColor: '#FF1744',
-      lastValueVisible: false, // Hide native right scale current price 
-      priceLineVisible: true, // Restore native right scale current price line
+      borderColor: '#333',
+      borderUpColor: config?.candle.bull.color || '#00E676',
+      borderDownColor: config?.candle.bear.color || '#FF1744',
+      wickUpColor: config?.candle.bull.color || '#00E676', 
+      wickDownColor: config?.candle.bear.color || '#FF1744',
+      lastValueVisible: false, 
+      priceLineVisible: true, 
+      visible: config?.style !== 'line',
     });
 
     seriesRef.current = candlestickSeries;
     candlestickSeries.setData(data);
+
+    // Main Line Series (Price Line mode)
+    const mainLineSeries = chart.addSeries(LineSeries, {
+      color: config?.line.color || '#fcd535',
+      lineWidth: config?.line.width || 2,
+      crosshairMarkerVisible: true,
+      lastValueVisible: false,
+      priceLineVisible: true,
+      visible: config?.style === 'line',
+    });
+    mainLineSeriesRef.current = mainLineSeries;
+    mainLineSeries.setData(data.map((d: any) => ({ time: d.time, value: d.close })));
 
     // Dummy markers removed. Will be set by trades useEffect.
 
@@ -610,6 +628,48 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     if (alligatorLipsRef.current) alligatorLipsRef.current.applyOptions({ visible: isAlligator });
   }, [mainIndicator]);
 
+  // Handle Dynamic style config changes
+  useEffect(() => {
+    if (!chartRef.current) return;
+    
+    const isCandle = config?.style === 'candle';
+    
+    // 1. Global Updates
+    chartRef.current.applyOptions({
+      layout: {
+        background: { type: ColorType.Solid, color: config?.global.background || '#0b1622' }
+      },
+      grid: {
+        vertLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)' },
+        horzLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)' }
+      }
+    });
+
+    // 2. Series Visibility
+    if (seriesRef.current) seriesRef.current.applyOptions({ visible: isCandle });
+    if (mainLineSeriesRef.current) mainLineSeriesRef.current.applyOptions({ visible: !isCandle });
+
+    // 3. Candle Styles
+    if (seriesRef.current && config) {
+      seriesRef.current.applyOptions({
+        upColor: config.candle.bull.style === 'solid' ? config.candle.bull.color : 'rgba(0,0,0,0)',
+        downColor: config.candle.bear.style === 'solid' ? config.candle.bear.color : 'rgba(0,0,0,0)',
+        borderUpColor: config.candle.bull.color,
+        borderDownColor: config.candle.bear.color,
+        wickUpColor: config.candle.bull.color,
+        wickDownColor: config.candle.bear.color,
+      });
+    }
+
+    // 4. Line Styles
+    if (mainLineSeriesRef.current && config) {
+      mainLineSeriesRef.current.applyOptions({
+        color: config.line.color,
+        lineWidth: config.line.width,
+      });
+    }
+  }, [config]);
+
   // Update data without recreating the chart
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {
@@ -666,6 +726,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         });
         stDataRef.current = stData;
         supertrendSeriesRef.current.setData(stData);
+      }
+
+      if (mainLineSeriesRef.current) {
+        mainLineSeriesRef.current.setData(data.map((d: any) => ({ time: d.time, value: d.close })));
       }
 
       // Price lines are now only created when showAvgLines is toggled on (see effect below)

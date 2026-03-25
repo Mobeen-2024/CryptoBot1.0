@@ -13,11 +13,13 @@ import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
 import { IndicatorModal } from './components/IndicatorModal';
+import { ChartStyleModal } from './components/ChartStyleModal';
 import { BotPanel } from './components/BotPanel';
 import { MarketWatchlist } from './components/MarketWatchlist';
 import { OpenOrdersPanel } from './components/OpenOrdersPanel';
-import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Briefcase, LineChart, History, Bot, Database } from 'lucide-react';
+import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Briefcase, LineChart, History, Bot, Database, Palette } from 'lucide-react';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
+import { ChartConfig, DEFAULT_CHART_CONFIG } from './types/chart';
 import toast, { Toaster } from 'react-hot-toast';
 
 // Simple deterministic countdown hook based on current UTC time and Binance intervals
@@ -94,6 +96,10 @@ export default function App() {
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
   const [mainIndicator, setMainIndicator] = useState<string | null>(null);
   const [subIndicators, setSubIndicators] = useState<string[]>([]);
+
+  // Chart Styling State
+  const [isChartStyleModalOpen, setIsChartStyleModalOpen] = useState(false);
+  const [chartConfig, setChartConfig] = useState<ChartConfig>(DEFAULT_CHART_CONFIG);
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -539,6 +545,16 @@ export default function App() {
                   <LineChart className="w-3 h-3" />
                   <span className="hidden sm:inline">Indicators</span>
                 </button>
+
+                {/* Style Customization Button */}
+                <button 
+                  onClick={() => setIsChartStyleModalOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#848e9c] hover:text-[#fcd535] bg-[#0b0e11] hover:bg-[#fcd535]/10 rounded-lg border border-[#2b3139] hover:border-[#fcd535]/30 transition-all uppercase tracking-wider"
+                >
+                  <Palette className="w-3 h-3" />
+                  <span className="hidden sm:inline">Style</span>
+                </button>
+
                 {/* Interval Selector */}
                 <div className="flex bg-[#0b0e11] rounded-lg border border-[#2b3139] p-0.5 overflow-x-auto">
                   {['1m', '5m', '15m', '1h', '4h', '1d', '1w'].map((i) => (
@@ -566,6 +582,7 @@ export default function App() {
                     subIndicators={subIndicators}
                     trades={userTrades.filter((t: any) => t.symbol.replace('/', '') === symbol.replace('/', ''))}
                     openOrders={openOrders.filter((o: any) => o.symbol.replace('/', '') === symbol.replace('/', ''))}
+                    config={chartConfig}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center gap-3">
@@ -701,6 +718,20 @@ export default function App() {
         onApply={(main, sub) => {
           setMainIndicator(main);
           setSubIndicators(sub);
+        }}
+      />
+
+      <ChartStyleModal 
+        isOpen={isChartStyleModalOpen}
+        onClose={() => setIsChartStyleModalOpen(false)}
+        config={chartConfig}
+        onApply={(newConfig) => {
+          setChartConfig(newConfig);
+          toast.success('Chart style applied');
+        }}
+        onReset={() => {
+          setChartConfig(DEFAULT_CHART_CONFIG);
+          toast.success('Style reset to default');
         }}
       />
     </div>
