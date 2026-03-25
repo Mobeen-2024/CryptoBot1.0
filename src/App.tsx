@@ -525,9 +525,15 @@ export default function App() {
         <div className="flex flex-col lg:flex-row gap-2 shrink-0 items-stretch">
           
           {/* Chart Panel */}
-          <div className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full z-0">
+          <div 
+            className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300"
+            style={{ backgroundColor: chartConfig.global.background }}
+          >
             {/* Chart Toolbar */}
-            <div className="px-3 py-1.5 border-b border-[#2b3139] flex items-center justify-between bg-[#181a20] shrink-0">
+            <div 
+              className="px-3 py-1.5 border-b border-[#2b3139] flex items-center justify-between shrink-0 transition-colors duration-300"
+              style={{ backgroundColor: chartConfig.global.background === '#ffffff' ? '#f0f2f5' : '#181a20' }}
+            >
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-[10px] text-[#0ecb81] font-mono font-bold bg-[#0ecb81]/10 px-2 py-0.5 rounded-full border border-[#0ecb81]/20">
                   <div className="glow-dot-sm bg-[#0ecb81]" />

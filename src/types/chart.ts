@@ -21,5 +21,5 @@ export const DEFAULT_CHART_CONFIG: ChartConfig = {
     bear: { style: 'solid', color: '#FF1744' }
   },
   line: { color: '#fcd535', width: 2 },
-  global: { background: '#0b1622', gridLines: 'rgba(255, 255, 255, 0.03)' }
+  global: { background: '#0b1622', gridLines: '#2b3139' }
 };

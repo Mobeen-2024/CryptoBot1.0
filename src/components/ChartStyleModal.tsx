@@ -33,17 +33,20 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
   };
 
   const colorSwatch = (color: string, onChange: (color: string) => void) => (
-    <div className="relative group">
-      <input
-        type="color"
-        value={color}
-        onChange={(e) => onChange(e.target.value)}
-        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-      />
-      <div 
-        className="w-10 h-10 rounded-lg border border-white/10 shadow-inner transition-transform group-hover:scale-105"
-        style={{ backgroundColor: color }}
-      />
+    <div className="flex items-center gap-3">
+      <div className="relative w-10 h-10 group">
+        <input
+          type="color"
+          value={color.startsWith('#') ? color : '#000000'}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
+        />
+        <div 
+          className="absolute inset-0 rounded-lg border border-white/20 shadow-lg transition-transform group-hover:scale-105 z-10"
+          style={{ backgroundColor: color }}
+        />
+      </div>
+      <span className="text-[10px] font-mono text-[#848e9c] uppercase">{color}</span>
     </div>
   );
 

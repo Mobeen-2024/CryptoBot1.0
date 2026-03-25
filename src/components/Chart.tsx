@@ -92,6 +92,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
   };
 
+  const getContrastColor = (hexcolor: string) => {
+    // If it's rgba, assume dark for now or parse it. But we moved to hex.
+    if (!hexcolor.startsWith('#')) return '#848e9c';
+    const r = parseInt(hexcolor.slice(1, 3), 16);
+    const g = parseInt(hexcolor.slice(3, 5), 16);
+    const b = parseInt(hexcolor.slice(5, 7), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? '#181a20' : '#848e9c';
+  };
+
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -115,7 +125,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           type: ColorType.Solid, 
           color: config?.global.background || '#0b1622', 
         },
-        textColor: '#848e9c', // Standard gray text
+        textColor: getContrastColor(config?.global.background || '#0b1622'),
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
@@ -132,7 +142,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           style: 3, // Dotted
         },
         vertLine: {
-          color: '#ffffff',
+          color: getContrastColor(config?.global.background || '#0b1622'),
           labelBackgroundColor: '#2962FF', // Vivid accent for time
           labelVisible: true, 
           style: 3, // Dotted
@@ -635,13 +645,19 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     const isCandle = config?.style === 'candle';
     
     // 1. Global Updates
+    const textColor = getContrastColor(config?.global.background || '#0b1622');
     chartRef.current.applyOptions({
       layout: {
-        background: { type: ColorType.Solid, color: config?.global.background || '#0b1622' }
+        background: { type: ColorType.Solid, color: config?.global.background || '#0b1622' },
+        textColor: textColor
       },
       grid: {
         vertLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)' },
         horzLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)' }
+      },
+      crosshair: {
+        horzLine: { color: textColor },
+        vertLine: { color: textColor }
       }
     });
 
