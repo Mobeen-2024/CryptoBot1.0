@@ -950,7 +950,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     const textColor = getContrastColor(config?.global.background || '#0b1622');
     chartRef.current.applyOptions({
       layout: {
-        background: { type: ColorType.Solid, color: config?.global.background || '#0b1622' },
+        background: { type: ColorType.Solid, color: 'transparent' },
         textColor: textColor
       },
       grid: {
@@ -1556,10 +1556,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       )}
 
       {/* ── Brand Watermark 2050 ─────────────────────────────── */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[-1] overflow-hidden w-full h-full">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
         <div className="flex flex-col items-center gap-2 max-w-full px-4">
           <span 
-            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.03] whitespace-nowrap"
+            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-10 whitespace-nowrap"
             style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
           >
             MOBEEN
@@ -1572,30 +1572,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
       </div>
 
-      {/* ── Recent Top & Bottom Price Tags ── */}
-      {visibleHighLow?.high && (() => {
-        const topY = seriesRef.current?.priceToCoordinate(visibleHighLow.high.high);
-        const topX = chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.high.time);
-        const botY = seriesRef.current?.priceToCoordinate(visibleHighLow.low.low);
-        const botX = chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.low.time);
-        if (!topY || !topX || !botY || !botX) return null;
-        return (
-          <>
-            <div
-              className="absolute z-[16] pointer-events-none text-[9px] font-mono font-bold text-[var(--holo-cyan)] bg-[#0b0e11] px-1.5 py-px rounded-sm"
-              style={{ top: topY - 18, left: topX, transform: 'translateX(-50%)' }}
-            >
-              {visibleHighLow.high.high.toFixed(2)}
-            </div>
-            <div
-              className="absolute z-[16] pointer-events-none text-[9px] font-mono font-bold text-[var(--holo-magenta)] bg-[#0b0e11] px-1.5 py-px rounded-sm"
-              style={{ top: botY + 6, left: botX, transform: 'translateX(-50%)' }}
-            >
-              {visibleHighLow.low.low.toFixed(2)}
-            </div>
-          </>
-        );
-      })()}
+      {/* ── Recent Top & Bottom Price Tags handled by Overlay Layer above ── */}
 
       {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
       {showAvgLines && avgPositions.buyPrice > 0 && (
