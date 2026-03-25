@@ -528,7 +528,8 @@ export default function App() {
           
           {/* Chart Panel */}
           <div 
-            className="h-[450px] sm:h-[550px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300"
+            id="crypto-terminal-chart-wrapper"
+            className="h-[450px] sm:h-[550px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300 bg-black/90"
           >
             {/* Chart Toolbar: Command Center */}
             <div 
@@ -632,9 +633,10 @@ export default function App() {
                 </button>
                 <button 
                   onClick={() => {
-                    if (!document.fullscreenElement) {
-                      document.documentElement.requestFullscreen().catch(err => console.error(err));
-                    } else {
+                    const chartEl = document.getElementById('crypto-terminal-chart-wrapper');
+                    if (!document.fullscreenElement && chartEl) {
+                      chartEl.requestFullscreen().catch(err => console.error(err));
+                    } else if (document.fullscreenElement) {
                       if (document.exitFullscreen) document.exitFullscreen();
                     }
                   }}

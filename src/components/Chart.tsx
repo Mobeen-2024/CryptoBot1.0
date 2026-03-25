@@ -1572,41 +1572,37 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
       </div>
 
-      {/* ── Live Candle Countdown (attached to current price on right axis) ── */}
-      {candleCountdown && candleCountdown.priceY > 0 && (
+      {/* ── Recent Top & Bottom Labels ── */}
+      {visibleHighLow && visibleHighLow.high && (
         <div 
-          className="absolute right-[1px] z-20 pointer-events-none select-none transition-all duration-100 ease-out"
-          style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
+          className="absolute z-[15] pointer-events-none px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/30 backdrop-blur-sm shadow-[0_4px_10px_rgba(0,229,255,0.2)] transition-transform duration-100 ease-out"
+          style={{ 
+            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.high.high) || 0) - 24, 
+            left: chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.high.time) || 0,
+            transform: 'translateX(-50%)' 
+          }}
         >
-          {/* Price + Timer combined label with glassmorphism stack */}
-          <div className={`flex flex-col items-end rounded-l-md overflow-hidden backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-r-0 ${candleCountdown.isUp ? 'bg-[#00E5FF]/15 border-[#00E5FF]/30 shadow-[#00E5FF]/20' : 'bg-[#FF007F]/15 border-[#FF007F]/30 shadow-[#FF007F]/20'}`}>
-            
-            {/* Price section */}
-            <div className={`px-2 py-[2px] w-full text-right ${candleCountdown.isUp ? 'neon-text-cyan' : 'neon-text-magenta'}`}>
-              <span className="text-[10px] font-mono font-black tracking-widest drop-shadow-[0_0_8px_currentColor]">
-                {candleCountdown.price.toFixed(2)}
-              </span>
-            </div>
-
-            {/* Timer section with separator */}
-            <div className={`flex items-center gap-1 px-2 py-[2px] w-full justify-end border-t ${candleCountdown.isUp ? 'border-[#00E5FF]/20 bg-[#00E5FF]/5' : 'border-[#FF007F]/20 bg-[#FF007F]/5'}`}>
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#00E5FF' : '#FF007F'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-90 drop-shadow-[0_0_4px_currentColor]">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-              <span className={`text-[9px] font-mono font-bold tracking-widest drop-shadow-[0_0_4px_currentColor] ${candleCountdown.isUp ? 'text-[#00E5FF]' : 'text-[#FF007F]'}`}>
-                {candleCountdown.text}
-              </span>
-            </div>
-
-          </div>
+          TOP {visibleHighLow.high.high.toFixed(2)}
+        </div>
+      )}
+      {visibleHighLow && visibleHighLow.low && (
+        <div 
+          className="absolute z-[15] pointer-events-none px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border border-[var(--holo-magenta)]/30 backdrop-blur-sm shadow-[0_4px_10px_rgba(255,0,127,0.2)] transition-transform duration-100 ease-out"
+          style={{ 
+            top: (seriesRef.current?.priceToCoordinate(visibleHighLow.low.low) || 0) + 12, 
+            left: chartRef.current?.timeScale().timeToCoordinate(visibleHighLow.low.time) || 0,
+            transform: 'translateX(-50%)' 
+          }}
+        >
+          BOT {visibleHighLow.low.low.toFixed(2)}
         </div>
       )}
 
       {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
-      {showAvgLines && avgPositions.buy > 0 && (
+      {showAvgLines && avgPositions.buyPrice > 0 && (
         <div 
           className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-cyan)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(0,229,255,0.2)] pointer-events-none transition-all duration-100"
-          style={{ top: avgPositions.buy, transform: 'translateY(-50%)' }}
+          style={{ top: avgPositions.buyPrice, transform: 'translateY(-50%)' }}
         >
           <div className="flex items-center gap-1.5 text-[var(--holo-cyan)] pr-2 border-r border-white/10">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
@@ -1620,10 +1616,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           )}
         </div>
       )}
-      {showAvgLines && avgPositions.sell > 0 && (
+      {showAvgLines && avgPositions.sellPrice > 0 && (
         <div 
           className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-magenta)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(255,0,127,0.2)] pointer-events-none transition-all duration-100"
-          style={{ top: avgPositions.sell, transform: 'translateY(-50%)' }}
+          style={{ top: avgPositions.sellPrice, transform: 'translateY(-50%)' }}
         >
           <div className="flex items-center gap-1.5 text-[var(--holo-magenta)] pr-2 border-r border-white/10">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
