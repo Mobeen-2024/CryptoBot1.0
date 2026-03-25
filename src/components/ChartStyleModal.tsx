@@ -6,7 +6,9 @@ interface ChartStyleModalProps {
   isOpen: boolean;
   onClose: () => void;
   config: ChartConfig;
-  onApply: (config: ChartConfig) => void;
+  mainIndicator: string | null;
+  subIndicators: string[];
+  onApply: (config: ChartConfig, main: string | null, sub: string[]) => void;
   onReset: () => void;
 }
 
@@ -14,22 +16,33 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
   isOpen,
   onClose,
   config,
+  mainIndicator,
+  subIndicators,
   onApply,
   onReset,
 }) => {
+  const [activeTab, setActiveTab] = useState<'style' | 'indicators'>('style');
   const [localConfig, setLocalConfig] = useState<ChartConfig>(config);
+  const [localMain, setLocalMain] = useState<string | null>(mainIndicator);
+  const [localSub, setLocalSub] = useState<string[]>(subIndicators);
 
   useEffect(() => {
     if (isOpen) {
       setLocalConfig(config);
+      setLocalMain(mainIndicator);
+      setLocalSub(subIndicators);
     }
-  }, [isOpen, config]);
+  }, [isOpen, config, mainIndicator, subIndicators]);
 
   if (!isOpen) return null;
 
   const handleApply = () => {
-    onApply(localConfig);
+    onApply(localConfig, localMain, localSub);
     onClose();
+  };
+
+  const toggleSub = (id: string) => {
+    setLocalSub(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   const colorSwatch = (color: string, onChange: (color: string) => void) => (
@@ -89,10 +102,28 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
         style={{ maxHeight: '85vh' }}
       >
         {/* Handle & Header */}
-        <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
-          <div className="w-12 h-1.5 bg-[#2b3139] rounded-full mb-4" />
-          <div className="flex items-center justify-between w-full px-6">
-            <h2 className="text-lg font-black text-white uppercase tracking-[0.2em]">Style</h2>
+        <div className="flex flex-col items-center pt-3 pb-2 shrink-0 border-b border-white/5">
+          <div className="w-12 h-1.5 bg-[#2b3139] rounded-full mb-3" />
+          
+          {/* Tabs */}
+          <div className="flex w-full px-6 items-center justify-between mb-2">
+            <div className="flex gap-6">
+              <button 
+                onClick={() => setActiveTab('style')}
+                className={`text-sm font-black uppercase tracking-[0.2em] transition-all relative py-2 ${activeTab === 'style' ? 'text-[#fcd535]' : 'text-[#5e6673] hover:text-[#848e9c]'}`}
+              >
+                Style
+                {activeTab === 'style' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#fcd535] rounded-full" />}
+              </button>
+              <button 
+                onClick={() => setActiveTab('indicators')}
+                className={`text-sm font-black uppercase tracking-[0.2em] transition-all relative py-2 ${activeTab === 'indicators' ? 'text-[#fcd535]' : 'text-[#5e6673] hover:text-[#848e9c]'}`}
+              >
+                Indicators
+                {activeTab === 'indicators' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#fcd535] rounded-full" />}
+              </button>
+            </div>
+            
             <button 
               onClick={onClose}
               className="p-2 hover:bg-white/5 rounded-full transition-colors text-[#5e6673] hover:text-white"
@@ -105,100 +136,174 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4 space-y-8 pb-32">
           
-          {/* Main Toggle (Candle vs Line) */}
-          <div className="flex flex-col gap-3">
-            <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Chart Style</span>
-            <div className="flex bg-[#0b0e11] rounded-xl p-1 border border-[#2b3139] w-full max-w-[240px]">
-              <button
-                onClick={() => setLocalConfig({ ...localConfig, style: 'candle' })}
-                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-                  localConfig.style === 'candle' ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_4px_12px_rgba(252,213,53,0.2)]' : 'text-[#848e9c] hover:text-white'
-                }`}
-              >
-                Candle
-              </button>
-              <button
-                onClick={() => setLocalConfig({ ...localConfig, style: 'line' })}
-                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
-                  localConfig.style === 'line' ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_4px_12px_rgba(252,213,53,0.2)]' : 'text-[#848e9c] hover:text-white'
-                }`}
-              >
-                Line
-              </button>
-            </div>
-          </div>
-
-          {/* Conditional Sections */}
-          {localConfig.style === 'candle' ? (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {/* Bullish Settings */}
-              <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-4 rounded-sm bg-[#00E676]" />
-                  <span className="text-sm font-bold text-white uppercase tracking-wider">Bullish Action</span>
+          {activeTab === 'style' ? (
+            <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-300">
+              {/* Main Toggle (Candle vs Line) */}
+              <div className="flex flex-col gap-3">
+                <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Chart Style</span>
+                <div className="flex bg-[#0b0e11] rounded-xl p-1 border border-[#2b3139] w-full max-w-[240px]">
+                  <button
+                    onClick={() => setLocalConfig({ ...localConfig, style: 'candle' })}
+                    className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                      localConfig.style === 'candle' ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_4px_12px_rgba(252,213,53,0.2)]' : 'text-[#848e9c] hover:text-white'
+                    }`}
+                  >
+                    Candle
+                  </button>
+                  <button
+                    onClick={() => setLocalConfig({ ...localConfig, style: 'line' })}
+                    className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                      localConfig.style === 'line' ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_4px_12px_rgba(252,213,53,0.2)]' : 'text-[#848e9c] hover:text-white'
+                    }`}
+                  >
+                    Line
+                  </button>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest">Body Style</span>
-                    {toggleSwitch(
-                      localConfig.candle.bull.style === 'hollow',
-                      () => setLocalConfig({
-                        ...localConfig,
-                        candle: { 
-                          ...localConfig.candle, 
-                          bull: { ...localConfig.candle.bull, style: localConfig.candle.bull.style === 'hollow' ? 'solid' : 'hollow' } 
-                        }
-                      }),
-                      'Hollow', 'Solid'
-                    )}
+              </div>
+              
+              {/* Conditional Style Sections... */}
+              {localConfig.style === 'candle' ? (
+                <div className="space-y-6">
+                  {/* Bullish Settings */}
+                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-4 rounded-sm bg-[#00E676]" />
+                      <span className="text-sm font-bold text-white uppercase tracking-wider">Bullish Action</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest">Body Style</span>
+                        {toggleSwitch(
+                          localConfig.candle.bull.style === 'hollow',
+                          () => setLocalConfig({
+                            ...localConfig,
+                            candle: { 
+                              ...localConfig.candle, 
+                              bull: { ...localConfig.candle.bull, style: localConfig.candle.bull.style === 'hollow' ? 'solid' : 'hollow' } 
+                            }
+                          }),
+                          'Hollow', 'Solid'
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest text-right">Theme Color</span>
+                        {/* Swatch call remains same */}
+                        {colorSwatch(localConfig.candle.bull.color, (color) => {
+                          setLocalConfig({
+                            ...localConfig,
+                            candle: { 
+                              ...localConfig.candle, 
+                              bull: { ...localConfig.candle.bull, color } 
+                            }
+                          })
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest text-right">Theme Color</span>
-                    {colorSwatch(localConfig.candle.bull.color, (color) => {
+
+                  {/* Bearish Settings */}
+                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-4 rounded-sm bg-[#FF1744]" />
+                      <span className="text-sm font-bold text-white uppercase tracking-wider">Bearish Action</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest">Body Style</span>
+                        {toggleSwitch(
+                          localConfig.candle.bear.style === 'hollow',
+                          () => setLocalConfig({
+                            ...localConfig,
+                            candle: { 
+                              ...localConfig.candle, 
+                              bear: { ...localConfig.candle.bear, style: localConfig.candle.bear.style === 'hollow' ? 'solid' : 'hollow' } 
+                            }
+                          }),
+                          'Hollow', 'Solid'
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest text-right">Theme Color</span>
+                        {colorSwatch(localConfig.candle.bear.color, (color) => {
+                          setLocalConfig({
+                            ...localConfig,
+                            candle: { 
+                              ...localConfig.candle, 
+                              bear: { ...localConfig.candle.bear, color } 
+                            }
+                          })
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                   <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-6">
+                     <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-1.5">
+                           <span className="text-xs font-bold text-white uppercase tracking-widest">Line Color</span>
+                           <span className="text-[10px] text-[#5e6673] uppercase tracking-wider">Main price trajectory</span>
+                        </div>
+                        {colorSwatch(localConfig.line.color, (color) => {
+                          setLocalConfig({
+                            ...localConfig,
+                            line: { ...localConfig.line, color }
+                          })
+                        })}
+                     </div>
+
+                     <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
+                        <div className="flex items-center justify-between">
+                           <span className="text-xs font-bold text-white uppercase tracking-widest">Line Width</span>
+                           <div className="flex bg-[#181a20] rounded-lg p-1 border border-[#2b3139]">
+                              {[1, 2, 3, 4].map((w) => (
+                                <button
+                                  key={w}
+                                  onClick={() => setLocalConfig({ ...localConfig, line: { ...localConfig.line, width: w } })}
+                                  className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
+                                    localConfig.line.width === w ? 'bg-[#fcd535] text-[#0b0e11] font-black' : 'text-[#848e9c] hover:text-white'
+                                  }`}
+                                >
+                                  {w}px
+                                </button>
+                              ))}
+                           </div>
+                        </div>
+                     </div>
+                   </div>
+                </div>
+              )}
+
+              {/* Global Environment Settings */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Global Environment</span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <LayoutGrid className="w-4 h-4 text-cyan-400" />
+                      <span className="text-[10px] font-bold text-white uppercase tracking-widest">Background</span>
+                    </div>
+                    {colorSwatch(localConfig.global.background, (color) => {
                       setLocalConfig({
                         ...localConfig,
-                        candle: { 
-                          ...localConfig.candle, 
-                          bull: { ...localConfig.candle.bull, color } 
-                        }
+                        global: { ...localConfig.global, background: color }
                       })
                     })}
                   </div>
-                </div>
-              </div>
 
-              {/* Bearish Settings */}
-              <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-4 rounded-sm bg-[#FF1744]" />
-                  <span className="text-sm font-bold text-white uppercase tracking-wider">Bearish Action</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest">Body Style</span>
-                    {toggleSwitch(
-                      localConfig.candle.bear.style === 'hollow',
-                      () => setLocalConfig({
-                        ...localConfig,
-                        candle: { 
-                          ...localConfig.candle, 
-                          bear: { ...localConfig.candle.bear, style: localConfig.candle.bear.style === 'hollow' ? 'solid' : 'hollow' } 
-                        }
-                      }),
-                      'Hollow', 'Solid'
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-[10px] text-[#5e6673] uppercase font-bold tracking-widest text-right">Theme Color</span>
-                    {colorSwatch(localConfig.candle.bear.color, (color) => {
+                  <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <Palette className="w-4 h-4 text-amber-400" />
+                      <span className="text-[10px] font-bold text-white uppercase tracking-widest">Grid Lines</span>
+                    </div>
+                    {colorSwatch(localConfig.global.gridLines, (color) => {
                       setLocalConfig({
                         ...localConfig,
-                        candle: { 
-                          ...localConfig.candle, 
-                          bear: { ...localConfig.candle.bear, color } 
-                        }
+                        global: { ...localConfig.global, gridLines: color }
                       })
                     })}
                   </div>
@@ -206,75 +311,64 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-               <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 space-y-6">
-                 <div className="flex items-center justify-between">
-                    <div className="flex flex-col gap-1.5">
-                       <span className="text-xs font-bold text-white uppercase tracking-widest">Line Color</span>
-                       <span className="text-[10px] text-[#5e6673] uppercase tracking-wider">Main price trajectory</span>
-                    </div>
-                    {colorSwatch(localConfig.line.color, (color) => {
-                      setLocalConfig({
-                        ...localConfig,
-                        line: { ...localConfig.line, color }
-                      })
-                    })}
-                 </div>
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
+              {/* Main Indicator Section */}
+              <div className="space-y-4">
+                <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Main Chart Indicator</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'SUPER', label: 'Supertrend' },
+                    { id: 'EMA', label: 'EMA 200' },
+                    { id: 'MA', label: 'SMA 50' },
+                    { id: 'BOLL', label: 'Bollinger Bands' },
+                    { id: 'SAR', label: 'Parabolic SAR' },
+                    { id: 'ALLIGATOR', label: 'Bill Williams Alligator' },
+                  ].map((ind) => (
+                    <button
+                      key={ind.id}
+                      onClick={() => setLocalMain(localMain === ind.id ? null : ind.id)}
+                      className={`p-3 rounded-xl border text-[11px] font-bold uppercase transition-all tracking-wider text-left ${
+                        localMain === ind.id 
+                          ? 'bg-[#fcd535]/10 border-[#fcd535] text-[#fcd535] shadow-[0_0_15px_rgba(252,213,53,0.1)]' 
+                          : 'bg-[#0b0e11] border-white/5 text-[#848e9c] hover:border-white/20'
+                      }`}
+                    >
+                      {ind.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                 <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
-                    <div className="flex items-center justify-between">
-                       <span className="text-xs font-bold text-white uppercase tracking-widest">Line Width</span>
-                       <div className="flex bg-[#181a20] rounded-lg p-1 border border-[#2b3139]">
-                          {[1, 2, 3, 4].map((w) => (
-                            <button
-                              key={w}
-                              onClick={() => setLocalConfig({ ...localConfig, line: { ...localConfig.line, width: w } })}
-                              className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
-                                localConfig.line.width === w ? 'bg-[#fcd535] text-[#0b0e11] font-black' : 'text-[#848e9c] hover:text-white'
-                              }`}
-                            >
-                              {w}px
-                            </button>
-                          ))}
-                       </div>
-                    </div>
-                 </div>
-               </div>
+              {/* Sub-Indicators Section */}
+              <div className="space-y-4 pt-6 border-t border-white/5">
+                <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Sub-Chart Oscillators</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'VOL', label: 'Volume' },
+                    { id: 'RSI', label: 'RSI' },
+                    { id: 'MACD', label: 'MACD' },
+                    { id: 'ATR', label: 'ATR' },
+                    { id: 'WR', label: 'Williams %R' },
+                    { id: 'OBV', label: 'OBV' },
+                    { id: 'STOCHRSI', label: 'Stoch RSI' },
+                    { id: 'KDJ', label: 'KDJ' },
+                  ].map((ind) => (
+                    <button
+                      key={ind.id}
+                      onClick={() => toggleSub(ind.id)}
+                      className={`p-3 rounded-xl border text-[11px] font-bold uppercase transition-all tracking-wider text-left ${
+                        localSub.includes(ind.id)
+                          ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' 
+                          : 'bg-[#0b0e11] border-white/5 text-[#848e9c] hover:border-white/20'
+                      }`}
+                    >
+                      {ind.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
-
-          {/* Global Environment Settings */}
-          <div className="space-y-4 pt-4">
-            <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest">Global Environment</span>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <LayoutGrid className="w-4 h-4 text-cyan-400" />
-                  <span className="text-[10px] font-bold text-white uppercase tracking-widest">Background</span>
-                </div>
-                {colorSwatch(localConfig.global.background, (color) => {
-                  setLocalConfig({
-                    ...localConfig,
-                    global: { ...localConfig.global, background: color }
-                  })
-                })}
-              </div>
-
-              <div className="p-4 rounded-2xl bg-[#0b0e11] border border-white/5 flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-amber-400" />
-                  <span className="text-[10px] font-bold text-white uppercase tracking-widest">Grid Lines</span>
-                </div>
-                {colorSwatch(localConfig.global.gridLines, (color) => {
-                  setLocalConfig({
-                    ...localConfig,
-                    global: { ...localConfig.global, gridLines: color }
-                  })
-                })}
-              </div>
-            </div>
-          </div>
 
         </div>
 

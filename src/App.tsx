@@ -12,13 +12,12 @@ import { CurrentPositions } from './components/CurrentPositions';
 import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
-import { IndicatorModal } from './components/IndicatorModal';
-import { ChartStyleModal } from './components/ChartStyleModal';
 import { BotPanel } from './components/BotPanel';
 import { MarketWatchlist } from './components/MarketWatchlist';
 import { OpenOrdersPanel } from './components/OpenOrdersPanel';
-import { Activity, ArrowUpRight, ArrowDownRight, RefreshCw, Circle, Wallet, Briefcase, LineChart, History, Bot, Database, Palette } from 'lucide-react';
+import { Menu, X, Bell, User, Search, LayoutGrid, ChevronDown, ChevronRight, Globe, Settings, Wallet, LineChart, CandlestickChart, Layout, Play, History, Shield, TrendingUp, TrendingDown, Clock, Maximize2, Palette, Eye, EyeOff, Trash2, SlidersHorizontal, RefreshCw, Briefcase, Bot, Database } from 'lucide-react';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
+import { ChartStyleModal } from './components/ChartStyleModal';
 import { ChartConfig, DEFAULT_CHART_CONFIG } from './types/chart';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -92,14 +91,15 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<'positions' | 'analytics' | 'history' | 'ai' | 'database' | 'delta' | 'bot'>('positions');
 
-  // Indicator Management State
-  const [isIndicatorModalOpen, setIsIndicatorModalOpen] = useState(false);
-  const [mainIndicator, setMainIndicator] = useState<string | null>(null);
-  const [subIndicators, setSubIndicators] = useState<string[]>([]);
-
-  // Chart Styling State
-  const [isChartStyleModalOpen, setIsChartStyleModalOpen] = useState(false);
+  // Chart & Indicator Management State
+  const [mainIndicator, setMainIndicator] = useState<string | null>('SUPER');
+  const [subIndicators, setSubIndicators] = useState<string[]>(['VOL', 'RSI']);
+  const [isStyleModalOpen, setIsStyleModalOpen] = useState(false);
   const [chartConfig, setChartConfig] = useState<ChartConfig>(DEFAULT_CHART_CONFIG);
+  const [chartView, setChartView] = useState<'price' | 'depth'>('price');
+  const [visibleTimeframes, setVisibleTimeframes] = useState(['5m', '15m', '30m', '1h', '8h']);
+  const [isTimeframeDropdownOpen, setIsTimeframeDropdownOpen] = useState(false);
+  const [isIndicatorLegendVisible, setIsIndicatorLegendVisible] = useState(true);
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -529,76 +529,173 @@ export default function App() {
             className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300"
             style={{ backgroundColor: chartConfig.global.background }}
           >
-            {/* Chart Toolbar */}
+            {/* Chart Toolbar: Command Center */}
             <div 
-              className="px-3 py-1.5 border-b border-[#2b3139] flex items-center justify-between shrink-0 transition-colors duration-300"
+              className="px-2 py-1.5 border-b border-[#2b3139] flex items-center justify-between shrink-0 transition-colors duration-300 relative z-20"
               style={{ backgroundColor: chartConfig.global.background === '#ffffff' ? '#f0f2f5' : '#181a20' }}
             >
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-[#0ecb81] font-mono font-bold bg-[#0ecb81]/10 px-2 py-0.5 rounded-full border border-[#0ecb81]/20">
-                  <div className="glow-dot-sm bg-[#0ecb81]" />
-                  LIVE
-                </div>
-                <span className="text-[10px] text-[#5e6673] font-mono hidden sm:block">{symbol} · Binance Spot</span>
-              </div>
-
-              <div className="flex gap-2 items-center">
-                {/* Indicator Button */}
-                <button 
-                  onClick={() => setIsIndicatorModalOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#848e9c] hover:text-[#fcd535] bg-[#0b0e11] hover:bg-[#fcd535]/10 rounded-lg border border-[#2b3139] hover:border-[#fcd535]/30 transition-all uppercase tracking-wider"
-                >
-                  <LineChart className="w-3 h-3" />
-                  <span className="hidden sm:inline">Indicators</span>
-                </button>
-
-                {/* Style Customization Button */}
-                <button 
-                  onClick={() => setIsChartStyleModalOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold text-[#848e9c] hover:text-[#fcd535] bg-[#0b0e11] hover:bg-[#fcd535]/10 rounded-lg border border-[#2b3139] hover:border-[#fcd535]/30 transition-all uppercase tracking-wider"
-                >
-                  <Palette className="w-3 h-3" />
-                  <span className="hidden sm:inline">Style</span>
-                </button>
-
-                {/* Interval Selector */}
-                <div className="flex bg-[#0b0e11] rounded-lg border border-[#2b3139] p-0.5 overflow-x-auto">
-                  {['1m', '5m', '15m', '1h', '4h', '1d', '1w'].map((i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); setChartInterval(i); }}
-                      className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-mono font-bold rounded-md transition-all whitespace-nowrap ${chartInterval === i ? 'bg-[#fcd535] text-[#0b0e11] shadow-[0_0_8px_rgba(252,213,53,0.2)]' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
+              <div className="flex items-center gap-1 sm:gap-4 overflow-hidden">
+                {/* Resolution Strip */}
+                <div className="flex items-center overflow-x-auto whitespace-nowrap scrollbar-hide gap-1 pr-2">
+                  <button 
+                    onClick={() => setChartConfig({ ...chartConfig, style: 'line' })}
+                    className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartConfig.style === 'line' ? 'text-[#fcd535] bg-[#fcd535]/10' : 'text-[#848e9c] hover:text-white'}`}
+                  >
+                    Time
+                  </button>
+                  {visibleTimeframes.slice(0, -1).map(tf => (
+                    <button 
+                      key={tf}
+                      onClick={() => {
+                        setChartInterval(tf);
+                        if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
+                      }}
+                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartInterval === tf && chartConfig.style === 'candle' ? 'text-[#fcd535] bg-[#fcd535]/10' : 'text-[#848e9c] hover:text-white'}`}
                     >
-                      {i}
+                      {tf}
                     </button>
                   ))}
+
+                  {/* Dropdown Timeframe */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsTimeframeDropdownOpen(!isTimeframeDropdownOpen)}
+                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors flex items-center gap-0.5 ${chartInterval === visibleTimeframes[visibleTimeframes.length-1] && chartConfig.style === 'candle' ? 'text-[#fcd535] bg-[#fcd535]/10' : 'text-[#848e9c] hover:text-white'}`}
+                    >
+                      {visibleTimeframes[visibleTimeframes.length - 1]}
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                    
+                    {isTimeframeDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 w-32 bg-[#1e2329] border border-[#2b3139] rounded-lg shadow-2xl z-[100] py-1 animate-in fade-in slide-in-from-top-1">
+                        {['1m', '3m', '2h', '4h', '12h', '1d', '1w'].map(tf => (
+                          <button
+                            key={tf}
+                            onClick={() => {
+                              const newTfs = [...visibleTimeframes];
+                              newTfs[newTfs.length - 1] = tf;
+                              setVisibleTimeframes(newTfs);
+                              setChartInterval(tf);
+                              if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
+                              setIsTimeframeDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-[#848e9c] hover:text-[#fcd535] hover:bg-white/5 transition-colors uppercase"
+                          >
+                            {tf}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                <div className="h-4 w-px bg-[#2b3139] shrink-0" />
+
+                {/* Depth Toggle */}
+                <button 
+                  onClick={() => setChartView(chartView === 'price' ? 'depth' : 'price')}
+                  className={`px-3 py-1 text-[11px] font-bold uppercase tracking-widest rounded transition-all ${chartView === 'depth' ? 'text-[#fcd535] bg-[#fcd535]/10 shadow-[inset_0_0_10px_rgba(252,213,53,0.1)]' : 'text-[#848e9c] hover:text-white'}`}
+                >
+                  Depth
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 sm:gap-2">
+                <button 
+                  onClick={() => setIsStyleModalOpen(true)}
+                  className="p-1.5 text-[#848e9c] hover:text-[#fcd535] hover:bg-white/5 rounded transition-all"
+                  title="Chart Settings & Indicators"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                </button>
+                <button className="p-1.5 text-[#848e9c] hover:text-white hover:bg-white/5 rounded transition-all" title="Advanced Tools">
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button className="p-1.5 text-[#848e9c] hover:text-white hover:bg-white/5 rounded transition-all">
+                  <Maximize2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
-            {/* Chart Canvas Wrapper */}
-            <div className="flex-1 w-full min-h-0 relative overflow-hidden">
-              <div className="absolute inset-1.5">
-                {marketData.length > 0 ? (
-                  <Chart 
-                    data={marketData} 
-                    symbol={symbol} 
-                    chartInterval={chartInterval} 
-                    mainIndicator={mainIndicator}
-                    subIndicators={subIndicators}
-                    trades={userTrades.filter((t: any) => t.symbol.replace('/', '') === symbol.replace('/', ''))}
-                    openOrders={openOrders.filter((o: any) => o.symbol.replace('/', '') === symbol.replace('/', ''))}
-                    config={chartConfig}
-                  />
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center gap-3">
-                    <div className="skeleton w-[80%] h-4" />
-                    <div className="skeleton w-[60%] h-4" />
-                    <div className="skeleton w-[70%] h-4" />
-                    <span className="text-[#5e6673] text-xs font-mono mt-2">Loading market data…</span>
-                  </div>
-                )}
+
+            {/* Active Indicator Legend Overlay */}
+            {chartView === 'price' && mainIndicator && (
+              <div className="absolute top-12 left-4 z-10 group">
+                <div className="flex items-center gap-2 cursor-pointer">
+                   <span className="text-[10px] sm:text-[11px] font-black text-[#5e6673] hover:text-[#848e9c] transition-colors uppercase tracking-[0.2em] flex items-center gap-1.5">
+                     {mainIndicator === 'SUPER' ? 'SUPERTREND (10, 3)' : mainIndicator}
+                     <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                   </span>
+                   
+                   {/* Quick Action Popover */}
+                   <div className="hidden group-hover:flex items-center bg-[#1e2329]/90 backdrop-blur-md border border-white/10 rounded-lg p-1 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                     <button 
+                        onClick={() => setIsIndicatorLegendVisible(!isIndicatorLegendVisible)}
+                        className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-white transition-colors"
+                     >
+                        {isIndicatorLegendVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                     </button>
+                     <button 
+                        onClick={() => setIsStyleModalOpen(true)}
+                        className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-white transition-colors"
+                     >
+                        <Settings className="w-3.5 h-3.5" />
+                     </button>
+                     <button 
+                        onClick={() => setMainIndicator(null)}
+                        className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-[#f6465d] transition-colors"
+                     >
+                        <Trash2 className="w-3.5 h-3.5" />
+                     </button>
+                   </div>
+                </div>
               </div>
+            )}
+
+            {/* Main Content: Chart or Depth */}
+            <div className="flex-1 relative">
+              {chartView === 'price' ? (
+                <div className="absolute inset-1.5">
+                  {marketData.length > 0 ? (
+                    <Chart 
+                      data={marketData} 
+                      symbol={symbol} 
+                      chartInterval={chartInterval}
+                      mainIndicator={isIndicatorLegendVisible ? mainIndicator : null}
+                      subIndicators={subIndicators}
+                      trades={userTrades.filter((t: any) => t.symbol.replace('/', '') === symbol.replace('/', ''))}
+                      openOrders={openOrders.filter((o: any) => o.symbol.replace('/', '') === symbol.replace('/', ''))}
+                      config={chartConfig}
+                    />
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center gap-3">
+                      <div className="skeleton w-[80%] h-4" />
+                      <div className="skeleton w-[60%] h-4" />
+                      <div className="skeleton w-[70%] h-4" />
+                      <span className="text-[#5e6673] text-xs font-mono mt-2">Loading market data…</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="absolute inset-0 bg-[#0b0e11] flex flex-col p-4 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-black text-[#5e6673] uppercase tracking-[0.3em]">Market Depth</h3>
+                    <div className="flex items-center gap-4 text-[10px] font-bold uppercase">
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#0ecb81]" /> Bids</div>
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#f6465d]" /> Asks</div>
+                    </div>
+                  </div>
+                  <div className="flex-1 grid grid-cols-2 gap-4">
+                    <div className="border border-[#0ecb81]/10 bg-[#0ecb81]/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[#0ecb81]/20 blur-xl" />
+                       <OrderBook bids={orderBook.bids.slice(0, 5)} asks={orderBook.asks.slice(0, 5)} />
+                    </div>
+                    <div className="border border-[#f6465d]/10 bg-[#f6465d]/5 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[#f6465d]/20 blur-xl" />
+                       <OrderBook bids={orderBook.bids.slice(0, 5)} asks={orderBook.asks.slice(0, 5)} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -716,28 +813,24 @@ export default function App() {
 
       </main>
 
-      <IndicatorModal 
-        isOpen={isIndicatorModalOpen}
-        onClose={() => setIsIndicatorModalOpen(false)}
-        selectedMain={mainIndicator}
-        selectedSub={subIndicators}
-        onApply={(main, sub) => {
+      {/* Unified Chart Style & Indicators Modal */}
+      <ChartStyleModal 
+        isOpen={isStyleModalOpen}
+        onClose={() => setIsStyleModalOpen(false)}
+        config={chartConfig}
+        mainIndicator={mainIndicator}
+        subIndicators={subIndicators}
+        onApply={(conf, main, sub) => {
+          setChartConfig(conf);
           setMainIndicator(main);
           setSubIndicators(sub);
-        }}
-      />
-
-      <ChartStyleModal 
-        isOpen={isChartStyleModalOpen}
-        onClose={() => setIsChartStyleModalOpen(false)}
-        config={chartConfig}
-        onApply={(newConfig) => {
-          setChartConfig(newConfig);
-          toast.success('Chart style applied');
+          toast.success('Configuration applied');
         }}
         onReset={() => {
           setChartConfig(DEFAULT_CHART_CONFIG);
-          toast.success('Style reset to default');
+          setMainIndicator('SUPER');
+          setSubIndicators(['VOL', 'RSI']);
+          toast.success('Settings reset');
         }}
       />
     </div>
