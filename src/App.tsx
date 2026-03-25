@@ -584,6 +584,23 @@ export default function App() {
                             {tf}
                           </button>
                         ))}
+                        <button
+                          onClick={() => {
+                            setIsTimeframeDropdownOpen(false);
+                            const customTf = window.prompt('ENTER CUSTOM SYS_TIME OVERRIDE (e.g. 45m, 3d, 1M):');
+                            if (customTf && customTf.trim()) {
+                              const t = customTf.trim().toLowerCase();
+                              const newTfs = [...visibleTimeframes];
+                              newTfs[newTfs.length - 1] = t;
+                              setVisibleTimeframes(newTfs);
+                              setChartInterval(t);
+                              if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2 text-[11px] font-black tracking-widest text-[var(--holo-gold)] hover:text-black hover:bg-[var(--holo-gold)] transition-colors uppercase border-t border-white/5 mt-1"
+                        >
+                          CUSTOM...
+                        </button>
                       </div>
                     )}
                   </div>
@@ -608,10 +625,20 @@ export default function App() {
                 >
                   <SlidersHorizontal className="w-4 h-4" />
                 </button>
-                <button className="p-1.5 text-[#848e9c] hover:text-white hover:bg-white/5 rounded transition-all" title="Advanced Tools">
+                <button 
+                  onClick={() => toast('Advanced Tactical Tools Module requires Pro License authorization.', { icon: '🔒', style: { background: 'var(--surface-modal)', color: 'var(--holo-gold)', border: '1px solid var(--holo-gold)' }})}
+                  className="p-1.5 text-[#848e9c] hover:text-[var(--holo-gold)] hover:bg-white/5 rounded transition-all shadow-[0_0_10px_var(--holo-gold-glow)]" title="Advanced Tools">
                   <LayoutGrid className="w-4 h-4" />
                 </button>
-                <button className="p-1.5 text-[#848e9c] hover:text-white hover:bg-white/5 rounded transition-all">
+                <button 
+                  onClick={() => {
+                    if (!document.fullscreenElement) {
+                      document.documentElement.requestFullscreen().catch(err => console.error(err));
+                    } else {
+                      if (document.exitFullscreen) document.exitFullscreen();
+                    }
+                  }}
+                  className="p-1.5 text-[#848e9c] hover:text-[var(--holo-cyan)] hover:bg-white/5 rounded transition-all shadow-[0_0_10px_var(--holo-cyan-glow)]" title="Toggle Fullscreen">
                   <Maximize2 className="w-4 h-4" />
                 </button>
               </div>

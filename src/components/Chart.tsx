@@ -1559,7 +1559,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1] overflow-hidden w-full h-full">
         <div className="flex flex-col items-center gap-2 max-w-full px-4">
           <span 
-            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-10 whitespace-nowrap"
+            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.03] whitespace-nowrap"
             style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
           >
             MOBEEN
