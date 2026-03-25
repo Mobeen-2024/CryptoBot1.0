@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { io } from 'socket.io-client';
-import { Briefcase, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
+import { Briefcase, ArrowUpRight, ArrowDownRight, RefreshCw, Crosshair, Cpu } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Position {
@@ -34,13 +34,12 @@ export function CurrentPositions() {
     try {
       const side = netQty > 0 ? 'SELL' : 'BUY';
       const quantity = Math.abs(netQty);
-      
-      // Strip margin suffixes to get clean symbol for the API
       const cleanSymbol = sym.replace('-ISOLATED', '').replace('-CROSS', '');
-      // Determine margin mode from the symbol suffix
       const marginMode = sym.includes('-ISOLATED') ? 'isolated' : sym.includes('-CROSS') ? 'cross' : undefined;
       
-      const toastId = toast.loading(`Closing ${cleanSymbol}...`);
+      const toastId = toast.loading(`Initiating termination sequence on ${cleanSymbol}...`, {
+        style: { background: 'var(--surface-modal)', color: 'var(--holo-cyan)', border: '1px solid var(--holo-cyan)' }
+      });
       
       const res = await fetch('/api/binance/order', {
         method: 'POST',
@@ -51,26 +50,20 @@ export function CurrentPositions() {
           type: 'MARKET',
           quantity: quantity,
           marginMode: marginMode,
-          params: {
-            isClosingPosition: true
-          }
+          params: { isClosingPosition: true }
         })
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to close position');
+        throw new Error(errData.error || 'Sequence failed');
       }
 
-      toast.success(`Position ${cleanSymbol} closed`, { id: toastId });
-      fetchPositions(); // Refresh
+      toast.success(`Position ${cleanSymbol} Terminated`, { id: toastId });
+      fetchPositions(); 
     } catch (err: any) {
-      toast.error(err.message, { id: err.message });
+      toast.error(err.message, { id: err.message, style: { background: '#0a0d14', color: 'var(--holo-magenta)', border: '1px solid var(--holo-magenta)' } });
     }
-  };
-
-  const dummyAction = (action: string) => {
-    toast(action + " feature is available in Pro mode", { icon: 'â„¹ï¸', style: { borderRadius: '8px', background: '#1e2329', color: '#eaecef' }});
   };
 
   const fetchPositions = async () => {
@@ -89,35 +82,22 @@ export function CurrentPositions() {
 
   useEffect(() => {
     fetchPositions();
-    
     const socket = io();
-    socket.on('new_trade', () => {
-       fetchPositions();
-    });
-
+    socket.on('new_trade', fetchPositions);
     return () => { socket.disconnect(); };
   }, []);
 
-  // Subscribe to live binance stream to track live mark price for ALL active positions
   useEffect(() => {
     if (positions.length === 0) return;
-
-    // Extract raw symbols without margin suffix to subscribe to Binance Ticker (e.g. BTCUSDT)
-    const rawStreams = positions.map(p => {
-        const baseSymbol = p.symbol.split('-')[0];
-        return `${baseSymbol.replace('/', '').toLowerCase()}@ticker`;
-    });
-    // Remove duplicates so we don't crash the WS connection by requesting identical streams
+    const rawStreams = positions.map(p => `${p.symbol.split('-')[0].replace('/', '').toLowerCase()}@ticker`);
     const uniqueStreams = [...new Set(rawStreams)];
-    
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${uniqueStreams.join('/')}`;
     
     const ws = new WebSocket(wsUrl);
     ws.onmessage = (event) => {
        const payload = JSON.parse(event.data);
        if (payload.stream && payload.data) {
-           const sym = payload.data.s; // Output: BTCUSDT
-           // Update live price for any position (Spot, Cross, Isolated) matching this base symbol
+           const sym = payload.data.s; 
            const matchingPositions = positions.filter(p => p.symbol.replace('/', '').split('-')[0] === sym);
            if (matchingPositions.length > 0) {
                setLivePrices(prev => {
@@ -128,49 +108,49 @@ export function CurrentPositions() {
            }
        }
     };
-
-    return () => {
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.close();
-        }
-    };
+    return () => { if (ws.readyState === WebSocket.OPEN) ws.close(); };
   }, [positions]);
 
   if (loading) return (
-     <div className="h-full flex items-center justify-center text-gray-500 font-mono text-sm tracking-tight border border-white/5 bg-white/5 backdrop-blur-md rounded">
-        <RefreshCw className="w-4 h-4 animate-spin mr-2" /> Loading Portfolio...
+     <div className="h-full flex items-center justify-center text-[var(--holo-cyan)] font-mono text-xs uppercase tracking-widest glass-panel border border-[var(--holo-cyan)]/20 shadow-[0_0_20px_var(--holo-cyan-glow)]">
+        <Cpu className="w-5 h-5 animate-pulse mr-3" /> Establishing Uplink...
      </div>
   );
 
   if (positions.length === 0) return (
-     <div className="h-full flex flex-col items-center justify-center text-gray-500 font-mono text-sm tracking-tight border border-white/5 bg-white/5 backdrop-blur-md rounded">
-        <Briefcase className="w-8 h-8 text-gray-700 mb-2" />
-        No active positions.
+     <div className="h-full flex flex-col items-center justify-center text-gray-500 font-mono text-xs uppercase tracking-[0.2em] glass-panel border border-white/5 opacity-80">
+        <Crosshair className="w-10 h-10 text-white/10 mb-3" />
+        No active engagements
      </div>
   );
 
   return (
-    <div className="bg-[#0b0e11] overflow-hidden flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-[#181a20] shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" />
-          <h2 className="text-[11px] font-bold text-white uppercase tracking-widest">Active Positions</h2>
-          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/20 text-[var(--holo-cyan)]">{positions.length}</span>
+    <div className="glass-panel overflow-hidden flex flex-col h-full bg-transparent shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+      {/* ── HEADER ── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05] bg-black/30 shrink-0 relative overflow-hidden group">
+        <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/40 to-transparent shadow-[0_0_10px_var(--holo-cyan)] opacity-50 group-hover:opacity-100 transition-opacity" />
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="relative flex items-center justify-center w-6 h-6 bg-[var(--holo-cyan)]/10 rounded-md border border-[var(--holo-cyan)]/30 inner-glow">
+             <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)] animate-ping absolute" />
+             <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]" />
+          </div>
+          <h2 className="text-[11px] font-black text-white uppercase tracking-[0.2em] drop-shadow-[0_0_5px_var(--holo-cyan-glow)]">Active Nodes</h2>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-[var(--holo-cyan)] text-black ml-1 leading-none">{positions.length}</span>
         </div>
-        <span className="text-[9px] text-gray-500 font-mono tracking-widest">REAL-TIME PNL</span>
+        <span className="text-[9px] text-[var(--holo-cyan)]/60 font-mono tracking-widest uppercase hidden sm:block">Real-Time PNL Stream</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar max-h-[400px]">
+      {/* ── POSITIONS LIST ── */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar relative z-10">
+        <div className="scan-lines pointer-events-none opacity-50 z-0 bg-transparent" />
         {positions.map((pos) => {
           let displaySymbol = pos.symbol;
-          let marginTag = 'Cross 10x';
+          let marginTag = 'CROSS_10X';
           if (pos.symbol.includes('-ISOLATED')) {
             displaySymbol = pos.symbol.replace('-ISOLATED', '');
-            marginTag = 'Isolated 10x';
+            marginTag = 'ISO_10X';
           } else if (pos.symbol.includes('-CROSS')) {
             displaySymbol = pos.symbol.replace('-CROSS', '');
-            marginTag = 'Cross 10x';
           }
 
           const livePrc = livePrices[pos.symbol] || pos.averageEntryPrice;
@@ -181,133 +161,140 @@ export function CurrentPositions() {
           const roi = (pos.totalCost > 0) ? (pnl / pos.totalCost) * 100 : 0;
           const isProfit = pnl >= 0;
           const base = displaySymbol.replace('/', '').replace('USDT', '');
+          
+          // Theme selection based on PNL health
+          const healthColor = isProfit ? 'var(--holo-cyan)' : 'var(--holo-magenta)';
+          const healthGlow = isProfit ? 'var(--holo-cyan-glow)' : 'var(--holo-magenta-glow)';
 
           return (
-            <div key={pos.symbol} className="bg-[#1e2329] rounded-lg border border-transparent hover:border-[#2b3139] transition-colors relative overflow-hidden">
-              {/* Left accent bar */}
-              <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--holo-cyan)] rounded-l-lg opacity-80" />
+            <div key={pos.symbol} 
+                 className="bg-black/40 backdrop-blur-md rounded-lg border border-white/5 relative overflow-hidden group transition-all duration-300 hover:bg-black/60 z-10"
+                 style={{
+                   // Dynamic hover glow based on profitability
+                   ':hover': { borderColor: `color-mix(in srgb, ${healthColor} 30%, transparent)` }
+                 } as any}
+            >
+              {/* Health Accent Line */}
+              <div className="absolute left-0 top-0 bottom-0 w-[2px] transition-colors duration-300 group-hover:w-[4px] group-hover:shadow-[4px_0_15px_currentColor]" style={{ backgroundColor: healthColor, color: healthColor }} />
+              
+              {/* Subtle Noise Texture on Row */}
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }} />
 
               {/* ── MOBILE LAYOUT (hidden on xl+) ── */}
-              <div className="xl:hidden p-3 pl-4">
-                {/* Top row: pair + PNL */}
-                <div className="flex items-center justify-between mb-2">
+              <div className="xl:hidden p-3 pl-4 relative z-10">
+                <div className="flex items-center justify-between mb-3 border-b border-white/[0.05] pb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-[var(--holo-cyan)]/15 flex items-center justify-center text-[9px] font-black text-[var(--holo-cyan)]">{base.slice(0,2)}</div>
+                    <div className="w-6 h-6 rounded border flex items-center justify-center text-[10px] font-black" style={{ backgroundColor: `color-mix(in srgb, ${healthColor} 15%, transparent)`, borderColor: `color-mix(in srgb, ${healthColor} 30%, transparent)`, color: healthColor }}>
+                      {base.slice(0,2)}
+                    </div>
                     <div>
-                      <div className="text-[12px] font-bold text-white font-mono">{displaySymbol}</div>
+                      <div className="text-[12px] font-black tracking-widest text-white font-mono">{displaySymbol}</div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className={`text-[8px] font-bold px-1 rounded ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
-                        <span className="text-[8px] font-bold text-yellow-400 bg-yellow-500/10 px-1 rounded">{marginTag}</span>
+                        <span className={`text-[8px] font-black tracking-widest px-1 rounded uppercase ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
+                        <span className="text-[8px] font-black tracking-widest text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 px-1 rounded uppercase">{marginTag}</span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-[14px] font-bold font-mono ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</div>
-                    <div className={`text-[10px] font-mono ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</div>
+                    <div className="text-[14px] font-black font-mono tracking-tighter drop-shadow-[0_0_8px_currentColor]" style={{ color: healthColor }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</div>
+                    <div className="text-[10px] font-mono tracking-widest" style={{ color: healthColor }}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</div>
                   </div>
                 </div>
-                {/* Mid row: entry / mark / cost */}
-                <div className="grid grid-cols-3 gap-1 mb-2 bg-black/20 rounded-lg p-2">
+                
+                <div className="grid grid-cols-3 gap-1 mb-3 bg-white/[0.02] rounded border border-white/[0.05] p-2">
                   <div>
-                    <div className="text-[9px] text-gray-600 uppercase tracking-wide">Entry</div>
-                    <div className="text-[10px] font-mono text-gray-300">{pos.averageEntryPrice.toFixed(2)}</div>
+                    <div className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Entry / Cost</div>
+                    <div className="text-[10px] font-mono text-white font-bold">{pos.averageEntryPrice.toFixed(2)}</div>
+                    <div className="text-[9px] font-mono text-gray-400">${pos.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-[9px] text-gray-600 uppercase tracking-wide">Mark</div>
-                    <div className="text-[10px] font-mono text-yellow-400 font-bold">{livePrc.toFixed(2)}</div>
+                  <div className="text-center border-x border-white/[0.05]">
+                    <div className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Mark</div>
+                    <div className="text-[10px] font-mono text-[var(--holo-gold)] font-bold">{livePrc.toFixed(2)}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[9px] text-gray-600 uppercase tracking-wide">Size</div>
-                    <div className="text-[10px] font-mono text-gray-300">{Math.abs(pos.netQuantity).toFixed(4)}</div>
+                    <div className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Size</div>
+                    <div className="text-[10px] font-mono text-white font-bold">{Math.abs(pos.netQuantity).toFixed(4)}</div>
                   </div>
                 </div>
-                {/* TP/SL row */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-gray-600">TP</span>
-                    <span className="text-[10px] font-mono text-[var(--holo-cyan)]">{pos.tpPrice ? pos.tpPrice.toFixed(2) : '—'}</span>
-                    <span className="text-[9px] text-gray-700">/</span>
-                    <span className="text-[9px] text-gray-600">SL</span>
-                    <span className="text-[10px] font-mono text-[var(--holo-magenta)]">{pos.slPrice ? pos.slPrice.toFixed(2) : '—'}</span>
-                  </div>
-                  <span className="text-[9px] font-mono text-gray-600">${pos.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                </div>
-                {/* Action buttons */}
+
                 <div className="flex gap-2">
                   <button onClick={() => { setTpslModal({ symbol: pos.symbol, quantity: Math.abs(pos.netQuantity), mode: pos.netQuantity > 0 ? 'SELL' : 'BUY', entryPrice: pos.averageEntryPrice, totalCost: pos.totalCost }); setTpPrice(pos.tpPrice ? pos.tpPrice.toString() : ''); setSlPrice(pos.slPrice ? pos.slPrice.toString() : ''); }}
-                    className="flex-1 py-1.5 rounded bg-[#2b3139] hover:bg-[#474d57] text-yellow-400 text-[10px] font-bold transition-colors">TP / SL</button>
+                    className="flex-1 py-1.5 rounded border border-white/10 text-[10px] font-black font-mono tracking-widest uppercase text-gray-300 hover:text-[var(--holo-gold)] hover:border-[var(--holo-gold)]/50 transition-colors bg-white/[0.01]">Overrides</button>
+                    <button onClick={() => { const currentLev = parseInt(marginTag?.match(/\d+/)?.[0] || '10'); setLeverageValue(currentLev); setMarginType(pos.symbol.includes('-ISOLATED') ? 'ISOLATED' : 'CROSS'); setLeverageModal({ symbol: pos.symbol, totalCost: pos.totalCost }); }}
+                    className="flex-1 py-1.5 rounded border border-white/10 text-[10px] font-black font-mono tracking-widest uppercase text-gray-300 hover:text-[var(--holo-cyan)] hover:border-[var(--holo-cyan)]/50 transition-colors bg-white/[0.01]">Lev</button>
                   <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
-                    className="flex-1 py-1.5 rounded bg-[#2b3139] hover:bg-[var(--holo-magenta)]/80 text-[var(--holo-magenta)] hover:text-white text-[10px] font-bold transition-colors">Close</button>
+                    className="flex-1 py-1.5 rounded border border-[var(--holo-magenta)]/30 text-[10px] font-black font-mono tracking-widest uppercase text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)] hover:text-white transition-all shadow-[inset_0_0_10px_var(--holo-magenta-glow)] cursor-crosshair">Term</button>
                 </div>
               </div>
 
               {/* ── DESKTOP LAYOUT (hidden below xl) ── */}
-              <div className="hidden xl:flex xl:items-center xl:gap-8 p-2 pl-4">
-                {/* Symbol + margin tag */}
-                <div className="flex items-center gap-2 w-[200px] shrink-0">
-                  <div className="w-5 h-5 bg-[var(--holo-cyan)]/20 rounded flex items-center justify-center text-[var(--holo-cyan)] font-bold text-[10px]">B</div>
-                  <h3 className="font-bold text-[#eaecef] text-sm tracking-wide">{displaySymbol}</h3>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/20' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10 border-[var(--holo-magenta)]/20'}`}>
-                    {isLong ? 'LONG' : 'SHORT'}
-                  </span>
-                  {marginTag && (
-                    <span className="text-[10px] text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 px-1.5 py-0.5 rounded font-mono border border-[var(--holo-gold)]/20">{marginTag}</span>
-                  )}
-                </div>
-
-                {/* 4-Column Data */}
-                <div className="flex flex-1 justify-between items-center">
-                  {/* PNL */}
-                  <div className="flex flex-col w-1/4">
-                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Unrealized PNL (USDT)</span>
-                    <span className={`text-base font-bold font-mono ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>
-                      {pnl >= 0 ? '+' : ''}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                    <span className={`text-[11px] font-mono font-medium ${isProfit ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</span>
+              <div className="hidden xl:flex xl:items-center xl:gap-6 p-2.5 pl-5 relative z-10 transition-colors group-hover:bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.01)_50%,transparent)]">
+                {/* Node Identity */}
+                <div className="flex items-center gap-3 w-[180px] shrink-0">
+                  <div className="w-8 h-8 rounded border flex flex-col items-center justify-center leading-none shadow-[0_0_15px_currentColor]" style={{ backgroundColor: `color-mix(in srgb, ${healthColor} 5%, transparent)`, borderColor: `color-mix(in srgb, ${healthColor} 30%, transparent)`, color: healthColor }}>
+                    <span className="text-[8px] font-black uppercase opacity-60 mb-[1px]">NOD</span>
+                    <span className="text-[11px] font-black">{base.slice(0,1)}</span>
                   </div>
-                  {/* Size */}
-                  <div className="flex flex-col w-1/4">
-                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Realized PNL</span>
-                    <span className="text-[13px] font-bold font-mono text-[#eaecef]">0.00</span>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-[#848e9c] text-[10px]">Size:</span>
-                      <span className="text-[11px] font-mono text-[#eaecef]">{Math.abs(pos.netQuantity).toString()}</span>
-                    </div>
-                  </div>
-                  {/* TP/SL */}
-                  <div className="flex flex-col w-1/4">
-                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Take Profit / Stop Loss</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[12px] font-bold font-mono text-[var(--holo-cyan)]">{pos.tpPrice ? pos.tpPrice.toFixed(4) : '-'}</span>
-                      <span className="text-[#5e6673] text-[10px]">&frasl;</span>
-                      <span className="text-[12px] font-bold font-mono text-[var(--holo-magenta)]">{pos.slPrice ? pos.slPrice.toFixed(4) : '-'}</span>
-                    </div>
-                  </div>
-                  {/* Cost & Entry */}
-                  <div className="flex flex-col w-1/4">
-                    <span className="text-[#848e9c] text-[10px] mb-0.5 border-b border-dashed border-[#848e9c]/50 w-max">Cost (USDT)</span>
-                    <span className="text-[13px] font-bold font-mono text-[#eaecef]">{pos.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-[#848e9c] text-[10px]">Entry / Mark:</span>
-                      <span className="text-[11px] font-mono text-[#eaecef]">{pos.averageEntryPrice.toFixed(2)} / <span className="text-[var(--holo-gold)]">{livePrc.toFixed(2)}</span></span>
+                  <div className="flex flex-col">
+                    <h3 className="font-black text-white text-[12px] tracking-[0.1em]">{displaySymbol}</h3>
+                    <div className="flex gap-1 mt-0.5">
+                      <span className={`text-[9px] px-1 rounded-sm font-black font-mono tracking-widest uppercase ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
+                      <span className="text-[9px] text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 px-1 rounded-sm font-black font-mono tracking-widest uppercase">{marginTag}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 3 Action Buttons */}
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => { const currentLev = parseInt(marginTag?.match(/\d+/)?.[0] || '10'); setLeverageValue(currentLev); setMarginType(pos.symbol.includes('-ISOLATED') ? 'ISOLATED' : 'CROSS'); setLeverageModal({ symbol: pos.symbol, totalCost: pos.totalCost }); }}
-                    className="bg-[#2b3139] hover:bg-[#474d57] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
-                    Adjust Leverage
+                {/* Cyber Matrix Data */}
+                <div className="flex flex-1 justify-between items-center bg-black/50 rounded-lg border border-white/[0.02] px-4 py-2">
+                  <div className="flex flex-col w-1/4">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Live Delta</span>
+                    <div className="flex items-baseline gap-2">
+                       <span className="text-[14px] font-black font-mono tracking-tighter drop-shadow-[0_0_10px_currentColor]" style={{ color: healthColor }}>
+                         {pnl >= 0 ? '+' : ''}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                       </span>
+                       <span className="text-[10px] font-mono tracking-widest font-bold" style={{ color: healthColor }}>{isProfit ? '+' : ''}{roi.toFixed(2)}%</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col w-1/4 border-l border-white/[0.05] pl-4">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5 flex justify-between pr-4"><span>Size</span><span>Cost</span></span>
+                    <div className="flex justify-between pr-4 items-baseline">
+                      <span className="text-[12px] font-bold font-mono text-white tracking-widest">{Math.abs(pos.netQuantity).toString()}</span>
+                      <span className="text-[10px] font-mono text-gray-400 tracking-widest">${pos.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col w-1/4 border-l border-white/[0.05] pl-4">
+                     <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5 flex justify-between pr-4"><span>Entry</span><span>Mark</span></span>
+                     <div className="flex justify-between pr-4 items-baseline">
+                      <span className="text-[11px] font-bold font-mono text-white tracking-widest">{pos.averageEntryPrice.toFixed(2)}</span>
+                      <span className="text-[11px] font-black font-mono text-[var(--holo-gold)] tracking-widest">{livePrc.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col w-1/4 border-l border-white/[0.05] pl-4">
+                     <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5 text-center">Protocol Limits</span>
+                     <div className="flex gap-1.5 justify-center items-center h-full">
+                       <span className="text-[11px] font-black font-mono tracking-widest text-[var(--holo-cyan)]">{pos.tpPrice ? pos.tpPrice.toFixed(4) : '-'}</span>
+                       <span className="text-white/20">|</span>
+                       <span className="text-[11px] font-black font-mono tracking-widest text-[var(--holo-magenta)]">{pos.slPrice ? pos.slPrice.toFixed(4) : '-'}</span>
+                     </div>
+                  </div>
+                </div>
+
+                {/* Tactical Actions */}
+                <div className="flex gap-2 shrink-0 ml-2">
+                  <button onClick={() => { const currentLev = parseInt(marginTag?.match(/\d+/)?.[0] || '10'); setLeverageValue(currentLev); setMarginType(pos.symbol.includes('-ISOLATED') ? 'ISOLATED' : 'CROSS'); setLeverageModal({ symbol: pos.symbol, totalCost: pos.totalCost }); }}
+                    className="p-2 bg-white/[0.02] border border-white/10 hover:border-[var(--holo-gold)] hover:bg-[var(--holo-gold)]/10 text-gray-400 hover:text-[var(--holo-gold)] rounded-lg transition-all" title="Adjust Margin/Leverage">
+                    <Crosshair className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => { setTpslModal({ symbol: pos.symbol, quantity: Math.abs(pos.netQuantity), mode: pos.netQuantity > 0 ? 'SELL' : 'BUY', entryPrice: pos.averageEntryPrice, totalCost: pos.totalCost }); setTpPrice(pos.tpPrice ? pos.tpPrice.toString() : ''); setSlPrice(pos.slPrice ? pos.slPrice.toString() : ''); }}
-                    className="bg-[#2b3139] hover:bg-[#474d57] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
-                    Stop Profit &amp; Loss
+                    className="p-2 bg-white/[0.02] border border-white/10 hover:border-white/30 text-gray-400 hover:text-white rounded-lg font-black tracking-widest text-[9px] uppercase font-mono flex items-center transition-all">
+                    Overrides
                   </button>
                   <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
-                    className="bg-[#2b3139] hover:bg-[var(--holo-magenta)] text-[#eaecef] text-[11px] font-medium py-1.5 px-3 rounded transition-colors whitespace-nowrap">
-                    Close Position
+                    className="group relative items-center justify-center p-2 bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/30 hover:bg-[var(--holo-magenta)] rounded-lg transition-all cursor-crosshair ml-1 shadow-[inset_0_0_10px_var(--holo-magenta-glow)] hover:shadow-[0_0_20px_var(--holo-magenta-glow)]" title="Terminate Position">
+                    <svg className="w-3.5 h-3.5 text-[var(--holo-magenta)] group-hover:text-black transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
               </div>
@@ -316,11 +303,10 @@ export function CurrentPositions() {
         })}
       </div>
 
-
-      {/* â”€â”€â”€ TP/SL Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ─── TP/SL HUD OVERRIDE MODAL ─── */}
       {tpslModal && (() => {
         const isLong = tpslModal.mode === 'SELL';
-        const positionSide = isLong ? 'LONG' : 'SHORT';
+        const positionSide = isLong ? 'LONG_NODE' : 'SHORT_NODE';
         const tpVal = parseFloat(tpPrice) || 0;
         const slVal = parseFloat(slPrice) || 0;
         const currentMark = livePrices[tpslModal.symbol] || tpslModal.entryPrice;
@@ -329,17 +315,16 @@ export function CurrentPositions() {
         const slPnl = slVal > 0 ? (isLong ? (slVal - tpslModal.entryPrice) * tpslModal.quantity : (tpslModal.entryPrice - slVal) * tpslModal.quantity) : 0;
         const tpRoi = (tpslModal.totalCost > 0 && tpPnl !== 0) ? (tpPnl / tpslModal.totalCost) * 100 : 0;
         const slRoi = (tpslModal.totalCost > 0 && slPnl !== 0) ? (slPnl / tpslModal.totalCost) * 100 : 0;
-        const rr = slPnl < 0 && tpPnl > 0 ? (tpPnl / Math.abs(slPnl)) : null;
 
         let tpWarning = '';
         if (tpVal > 0) {
-          if (isLong && tpVal <= currentMark) tpWarning = 'TP must be above Mark Price';
-          if (!isLong && tpVal >= currentMark) tpWarning = 'TP must be below Mark Price';
+          if (isLong && tpVal <= currentMark) tpWarning = 'ERR: TP <= MARK';
+          if (!isLong && tpVal >= currentMark) tpWarning = 'ERR: TP >= MARK';
         }
         let slWarning = '';
         if (slVal > 0) {
-          if (isLong && slVal >= currentMark) slWarning = 'SL must be below Mark Price';
-          if (!isLong && slVal <= currentMark) slWarning = 'SL must be above Mark Price';
+          if (isLong && slVal >= currentMark) slWarning = 'ERR: SL >= MARK';
+          if (!isLong && slVal <= currentMark) slWarning = 'ERR: SL <= MARK';
         }
 
         const setTargetByRoi = (type: 'TP' | 'SL', roiPct: number) => {
@@ -355,8 +340,8 @@ export function CurrentPositions() {
         };
 
         const executeOrder = async () => {
-          if (!tpPrice && !slPrice) return toast.error('Enter at least one target');
-          if (tpWarning || slWarning) return toast.error('Fix pricing errors before submitting');
+          if (!tpPrice && !slPrice) return toast.error('Requires valid targeting sequence');
+          if (tpWarning || slWarning) return toast.error('Resolve firing solutions before execution');
           setIsSubmittingTpsl(true);
           try {
             const res = await fetch('/api/binance/order', {
@@ -374,225 +359,114 @@ export function CurrentPositions() {
               })
             });
             if (res.ok) {
-              toast.success('TP/SL order placed successfully!');
-              setTpslModal(null);
-              setTpPrice('');
-              setSlPrice('');
-              fetchPositions();
+              toast.success('Protocol Override Accepted');
+              setTpslModal(null); setTpPrice(''); setSlPrice(''); fetchPositions();
             } else {
               const err = await res.json();
-              toast.error(err.error || 'Failed to place order');
+              toast.error(err.error || 'Execution Rejected');
             }
           } catch {
-            toast.error('Network error');
+            toast.error('Uplink Failed');
           } finally {
             setIsSubmittingTpsl(false);
           }
         };
 
-        const cleanSym = tpslModal.symbol.replace('-ISOLATED', '').replace('-CROSS', '');
-
         return createPortal(
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(7,9,14,0.88)', backdropFilter: 'blur(16px)' }}>
-            <div className="w-full max-w-[400px] rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-[var(--border-subtle)]" style={{ background: 'var(--surface-modal)' }}>
-
-              {/* ─── Header ───────────────────────────────────────── */}
-              <div className="relative px-5 pt-5 pb-4 border-b border-[var(--border-subtle)]">
-                {/* coloured side bar */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-tl-2xl ${isLong ? 'bg-[var(--holo-cyan)]' : 'bg-[var(--holo-magenta)]'}`} />
-                <div className="flex items-center justify-between pl-2">
-                  <div className="flex items-center gap-3">
-                    <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${isLong ? 'bg-[var(--holo-cyan)]/15 text-[var(--holo-cyan)]' : 'bg-[var(--holo-magenta)]/15 text-[var(--holo-magenta)]'}`}>
-                      {isLong ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
-                    </div>
-                    <div>
-                      <p className="text-[var(--text-primary)] font-bold text-base leading-tight">{cleanSym}</p>
-                      <p className={`text-[11px] font-semibold ${isLong ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>
-                        {positionSide} Â· {tpslModal.quantity} units
-                      </p>
-                    </div>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(5,7,10,0.92)', backdropFilter: 'blur(20px)' }}>
+            <div className="w-full max-w-[420px] rounded-xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,1)] border border-white/10 glass-card relative isolate">
+              
+              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-white/[0.02] rounded-full blur-[80px] pointer-events-none" />
+              <div className="noise-grain opacity-20 pointer-events-none" />
+              
+              <div className="px-6 pt-6 pb-4 border-b border-white/[0.05] relative z-10 font-mono">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-[14px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-2">
+                       <Crosshair className="w-4 h-4 text-[var(--holo-cyan)]" /> SYS.OVERRIDE
+                    </h3>
+                    <p className="text-[10px] text-gray-500 tracking-widest mt-1">TARGET_LOCKED // {tpslModal.symbol}</p>
                   </div>
-                  <button
-                    onClick={() => { setTpslModal(null); setTpPrice(''); setSlPrice(''); }}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface-card)] hover:bg-[var(--surface-card-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <button onClick={() => { setTpslModal(null); setTpPrice(''); setSlPrice(''); }} className="text-gray-500 hover:text-white transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
 
-                {/* Price Context Bar */}
-                <div className="flex gap-2 mt-4 pl-2">
-                  <div className="flex-1 bg-[var(--surface-card)] rounded-xl px-3 py-2.5 border border-[var(--border-subtle)]">
-                    <p className="text-[9px] text-[#5e6673] uppercase tracking-widest font-bold mb-0.5">Entry</p>
-                    <p className="text-[var(--text-primary)] font-mono font-semibold text-sm">{tpslModal.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-black/50 border border-white/5 p-2 rounded flex flex-col items-center">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Entry</span>
+                    <span className="text-[12px] font-black text-white">{tpslModal.entryPrice.toFixed(2)}</span>
                   </div>
-                  <div className="flex-1 bg-[var(--surface-card)] rounded-xl px-3 py-2.5 border border-[var(--primary-yellow)]/30">
-                    <p className="text-[9px] text-[var(--primary-yellow)] opacity-80 uppercase tracking-widest font-bold mb-0.5">Mark</p>
-                    <p className="text-[var(--primary-yellow)] font-mono font-semibold text-sm">{currentMark.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
+                  <div className="flex-1 bg-black/50 border border-[var(--holo-gold)]/20 p-2 rounded flex flex-col items-center shadow-[inset_0_0_15px_var(--holo-gold-glow)]">
+                    <span className="text-[9px] font-bold text-[var(--holo-gold)] uppercase tracking-widest mb-1">Live Mark</span>
+                    <span className="text-[12px] font-black text-[var(--holo-gold)]">{currentMark.toFixed(2)}</span>
                   </div>
-                  {rr !== null && (
-                    <div className="flex-1 bg-[var(--surface-card)] rounded-xl px-3 py-2.5 border border-[var(--border-subtle)]">
-                      <p className="text-[9px] text-[#5e6673] uppercase tracking-widest font-bold mb-0.5">R:R</p>
-                      <p className="text-[var(--text-primary)] font-mono font-semibold text-sm">{rr.toFixed(1)}x</p>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* ─── Body ────────────────────────────────────────── */}
-              <div className="px-5 py-4 space-y-5">
-
-                {/* Take Profit */}
-                <div>
-                  {/* Label + live P&L */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[var(--holo-cyan)]" />
-                      <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Take Profit</span>
-                    </div>
-                    {tpVal > 0 && !tpWarning && (
-                      <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-md ${tpPnl >= 0 ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>
-                        {tpPnl >= 0 ? '+' : ''}{tpPnl.toFixed(2)} USDT&nbsp;
-                        <span className="opacity-70">({tpRoi >= 0 ? '+' : ''}{tpRoi.toFixed(1)}%)</span>
-                      </span>
-                    )}
-                    {tpWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)]">{tpWarning}</span>}
-                  </div>
-
-                  {/* Input */}
-                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${tpWarning ? 'border-[var(--holo-magenta)]' : 'border-[var(--border-subtle)] hover:border-[var(--holo-cyan)]/40 focus-within:border-[var(--holo-cyan)] focus-within:shadow-[0_0_0_1px_var(--holo-cyan)]'}`}>
-                    <div className="w-10 flex items-center justify-center shrink-0">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--holo-cyan)" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
-                    </div>
-                    <input
-                      type="number"
-                      value={tpPrice}
-                      onChange={e => setTpPrice(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && executeOrder()}
-                      placeholder="Target price…"
-                      className="flex-1 bg-transparent py-3 text-[var(--text-primary)] font-mono text-sm outline-none placeholder-[var(--text-secondary)]"
-                    />
-                    <span className="pr-3 text-[#5e6673] text-[11px] font-mono shrink-0">USDT</span>
-                  </div>
-
-                  {/* Quick % */}
-                  <div className="flex gap-1.5 mt-2">
-                    {[1, 2, 5, 10, 20].map(pct => (
-                      <button key={pct} onClick={() => setTargetByRoi('TP', pct)}
-                        className="flex-1 py-1.5 rounded-lg text-[var(--holo-cyan)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--holo-cyan)]/10 hover:border-[var(--holo-cyan)]/30 active:bg-[var(--holo-cyan)] active:text-[var(--surface-modal)]">
-                        +{pct}%
-                      </button>
-                    ))}
-                  </div>
+              <div className="px-6 py-6 space-y-6 relative z-10 font-mono">
+                {/* TAKE PROFIT NODE */}
+                <div className="relative pl-4 border-l-2 border-[var(--holo-cyan)] group focus-within:border-[var(--holo-cyan)]">
+                   <div className="absolute top-0 -left-1.5 w-2.5 h-2.5 bg-[var(--holo-cyan)] rounded shadow-[0_0_10px_var(--holo-cyan-glow)]" />
+                   <div className="flex justify-between items-baseline mb-2">
+                     <span className="text-[10px] font-black text-white tracking-[0.2em] uppercase">Set Take Profit</span>
+                     {tpVal > 0 && !tpWarning && (
+                       <span className="text-[10px] font-bold text-[var(--holo-cyan)] tracking-widest drop-shadow-[0_0_5px_currentColor]">+{tpPnl.toFixed(2)} USDT ({tpRoi.toFixed(1)}%)</span>
+                     )}
+                     {tpWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)] tracking-widest animate-pulse">{tpWarning}</span>}
+                   </div>
+                   <input 
+                     type="number" value={tpPrice} onChange={e => setTpPrice(e.target.value)}
+                     className="w-full bg-transparent text-white font-black text-lg outline-none border-b border-white/20 pb-2 focus:border-[var(--holo-cyan)] transition-colors placeholder:text-gray-700"
+                     placeholder="0.0000"
+                   />
+                   <div className="flex gap-1 mt-3">
+                     {[5, 15, 25, 50].map(pct => (
+                       <button key={pct} onClick={() => setTargetByRoi('TP', pct)} className="flex-1 py-1 rounded bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] text-[9px] font-black tracking-widest border border-transparent hover:border-[var(--holo-cyan)]/50 transition-all">+{pct}%</button>
+                     ))}
+                   </div>
                 </div>
 
-                {/* Separator */}
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
-                  <span className="text-[10px] text-[#474d57] font-bold tracking-widest uppercase">or</span>
-                  <div className="flex-1 h-px bg-[var(--border-subtle)]" />
+                {/* STOP LOSS NODE */}
+                <div className="relative pl-4 border-l-2 border-[var(--holo-magenta)] group focus-within:border-[var(--holo-magenta)] mt-8">
+                   <div className="absolute top-0 -left-1.5 w-2.5 h-2.5 bg-[var(--holo-magenta)] rounded shadow-[0_0_10px_var(--holo-magenta-glow)]" />
+                   <div className="flex justify-between items-baseline mb-2">
+                     <span className="text-[10px] font-black text-white tracking-[0.2em] uppercase">Set Risk Limit</span>
+                     {slVal > 0 && !slWarning && (
+                       <span className="text-[10px] font-bold text-[var(--holo-magenta)] tracking-widest drop-shadow-[0_0_5px_currentColor]">{slPnl.toFixed(2)} USDT ({slRoi.toFixed(1)}%)</span>
+                     )}
+                     {slWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)] tracking-widest animate-pulse">{slWarning}</span>}
+                   </div>
+                   <input 
+                     type="number" value={slPrice} onChange={e => setSlPrice(e.target.value)}
+                     className="w-full bg-transparent text-white font-black text-lg outline-none border-b border-white/20 pb-2 focus:border-[var(--holo-magenta)] transition-colors placeholder:text-gray-700"
+                     placeholder="0.0000"
+                   />
+                   <div className="flex gap-1 mt-3">
+                     {[5, 10, 20].map(pct => (
+                       <button key={pct} onClick={() => setTargetByRoi('SL', pct)} className="flex-1 py-1 rounded bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] text-[9px] font-black tracking-widest border border-transparent hover:border-[var(--holo-magenta)]/50 transition-all">-{pct}%</button>
+                     ))}
+                     <button onClick={() => setSlPrice(tpslModal.entryPrice.toFixed(4))} className="flex-[1.5] py-1 rounded bg-white/5 text-white text-[9px] font-black tracking-widest border border-white/10 hover:border-white/40 transition-all uppercase">Break Even</button>
+                   </div>
                 </div>
-
-                {/* Stop Loss */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[var(--holo-magenta)]" />
-                      <span className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Stop Loss</span>
-                    </div>
-                    {slVal > 0 && !slWarning && (
-                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10">
-                        {slPnl.toFixed(2)} USDT&nbsp;
-                        <span className="opacity-70">({slRoi.toFixed(1)}%)</span>
-                      </span>
-                    )}
-                    {slWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)]">{slWarning}</span>}
-                  </div>
-
-                  <div className={`flex items-center rounded-xl bg-[var(--surface-card)] border transition-all ${slWarning ? 'border-[var(--holo-magenta)]' : 'border-[var(--border-subtle)] hover:border-[var(--holo-magenta)]/40 focus-within:border-[var(--holo-magenta)] focus-within:shadow-[0_0_0_1px_var(--holo-magenta)]'}`}>
-                    <div className="w-10 flex items-center justify-center shrink-0">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--holo-magenta)" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </div>
-                    <input
-                      type="number"
-                      value={slPrice}
-                      onChange={e => setSlPrice(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && executeOrder()}
-                      placeholder="Risk trigger…"
-                      className="flex-1 bg-transparent py-3 text-[var(--text-primary)] font-mono text-sm outline-none placeholder-[var(--text-secondary)]"
-                    />
-                    <span className="pr-3 text-[#5e6673] text-[11px] font-mono shrink-0">USDT</span>
-                  </div>
-
-                  <div className="flex gap-1.5 mt-2">
-                    {[1, 2, 5, 10, 20].map(pct => (
-                      <button key={pct} onClick={() => setTargetByRoi('SL', pct)}
-                        className="flex-1 py-1.5 rounded-lg text-[var(--holo-magenta)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] bg-transparent hover:bg-[var(--holo-magenta)]/10 hover:border-[var(--holo-magenta)]/30 active:bg-[var(--holo-magenta)] active:text-[var(--surface-modal)]">
-                        -{pct}%
-                      </button>
-                    ))}
-                    <button onClick={() => setSlPrice(tpslModal.entryPrice.toFixed(4))}
-                      className="flex-[1.5] py-1.5 rounded-lg bg-[var(--surface-card)] hover:bg-[var(--surface-card-hover)] text-[var(--text-primary)] text-[10px] font-bold font-mono transition-all border border-[var(--border-subtle)] hover:border-[var(--text-primary)]/50"
-                      title="Set Stop Loss to exact Entry Price (Risk-Free)">
-                      Break Even
-                    </button>
-                  </div>
-                </div>
-
-                {/* Order type badge */}
-                {(tpPrice || slPrice) && (
-                  <div className="flex justify-center">
-                    <span className="text-[10px] font-mono font-bold text-[#5e6673] bg-[var(--surface-card)] border border-[var(--border-subtle)] px-3 py-1 rounded-full">
-                      Order type: {(tpPrice && slPrice) ? 'OCO' : tpPrice ? 'LIMIT' : 'STOP LIMIT'}
-                    </span>
-                  </div>
-                )}
               </div>
 
-              {/* ―― Footer ────────────────────────── */}
-              <div className="px-5 pb-5 pt-1 space-y-3">
-                {/* Primary Submit */}
-                <button
-                  id="tpsl-submit-btn"
-                  onClick={executeOrder}
-                  disabled={isSubmittingTpsl || !!tpWarning || !!slWarning || (!tpPrice && !slPrice)}
-                  className={`w-full py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2.5 transition-all duration-150 ${
+              <div className="p-6 pt-2">
+                <button onClick={executeOrder} disabled={isSubmittingTpsl || !!tpWarning || !!slWarning || (!tpPrice && !slPrice)}
+                   className={`w-full py-3.5 rounded-lg text-[12px] uppercase font-black tracking-[0.3em] font-mono transition-all duration-300 flex items-center justify-center gap-3 ${
                     isSubmittingTpsl || !!tpWarning || !!slWarning || (!tpPrice && !slPrice)
-                      ? 'bg-[var(--surface-card)] text-[#474d57] cursor-not-allowed border border-[var(--border-subtle)]'
-                      : 'text-[var(--surface-modal)] active:scale-[0.98]'
-                  }`}
-                  style={(!isSubmittingTpsl && !tpWarning && !slWarning && (tpPrice || slPrice)) ? {
-                    background: 'linear-gradient(180deg, var(--primary-yellow) 0%, #e0bc2f 100%)',
-                    boxShadow: 'var(--shadow-glow)'
-                  } : {}}
-                >
-                  {isSubmittingTpsl ? (
-                    <><RefreshCw className="w-4 h-4 animate-spin" /> Placing Order…</>
-                  ) : (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                      Submit TP / SL Order
-                    </>
-                  )}
-                </button>
-
-                {/* Secondary Cancel */}
-                <button
-                  onClick={() => { setTpslModal(null); setTpPrice(''); setSlPrice(''); }}
-                  disabled={isSubmittingTpsl}
-                  className="w-full py-2 text-xs font-bold text-[#5e6673] hover:text-[#848e9c] transition-colors"
-                >
-                  Cancel
+                      ? 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/5'
+                      : 'bg-gradient-to-r from-[var(--holo-cyan)] to-[var(--holo-cyan)]/70 text-black border border-[var(--holo-cyan)]/50 shadow-[0_0_30px_var(--holo-cyan-glow)] hover:brightness-125'  
+                   }`}>
+                   {isSubmittingTpsl ? 'TRANSMITTING...' : 'COMMIT PROTOCOL'}
                 </button>
               </div>
-
             </div>
-          </div>,
-          document.body
+          </div>, document.body
         );
       })()}
 
-      {/* ─── Leverage Modal ─────────────────────────────────────── */}
+      {/* ─── LEVERAGE HUD OVERRIDE MODAL ─── */}
       {leverageModal && (() => {
         const cleanSym = leverageModal.symbol.replace('-ISOLATED', '').replace('-CROSS', '');
         
@@ -600,97 +474,89 @@ export function CurrentPositions() {
           setIsSubmittingLeverage(true);
           try {
             const res = await fetch('/api/binance/leverage', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                symbol: cleanSym,
-                leverage: leverageValue,
-                marginType: marginType.toLowerCase()
-              })
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol: cleanSym, leverage: leverageValue, marginType: marginType.toLowerCase() })
             });
             if (res.ok) {
-              toast.success(`Margin updated: ${marginType} ${leverageValue}x`);
-              setLeverageModal(null);
-              fetchPositions();
+              toast.success(`Margin sync complete: ${marginType} ${leverageValue}x`);
+              setLeverageModal(null); fetchPositions();
             } else {
-              const err = await res.json();
-              toast.error(err.error || 'Failed to adjust leverage');
+              const err = await res.json(); toast.error(err.error || 'Sync Rejected');
             }
-          } catch {
-            toast.error('Network error');
-          } finally {
-            setIsSubmittingLeverage(false);
-          }
+          } catch { toast.error('Uplink Failed');
+          } finally { setIsSubmittingLeverage(false); }
         };
 
         return createPortal(
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(7,9,14,0.88)', backdropFilter: 'blur(16px)' }}>
-            <div className="w-full max-w-[400px] rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-[#2b3139]/80" style={{ background: 'linear-gradient(145deg,#181a20 0%,#1e2329 100%)' }}>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(5,7,10,0.92)', backdropFilter: 'blur(20px)' }}>
+            <div className="w-full max-w-[420px] rounded-xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,1)] border border-[var(--holo-gold)]/30 glass-card relative isolate">
               
-              {/* Header */}
-              <div className="relative px-5 pt-5 pb-4 border-b border-[#2b3139]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--holo-gold)]/10 flex items-center justify-center text-[var(--holo-gold)]">
-                      <Briefcase className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-[#eaecef] font-bold text-base leading-tight">Adjust Leverage</p>
-                      <p className="text-[11px] font-semibold text-[#848e9c]">{cleanSym}</p>
-                    </div>
+              <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent,rgba(252,213,53,0.05))] pointer-events-none" />
+              <div className="noise-grain opacity-20 pointer-events-none" />
+              
+              <div className="px-6 pt-6 pb-4 border-b border-[var(--holo-gold)]/20 relative z-10 font-mono">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-[14px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-2">
+                       <Cpu className="w-4 h-4 text-[var(--holo-gold)]" /> MARGIN.LINK
+                    </h3>
+                    <p className="text-[10px] text-gray-500 tracking-widest mt-1">NODE // {cleanSym}</p>
                   </div>
-                  <button onClick={() => setLeverageModal(null)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#2b3139] hover:bg-[#3b4351] text-[#848e9c] hover:text-[#eaecef] transition-all">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <button onClick={() => setLeverageModal(null)} className="text-gray-500 hover:text-white transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="px-5 py-5 space-y-6">
+              <div className="px-6 py-8 space-y-8 relative z-10 font-mono">
                 
                 {/* Margin Mode Selector */}
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-bold text-[#eaecef] uppercase tracking-wider">Margin Mode</span>
-                  </div>
-                  <div className="flex bg-[#0b0e11] rounded-xl p-1 border border-[#2b3139]">
-                    <button onClick={() => setMarginType('CROSS')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${marginType === 'CROSS' ? 'bg-[#2b3139] text-[#eaecef] shadow-[0_2px_8px_rgba(0,0,0,0.5)]' : 'text-[#5e6673] hover:text-[#848e9c]'}`}>Cross</button>
-                    <button onClick={() => setMarginType('ISOLATED')} className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${marginType === 'ISOLATED' ? 'bg-[#2b3139] text-[#eaecef] shadow-[0_2px_8px_rgba(0,0,0,0.5)]' : 'text-[#5e6673] hover:text-[#848e9c]'}`}>Isolated</button>
+                  <div className="flex items-center justify-between mb-3 text-[10px] font-black text-[var(--holo-gold)] tracking-[0.2em] uppercase">SYSTEM MODE</div>
+                  <div className="flex bg-black/60 rounded border border-white/5 p-1">
+                    <button onClick={() => setMarginType('CROSS')} className={`flex-1 py-3 text-[11px] font-black tracking-widest uppercase rounded transition-all ${marginType === 'CROSS' ? 'bg-[var(--holo-gold)]/20 text-[var(--holo-gold)] shadow-[inset_0_0_15px_var(--holo-gold-glow)]' : 'text-gray-500 hover:text-white'}`}>Cross Linked</button>
+                    <button onClick={() => setMarginType('ISOLATED')} className={`flex-1 py-3 text-[11px] font-black tracking-widest uppercase rounded transition-all ${marginType === 'ISOLATED' ? 'bg-[var(--holo-gold)]/20 text-[var(--holo-gold)] shadow-[inset_0_0_15px_var(--holo-gold-glow)]' : 'text-gray-500 hover:text-white'}`}>Isolated</button>
                   </div>
                 </div>
 
                 {/* Leverage Slider */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-[#eaecef] uppercase tracking-wider">Leverage</span>
-                    <div className="flex items-center bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 py-1">
-                      <input type="number" value={leverageValue} onChange={e => setLeverageValue(Math.min(125, Math.max(1, parseInt(e.target.value) || 1)))} className="w-10 bg-transparent text-[#eaecef] font-mono text-sm outline-none text-right" />
-                      <span className="text-[#5e6673] text-[11px] font-mono ml-1">x</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-black text-[var(--holo-gold)] tracking-[0.2em] uppercase">MULTIPLIER</span>
+                    <div className="flex items-baseline border-b-2 border-[var(--holo-gold)] pb-1 px-2 shadow-[0_5px_10px_-5px_var(--holo-gold-glow)]">
+                      <input type="number" value={leverageValue} onChange={e => setLeverageValue(Math.min(125, Math.max(1, parseInt(e.target.value) || 1)))} className="w-12 bg-transparent text-white font-black text-2xl outline-none text-right" />
+                      <span className="text-[var(--holo-gold)] text-[12px] font-black ml-1">X</span>
                     </div>
                   </div>
-                  <div className="relative w-full h-8 flex items-center">
-                    <input type="range" min="1" max="125" step="1" value={leverageValue} onChange={e => setLeverageValue(parseInt(e.target.value))} className="w-full relative z-10 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-runnable-track]:bg-[#2b3139] [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-[var(--holo-gold)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:shadow-[0_0_10px_var(--holo-gold-glow)]" />
-                    <div className="absolute left-0 h-1.5 bg-[var(--holo-gold)] rounded-l-full z-0 pointer-events-none" style={{ width: `${((leverageValue - 1) / 124) * 100}%` }} />
+                  
+                  <div className="relative w-full h-8 flex items-center mt-6 group">
+                    <input type="range" min="1" max="125" step="1" value={leverageValue} onChange={e => setLeverageValue(parseInt(e.target.value))} 
+                           className="w-full relative z-10 appearance-none bg-transparent cursor-crosshair
+                           [&::-webkit-slider-runnable-track]:bg-white/10 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-none 
+                           [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-[var(--holo-gold)] [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:-mt-[8px] [&::-webkit-slider-thumb]:shadow-[0_0_15px_var(--holo-gold-glow)] group-hover:[&::-webkit-slider-thumb]:scale-110 transition-all font-mono" />
+                    <div className="absolute left-0 h-1 bg-[var(--holo-gold)] shadow-[0_0_10px_var(--holo-gold-glow)] z-0 pointer-events-none transition-all duration-75" style={{ width: `${((leverageValue - 1) / 124) * 100}%` }} />
                   </div>
-                  <div className="flex justify-between mt-1 px-1">
-                    {[1, 10, 20, 50, 100, 125].map(val => (
-                      <span key={val} className="text-[9px] font-mono text-[#5e6673] cursor-pointer hover:text-[#eaecef]" onClick={() => setLeverageValue(val)}>{val}x</span>
+                  
+                  <div className="flex justify-between mt-3">
+                    {[1, 20, 50, 100, 125].map(val => (
+                      <span key={val} className="text-[10px] font-black tracking-widest text-gray-500 hover:text-[var(--holo-gold)] cursor-crosshair transition-colors" onClick={() => setLeverageValue(val)}>{val}X</span>
                     ))}
                   </div>
                 </div>
                 
               </div>
 
-              {/* Footer */}
-              <div className="px-5 pb-5 pt-1 space-y-3">
-                <button onClick={executeLeverageChange} disabled={isSubmittingLeverage} className={`w-full py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2.5 transition-all duration-150 ${isSubmittingLeverage ? 'bg-[#2b3139] text-[#474d57] cursor-not-allowed' : 'bg-[var(--holo-gold)] hover:brightness-110 active:scale-[0.98] text-[#0b0e11] shadow-[0_4px_24px_var(--holo-gold-glow)] hover:shadow-[0_6px_32px_var(--holo-gold-glow)]'}`}>
-                  {isSubmittingLeverage ? <><RefreshCw className="w-4 h-4 animate-spin" /> Updating…</> : 'Confirm Adjustment'}
+              <div className="p-6 pt-2">
+                <button onClick={executeLeverageChange} disabled={isSubmittingLeverage} 
+                   className={`w-full py-4 rounded-lg text-[12px] uppercase font-black tracking-[0.3em] font-mono transition-all duration-300 flex items-center justify-center gap-3 ${
+                    isSubmittingLeverage ? 'bg-white/5 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-[var(--holo-gold)] to-[#d4af37] text-black shadow-[0_0_40px_var(--holo-gold-glow)] hover:brightness-125'  
+                   }`}>
+                   {isSubmittingLeverage ? 'SYNCING...' : 'CONFIRM LINK'}
                 </button>
               </div>
 
             </div>
-          </div>,
-          document.body
+          </div>, document.body
         );
       })()}
     </div>
