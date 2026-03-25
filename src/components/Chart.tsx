@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CandlestickSeries, AreaSeries, LineSeries, UTCTimestamp, IChartApi } from 'lightweight-charts';
+import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
 
@@ -30,6 +30,21 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const bollMiddleRef = useRef<any>(null);
   const bollLowerRef = useRef<any>(null);
   const stDataRef = useRef<any[]>([]);
+
+  // Sub-Indicator Series Refs
+  const volumeSeriesRef = useRef<any>(null);
+  const rsiSeriesRef = useRef<any>(null);
+  const macdSeriesRef = useRef<any>(null);
+  const macdSignalRef = useRef<any>(null);
+  const macdHistRef = useRef<any>(null);
+  const atrSeriesRef = useRef<any>(null);
+  const wrSeriesRef = useRef<any>(null);
+  const obvSeriesRef = useRef<any>(null);
+  const stochKRef = useRef<any>(null);
+  const stochDRef = useRef<any>(null);
+  const kdjKRef = useRef<any>(null);
+  const kdjDRef = useRef<any>(null);
+  const kdjJRef = useRef<any>(null);
 
   const buyLineRef = useRef<any>(null);
   const sellLineRef = useRef<any>(null);
@@ -69,6 +84,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     priceY: number;
     price: number;
   } | null>(null);
+
+  // Phase 2: Ultra 2050 Enhancements State
+  const [crosshairPos, setCrosshairPos] = useState<{ x: number, y: number } | null>(null);
+  const [hoveredCandleX, setHoveredCandleX] = useState<number | null>(null);
 
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
@@ -119,13 +138,15 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     // Clear underlying DOM array to prevent Strict Mode from spawning duplicate overlapping grids
     chartContainerRef.current.innerHTML = '';
 
-    const chart = createChart(chartContainerRef.current, {
+    try {
+      console.log("[Chart] Initializing createChart...");
+      const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { 
           type: ColorType.Solid, 
-          color: config?.global.background || '#0b1622', 
+          color: 'transparent', 
         },
-        textColor: getContrastColor(config?.global.background || '#0b1622'),
+        textColor: 'rgba(255,255,255,0.7)',
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
@@ -134,18 +155,18 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         horzLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
       },
       crosshair: {
-        mode: 1, // CrosshairMode.Normal allows free horizontal tracking
+        mode: 1, 
         horzLine: {
-          color: '#ffffff',
-          labelBackgroundColor: '#2962FF', // Vivid accent for crosshair value
+          color: 'rgba(0, 229, 255, 0.8)',
+          labelBackgroundColor: '#00E5FF', 
           labelVisible: true,
-          style: 3, // Dotted
+          style: 3, 
         },
         vertLine: {
-          color: getContrastColor(config?.global.background || '#0b1622'),
-          labelBackgroundColor: '#2962FF', // Vivid accent for time
+          color: 'rgba(0, 229, 255, 0.8)',
+          labelBackgroundColor: '#00E5FF', 
           labelVisible: true, 
-          style: 3, // Dotted
+          style: 3, 
         },
       },
       timeScale: {
@@ -178,16 +199,17 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     chartRef.current = chart;
 
+    console.log("[Chart] Creating series...");
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: config?.candle.bull.style === 'solid' ? config.candle.bull.color : 'rgba(0,0,0,0)', 
-      downColor: config?.candle.bear.style === 'solid' ? config.candle.bear.color : 'rgba(0,0,0,0)', 
+      upColor: '#00E5FF', 
+      downColor: '#FF007F', 
       borderVisible: true, 
       wickVisible: true,
       borderColor: '#333',
-      borderUpColor: config?.candle.bull.color || '#00E676',
-      borderDownColor: config?.candle.bear.color || '#FF1744',
-      wickUpColor: config?.candle.bull.color || '#00E676', 
-      wickDownColor: config?.candle.bear.color || '#FF1744',
+      borderUpColor: '#00E5FF',
+      borderDownColor: '#FF007F',
+      wickUpColor: '#00E5FF', 
+      wickDownColor: '#FF007F',
       lastValueVisible: false, 
       priceLineVisible: true, 
       visible: config?.style !== 'line',
@@ -212,6 +234,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     const supertrendSeries = chart.addSeries(AreaSeries, {
       lineType: 2, // LineType.WithSteps
+      lineColor: '#00E5FF',
+      topColor: 'rgba(0, 229, 255, 0.4)',
+      bottomColor: 'rgba(0, 229, 255, 0.0)',
       lineWidth: 2,
       crosshairMarkerVisible: false,
       priceLineVisible: false,
@@ -265,6 +290,65 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     alligatorTeethRef.current = alligatorTeeth;
     alligatorLipsRef.current = alligatorLips;
 
+    // --- Sub-Chart Oscillators Initialization ---
+    // Note: We use dedicated price scales (rsi, macd, etc.) so they can be layered/stacked.
+    
+    // Volume
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: '#26a69a',
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume',
+      visible: subIndicators.includes('VOL'),
+    });
+    volumeSeriesRef.current = volumeSeries;
+
+    // RSI
+    const rsiSeries = chart.addSeries(LineSeries, {
+      color: '#00E5FF',
+      lineWidth: 2,
+      priceScaleId: 'rsi',
+      visible: subIndicators.includes('RSI'),
+    });
+    rsiSeriesRef.current = rsiSeries;
+    rsiSeries.createPriceLine({ price: 70, color: 'rgba(255, 82, 82, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' });
+    rsiSeries.createPriceLine({ price: 30, color: 'rgba(0, 230, 118, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
+
+    // MACD
+    const mHist = chart.addSeries(HistogramSeries, { priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
+    const mLine = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
+    const mSignal = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
+    macdHistRef.current = mHist;
+    macdSeriesRef.current = mLine;
+    macdSignalRef.current = mSignal;
+
+    // ATR
+    const atrSeries = chart.addSeries(LineSeries, { color: '#fdd835', lineWidth: 2, priceScaleId: 'atr', visible: subIndicators.includes('ATR') });
+    atrSeriesRef.current = atrSeries;
+
+    // WR (Williams %R)
+    const wrSeries = chart.addSeries(LineSeries, { color: '#ff9800', lineWidth: 2, priceScaleId: 'wr', visible: subIndicators.includes('WR') });
+    wrSeriesRef.current = wrSeries;
+
+    // OBV
+    const obvSeries = chart.addSeries(LineSeries, { color: '#03a9f4', lineWidth: 2, priceScaleId: 'obv', visible: subIndicators.includes('OBV') });
+    obvSeriesRef.current = obvSeries;
+
+    // STOCH
+    const stochK = chart.addSeries(LineSeries, { color: '#2962FF', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
+    const stochD = chart.addSeries(LineSeries, { color: '#ff5252', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
+    stochKRef.current = stochK;
+    stochDRef.current = stochD;
+
+    // KDJ
+    const kdjK = chart.addSeries(LineSeries, { color: '#2962FF', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+    const kdjD = chart.addSeries(LineSeries, { color: '#ff5252', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+    const kdjJ = chart.addSeries(LineSeries, { color: '#9c27b0', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+    kdjKRef.current = kdjK;
+    kdjDRef.current = kdjD;
+    kdjJRef.current = kdjJ;
+
+    console.log("[Chart] Series created successfully.");
+
     // Generate Dummy SuperTrend Data matching the input `data` length
     if (data.length > 0) {
       // Map existing historical data for indicators
@@ -293,6 +377,64 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         alligatorJaw.setData(jaw);
         alligatorTeeth.setData(teeth);
         alligatorLips.setData(lips);
+      }
+
+      // Populate historical data for Sub-indicators
+      if (volumeSeriesRef.current) {
+        const volData = data.map(d => ({
+          time: d.time,
+          value: d.volume,
+          color: d.close >= d.open ? 'rgba(0, 229, 255, 0.4)' : 'rgba(255, 0, 127, 0.4)'
+        }));
+        volumeSeriesRef.current.setData(volData);
+      }
+
+      if (rsiSeriesRef.current) {
+        const rsiD = data.filter(d => d.rsi != null).map(d => ({ time: d.time, value: d.rsi }));
+        rsiSeriesRef.current.setData(rsiD);
+      }
+
+      if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
+        const mD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
+        const sD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.signal }));
+        const hD = data.filter(d => d.macd != null).map(d => ({
+          time: d.time,
+          value: d.macd.histogram,
+          color: d.macd.histogram >= 0 ? 'rgba(0, 229, 255, 0.5)' : 'rgba(255, 0, 127, 0.5)'
+        }));
+        macdSeriesRef.current.setData(mD);
+        macdSignalRef.current.setData(sD);
+        macdHistRef.current.setData(hD);
+      }
+
+      if (atrSeriesRef.current) {
+        const atrD = data.filter(d => d.atr != null).map(d => ({ time: d.time, value: d.atr }));
+        atrSeriesRef.current.setData(atrD);
+      }
+
+      if (wrSeriesRef.current) {
+        const wrD = data.filter(d => d.wr != null).map(d => ({ time: d.time, value: d.wr }));
+        wrSeriesRef.current.setData(wrD);
+      }
+
+      if (obvSeriesRef.current) {
+        const obvD = data.filter(d => d.obv != null).map(d => ({ time: d.time, value: d.obv }));
+        obvSeriesRef.current.setData(obvD);
+      }
+
+      if (stochKRef.current && stochDRef.current) {
+        const skD = data.filter(d => d.stochRsi != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
+        // Dummy D for stochRsi if not provided (mapping stochRsi to stoch)
+        stochKRef.current.setData(skD);
+      }
+
+      if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
+        const kD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.k }));
+        const dD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.d }));
+        const jD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.j }));
+        kdjKRef.current.setData(kD);
+        kdjDRef.current.setData(dD);
+        kdjJRef.current.setData(jD);
       }
 
       let trend = 1;
@@ -366,6 +508,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     // Subscribe to crosshair movement to update OHLC floating card
     chart.subscribeCrosshairMove((param) => {
+      // For Crosshair Intersection Dot & Active Candle Highlight
+      if (param.point && param.time) {
+        setCrosshairPos({ x: param.point.x, y: param.point.y });
+        const xCoord = chart.timeScale().timeToCoordinate(param.time);
+        setHoveredCandleX(xCoord);
+      } else {
+        setCrosshairPos(null);
+        setHoveredCandleX(null);
+      }
+
       if (param.time && param.seriesData.size > 0 && candlestickSeries && param.point) {
         const hoveredData = param.seriesData.get(candlestickSeries) as any;
         const srcData = data.find(d => d.time === hoveredData?.time);
@@ -520,6 +672,25 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             if (lastValid.alligator.teeth !== null) alligatorTeethRef.current.update({ time: t, value: lastValid.alligator.teeth });
             if (lastValid.alligator.lips !== null) alligatorLipsRef.current.update({ time: t, value: lastValid.alligator.lips });
           }
+          // Closed candle sub-indicator updates
+          if (volumeSeriesRef.current && lastValid.volume) {
+            volumeSeriesRef.current.update({ time: t, value: lastValid.volume, color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' });
+          }
+          if (rsiSeriesRef.current && lastValid.rsi) rsiSeriesRef.current.update({ time: t, value: lastValid.rsi });
+          if (macdSeriesRef.current && lastValid.macd) {
+            macdSeriesRef.current.update({ time: t, value: lastValid.macd.macd });
+            macdSignalRef.current.update({ time: t, value: lastValid.macd.signal });
+            macdHistRef.current.update({ time: t, value: lastValid.macd.histogram, color: lastValid.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' });
+          }
+          if (atrSeriesRef.current && lastValid.atr) atrSeriesRef.current.update({ time: t, value: lastValid.atr });
+          if (wrSeriesRef.current && lastValid.wr) wrSeriesRef.current.update({ time: t, value: lastValid.wr });
+          if (obvSeriesRef.current && lastValid.obv) obvSeriesRef.current.update({ time: t, value: lastValid.obv });
+          if (stochKRef.current && lastValid.stochRsi) stochKRef.current.update({ time: t, value: lastValid.stochRsi.stochRSI });
+          if (kdjKRef.current && lastValid.kdj) {
+            kdjKRef.current.update({ time: t, value: lastValid.kdj.k });
+            kdjDRef.current.update({ time: t, value: lastValid.kdj.d });
+            kdjJRef.current.update({ time: t, value: lastValid.kdj.j });
+          }
         }
 
         // Update SuperTrend series (dummy logic)
@@ -567,6 +738,35 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             bollUpperRef.current.update({ time: t, value: lastValid.boll.upper });
             bollMiddleRef.current.update({ time: t, value: lastValid.boll.middle });
             bollLowerRef.current.update({ time: t, value: lastValid.boll.lower });
+          }
+          // Realtime tick extension for Sub-indicators
+          if (volumeSeriesRef.current && lastValid.volume) {
+            volumeSeriesRef.current.update({ 
+               time: t, 
+               value: lastValid.volume, 
+               color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' 
+            });
+          }
+          if (rsiSeriesRef.current && lastValid.rsi) rsiSeriesRef.current.update({ time: t, value: lastValid.rsi });
+          if (macdSeriesRef.current && lastValid.macd) {
+            macdSeriesRef.current.update({ time: t, value: lastValid.macd.macd });
+            macdSignalRef.current.update({ time: t, value: lastValid.macd.signal });
+            macdHistRef.current.update({ 
+              time: t, 
+              value: lastValid.macd.histogram,
+              color: lastValid.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
+            });
+          }
+          if (atrSeriesRef.current && lastValid.atr) atrSeriesRef.current.update({ time: t, value: lastValid.atr });
+          if (wrSeriesRef.current && lastValid.wr) wrSeriesRef.current.update({ time: t, value: lastValid.wr });
+          if (obvSeriesRef.current && lastValid.obv) obvSeriesRef.current.update({ time: t, value: lastValid.obv });
+          if (stochKRef.current && lastValid.stochRsi) {
+            stochKRef.current.update({ time: t, value: lastValid.stochRsi.stochRSI });
+          }
+          if (kdjKRef.current && lastValid.kdj) {
+            kdjKRef.current.update({ time: t, value: lastValid.kdj.k });
+            kdjDRef.current.update({ time: t, value: lastValid.kdj.d });
+            kdjJRef.current.update({ time: t, value: lastValid.kdj.j });
           }
         }
 
@@ -646,11 +846,14 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     return () => {
       resizeObserver.disconnect();
-      chart.remove();
+      if (chart) chart.remove();
       ws.close();
-      clearInterval(timerInterval);
+      if (timerInterval) clearInterval(timerInterval);
       cancelAnimationFrame(animationFrameId);
     };
+    } catch (err) {
+      console.error("[Chart] Error during chart initialization:", err);
+    }
   }, [symbol, chartInterval]);
 
   // Toggle visibility of overlays instantly when prop changes
@@ -667,9 +870,75 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
     const isAlligator = mainIndicator === 'ALLIGATOR';
     if (alligatorJawRef.current) alligatorJawRef.current.applyOptions({ visible: isAlligator });
-    if (alligatorTeethRef.current) alligatorTeethRef.current.applyOptions({ visible: isAlligator });
     if (alligatorLipsRef.current) alligatorLipsRef.current.applyOptions({ visible: isAlligator });
   }, [mainIndicator]);
+
+  // Handle Sub-Indicator Visibility and Scale Margins
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    // 1. Toggle Visibility
+    const has = (id: string) => subIndicators.includes(id);
+    if (volumeSeriesRef.current) volumeSeriesRef.current.applyOptions({ visible: has('VOL') });
+    if (rsiSeriesRef.current) rsiSeriesRef.current.applyOptions({ visible: has('RSI') });
+    if (macdSeriesRef.current) {
+        macdSeriesRef.current.applyOptions({ visible: has('MACD') });
+        macdSignalRef.current.applyOptions({ visible: has('MACD') });
+        macdHistRef.current.applyOptions({ visible: has('MACD') });
+    }
+    if (atrSeriesRef.current) atrSeriesRef.current.applyOptions({ visible: has('ATR') });
+    if (wrSeriesRef.current) wrSeriesRef.current.applyOptions({ visible: has('WR') });
+    if (obvSeriesRef.current) obvSeriesRef.current.applyOptions({ visible: has('OBV') });
+    if (stochKRef.current) {
+        stochKRef.current.applyOptions({ visible: has('STOCH') });
+        stochDRef.current.applyOptions({ visible: has('STOCH') });
+    }
+    if (kdjKRef.current) {
+        kdjKRef.current.applyOptions({ visible: has('KDJ') });
+        kdjDRef.current.applyOptions({ visible: has('KDJ') });
+        kdjJRef.current.applyOptions({ visible: has('KDJ') });
+    }
+
+    // 2. Dynamically allocate vertical space
+    const numSub = subIndicators.length;
+    if (numSub === 0) {
+      chartRef.current.priceScale('right').applyOptions({ scaleMargins: { top: 0.1, bottom: 0.02 } });
+      return;
+    }
+
+    const subHeight = 0.16; // 16% height per indicator
+    const totalSubHeight = numSub * subHeight;
+    const gap = 0.02;
+
+    // Shrink main chart from bottom
+    chartRef.current.priceScale('right').applyOptions({
+      scaleMargins: { top: 0.05, bottom: totalSubHeight + gap }
+    });
+
+    // Positions for each sub-scale
+    subIndicators.forEach((id, i) => {
+      let scaleId = 'volume';
+      if (id === 'VOL') scaleId = 'volume';
+      else if (id === 'RSI') scaleId = 'rsi';
+      else if (id === 'MACD') scaleId = 'macd';
+      else if (id === 'ATR') scaleId = 'atr';
+      else if (id === 'WR') scaleId = 'wr';
+      else if (id === 'OBV') scaleId = 'obv';
+      else if (id === 'STOCH') scaleId = 'stoch';
+      else if (id === 'KDJ') scaleId = 'kdj';
+
+      const sTop = 1 - totalSubHeight + (i * subHeight) + gap;
+      const sBottom = 1 - (1 - totalSubHeight + ((i+1) * subHeight));
+
+      try {
+        chartRef.current.priceScale(scaleId).applyOptions({
+          scaleMargins: { top: sTop, bottom: sBottom },
+          visible: true,
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+        });
+      } catch(e) {}
+    });
+  }, [subIndicators]);
 
   // Handle Dynamic style config changes
   useEffect(() => {
@@ -721,8 +990,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   // Update data without recreating the chart
   useEffect(() => {
-    if (seriesRef.current && data.length > 0) {
-      seriesRef.current.setData(data);
+    try {
+      if (seriesRef.current && data.length > 0) {
+        seriesRef.current.setData(data);
 
       if (emaSeriesRef.current) {
         const emaData = data.filter(d => d.ema200 !== undefined).map(d => ({ time: d.time, value: d.ema200 }));
@@ -757,6 +1027,54 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         alligatorLipsRef.current.setData(lipsData);
       }
 
+      if (volumeSeriesRef.current) {
+        volumeSeriesRef.current.setData(data.map(d => ({
+          time: d.time,
+          value: d.volume,
+          color: d.close >= d.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
+        })));
+      }
+      if (rsiSeriesRef.current) {
+        const rsiD = data.filter(d => d.rsi != null).map(d => ({ time: d.time, value: d.rsi }));
+        rsiSeriesRef.current.setData(rsiD);
+      }
+      if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
+        const mD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
+        const sD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.signal }));
+        const hD = data.filter(d => d.macd != null).map(d => ({
+          time: d.time,
+          value: d.macd.histogram,
+          color: d.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
+        }));
+        macdSeriesRef.current.setData(mD);
+        macdSignalRef.current.setData(sD);
+        macdHistRef.current.setData(hD);
+      }
+      if (atrSeriesRef.current) {
+        const atrD = data.filter(d => d.atr != null).map(d => ({ time: d.time, value: d.atr }));
+        atrSeriesRef.current.setData(atrD);
+      }
+      if (wrSeriesRef.current) {
+        const wrD = data.filter(d => d.wr != null).map(d => ({ time: d.time, value: d.wr }));
+        wrSeriesRef.current.setData(wrD);
+      }
+      if (obvSeriesRef.current) {
+        const obvD = data.filter(d => d.obv != null).map(d => ({ time: d.time, value: d.obv }));
+        obvSeriesRef.current.setData(obvD);
+      }
+      if (stochKRef.current && stochDRef.current) {
+        const skD = data.filter(d => d.stochRsi != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
+        stochKRef.current.setData(skD);
+      }
+      if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
+        const kD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.k }));
+        const dD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.d }));
+        const jD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.j }));
+        kdjKRef.current.setData(kD);
+        kdjDRef.current.setData(dD);
+        kdjJRef.current.setData(jD);
+      }
+
       if (supertrendSeriesRef.current) {
         let trend = 1;
         let st = data[0]?.close || 0;
@@ -777,13 +1095,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         supertrendSeriesRef.current.setData(stData);
       }
 
-      if (mainLineSeriesRef.current) {
-        mainLineSeriesRef.current.setData(data.map((d: any) => ({ time: d.time, value: d.close })));
       }
-
-      // Price lines are now only created when showAvgLines is toggled on (see effect below)
-      const currentPr = data[data.length - 1].close;
-      setAvgPositions(prev => ({ ...prev, buyPrice: prev.buyPrice || currentPr * 0.99, sellPrice: prev.sellPrice || currentPr * 1.01 }));
+    } catch (err) {
+      console.error("[Chart] Error during data update:", err);
     }
   }, [data]);
 
@@ -1189,7 +1503,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           }}
         >
           {/* Cyberpunk Floating Card */}
-          <div className="flex flex-col gap-1.5 bg-[#0b1622]/95 backdrop-blur-2xl rounded-lg p-2.5 border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] w-[115px]">
+          <div className="flex flex-col gap-1.5 glass-tooltip p-2.5 w-[115px]">
             {/* Header / Date */}
             <div className="text-white/60 text-[9px] font-black tracking-widest uppercase border-b border-white/10 pb-1.5 mb-0.5 text-center">
               {(typeof crosshairData.time === 'number') 
@@ -1201,12 +1515,14 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             {(['open', 'high', 'low', 'close'] as const).map((key) => {
               const val = crosshairData[key];
               const isUp = crosshairData.close >= crosshairData.open;
-              const colorClass = isUp ? 'text-[#00E676] drop-shadow-[0_0_4px_rgba(0,230,118,0.4)]' : 'text-[#FF1744] drop-shadow-[0_0_4px_rgba(255,23,68,0.4)]';
+              const colorClass = key === 'close' 
+                ? (isUp ? 'neon-text-cyan' : 'neon-text-magenta') 
+                : 'text-white';
               
               return (
                 <div key={key} className="flex justify-between items-center text-[10px] font-mono leading-tight">
                   <span className="text-[#848e9c] font-bold tracking-wider capitalize">{key}</span>
-                  <span className={`font-black ${key === 'close' ? colorClass : 'text-white'}`}>
+                  <span className={`font-black ${colorClass}`}>
                     {val.toFixed(2)}
                   </span>
                 </div>
@@ -1241,11 +1557,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* ── Brand Watermark 2050 ─────────────────────────────── */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[1]">
         <div className="flex flex-col items-center gap-2">
-          <span className="text-[72px] md:text-[110px] font-black tracking-[0.4em] uppercase bg-clip-text text-transparent bg-gradient-to-b from-white/[0.04] to-transparent">MOBEEN</span>
+          <span 
+            className="text-[72px] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-20"
+            style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
+          >
+            MOBEEN
+          </span>
           <div className="flex items-center gap-3">
-            <div className="h-px w-8 bg-gradient-to-r from-transparent to-white/10" />
-            <span className="text-[10px] md:text-[12px] font-bold text-white/[0.08] tracking-[0.8em] uppercase">CryptoBot Terminal</span>
-            <div className="h-px w-8 bg-gradient-to-l from-transparent to-white/10" />
+            <div className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--holo-cyan)]" />
+            <span className="text-[10px] md:text-[12px] font-bold text-[var(--holo-cyan)] opacity-40 tracking-[0.8em] uppercase">CryptoBot Terminal</span>
+            <div className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--holo-magenta)]" />
           </div>
         </div>
       </div>
@@ -1257,21 +1578,21 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
         >
           {/* Price + Timer combined label with glassmorphism stack */}
-          <div className={`flex flex-col items-end rounded-l-md overflow-hidden backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-r-0 ${candleCountdown.isUp ? 'bg-[#00E676]/15 border-[#00E676]/30 shadow-[#00E676]/20' : 'bg-[#FF1744]/15 border-[#FF1744]/30 shadow-[#FF1744]/20'}`}>
+          <div className={`flex flex-col items-end rounded-l-md overflow-hidden backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-r-0 ${candleCountdown.isUp ? 'bg-[#00E5FF]/15 border-[#00E5FF]/30 shadow-[#00E5FF]/20' : 'bg-[#FF007F]/15 border-[#FF007F]/30 shadow-[#FF007F]/20'}`}>
             
             {/* Price section */}
-            <div className={`px-2 py-[2px] w-full text-right ${candleCountdown.isUp ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>
+            <div className={`px-2 py-[2px] w-full text-right ${candleCountdown.isUp ? 'neon-text-cyan' : 'neon-text-magenta'}`}>
               <span className="text-[10px] font-mono font-black tracking-widest drop-shadow-[0_0_8px_currentColor]">
                 {candleCountdown.price.toFixed(2)}
               </span>
             </div>
 
             {/* Timer section with separator */}
-            <div className={`flex items-center gap-1 px-2 py-[2px] w-full justify-end border-t ${candleCountdown.isUp ? 'border-[#00E676]/20 bg-[#00E676]/5' : 'border-[#FF1744]/20 bg-[#FF1744]/5'}`}>
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#00E676' : '#FF1744'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-90 drop-shadow-[0_0_4px_currentColor]">
+            <div className={`flex items-center gap-1 px-2 py-[2px] w-full justify-end border-t ${candleCountdown.isUp ? 'border-[#00E5FF]/20 bg-[#00E5FF]/5' : 'border-[#FF007F]/20 bg-[#FF007F]/5'}`}>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={candleCountdown.isUp ? '#00E5FF' : '#FF007F'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-90 drop-shadow-[0_0_4px_currentColor]">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              <span className={`text-[9px] font-mono font-bold tracking-widest drop-shadow-[0_0_4px_currentColor] ${candleCountdown.isUp ? 'text-[#00E676]' : 'text-[#FF1744]'}`}>
+              <span className={`text-[9px] font-mono font-bold tracking-widest drop-shadow-[0_0_4px_currentColor] ${candleCountdown.isUp ? 'text-[#00E5FF]' : 'text-[#FF007F]'}`}>
                 {candleCountdown.text}
               </span>
             </div>
@@ -1310,6 +1631,24 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         activeTool={activeTool}
         onToolChange={setActiveTool}
       />
+
+      {/* ── Active Candle Highlight Aura ── */}
+      {hoveredCandleX !== null && (
+        <div 
+          className="absolute top-0 bottom-0 z-[5] pointer-events-none bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/10 to-transparent w-[12px]"
+          style={{ left: hoveredCandleX - 6 }} 
+        />
+      )}
+
+      {/* ── Holographic Crosshair Intersection ── */}
+      {crosshairPos !== null && (
+        <div 
+          className="absolute z-[21] pointer-events-none w-3 h-3 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_15px_var(--holo-cyan),inset_0_0_4px_white] -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
+          style={{ left: crosshairPos.x, top: crosshairPos.y }}
+        >
+          <div className="absolute inset-0 rounded-full animate-ping bg-[var(--holo-cyan)] opacity-20" />
+        </div>
+      )}
 
       {/* Chart Canvas */}
       <div ref={chartContainerRef} className="w-full h-full relative z-0" />

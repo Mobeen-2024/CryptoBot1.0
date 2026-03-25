@@ -392,7 +392,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#0b0e11] text-[#eaecef] font-sans selection:bg-[#fcd535]/20 selection:text-white flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-2050-gradient text-[#eaecef] font-sans selection:bg-[var(--holo-cyan)]/20 selection:text-white flex flex-col">
       <Toaster 
         position="bottom-right" 
         toastOptions={{
@@ -403,7 +403,7 @@ export default function App() {
       />
 
       {/* ═══════════════════════════ HEADER ═══════════════════════════ */}
-      <header className="border-b border-[#2b3139] bg-[#181a20] px-2 sm:px-3 md:px-5 py-1.5 sm:py-0 flex flex-wrap sm:flex-nowrap items-center justify-between sticky top-0 z-50 sm:h-14 shrink-0 gap-y-1">
+      <header className="glass-panel border-b border-white/5 px-2 sm:px-3 md:px-5 py-1.5 sm:py-0 flex flex-wrap sm:flex-nowrap items-center justify-between sticky top-0 z-50 sm:h-14 shrink-0 gap-y-1">
         {/* Left: Logo + Pair + Price */}
         <div className="flex items-center gap-2 sm:gap-3 md:gap-5 h-full min-w-0">
           {/* Logo */}
@@ -526,13 +526,11 @@ export default function App() {
           
           {/* Chart Panel */}
           <div 
-            className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] panel-surface flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300"
-            style={{ backgroundColor: chartConfig.global.background }}
+            className="h-[350px] sm:h-[450px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300"
           >
             {/* Chart Toolbar: Command Center */}
             <div 
-              className="px-2 py-1.5 border-b border-[#2b3139] flex items-center justify-between shrink-0 transition-colors duration-300 relative z-20"
-              style={{ backgroundColor: chartConfig.global.background === '#ffffff' ? '#f0f2f5' : '#181a20' }}
+              className="px-2 py-1.5 border-b border-white/5 flex items-center justify-between shrink-0 transition-colors duration-300 relative z-20"
             >
               <div className="flex items-center gap-1 sm:gap-4 overflow-hidden">
                 {/* Resolution Strip */}

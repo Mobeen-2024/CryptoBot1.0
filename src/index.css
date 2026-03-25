@@ -31,6 +31,14 @@
   --sl-red: #f6465d;
   --primary-yellow: #fcd535;
   --shadow-glow: 0 4px 20px rgba(252, 213, 53, 0.2);
+
+  /* --- 2050 Holo-Sync Variables --- */
+  --holo-cyan: #00E5FF;
+  --holo-cyan-glow: rgba(0, 229, 255, 0.4);
+  --holo-magenta: #FF007F;
+  --holo-magenta-glow: rgba(255, 0, 127, 0.4);
+  --glass-bg: rgba(5, 11, 20, 0.6);
+  --glass-border: rgba(0, 229, 255, 0.15);
 }
 
 /* ─── Base ─────────────────────────────────────────────────────── */
@@ -153,4 +161,77 @@ input[type="number"] {
 .hover-lift:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+/* ─── 2050 Cyberpunk Glassmorphism & Neon ────────────────────────── */
+
+/* Dynamic Background */
+@keyframes bg-pan {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.bg-2050-gradient {
+  background: linear-gradient(-45deg, #050b14, #0a192f, #0d1117, #001220);
+  background-size: 400% 400%;
+  animation: bg-pan 30s ease infinite;
+}
+
+/* Base Glass Panel */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 229, 255, 0.02);
+}
+
+/* Super Glass Tooltip */
+.glass-tooltip {
+  background: rgba(11, 22, 34, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.15), inset 0 0 10px rgba(0, 229, 255, 0.05);
+  border-radius: 8px;
+}
+
+/* Glowing Neon Text */
+.neon-text-cyan {
+  color: var(--holo-cyan);
+  text-shadow: 0 0 5px var(--holo-cyan-glow), 0 0 15px var(--holo-cyan-glow);
+}
+.neon-text-magenta {
+  color: var(--holo-magenta);
+  text-shadow: 0 0 5px var(--holo-magenta-glow), 0 0 15px var(--holo-magenta-glow);
+}
+
+/* Glowing Border Elements */
+.neon-border {
+  position: relative;
+}
+.neon-border::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px; right: -1px; bottom: -1px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, var(--holo-cyan), transparent, var(--holo-magenta));
+  z-index: -1;
+  opacity: 0.5;
+  filter: blur(3px);
+  animation: pulse-border 4s linear infinite;
+}
+@keyframes pulse-border {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+/* Watermark SVG Gradient Animation */
+@keyframes hue-rotate-svg {
+  0% { filter: hue-rotate(0deg); opacity: 0.03; }
+  50% { filter: hue-rotate(90deg); opacity: 0.06; }
+  100% { filter: hue-rotate(0deg); opacity: 0.03; }
+}
+.watermark-2050 {
+  animation: hue-rotate-svg 10s infinite alternate linear;
+  fill: url(#watermark-gradient);
 }
