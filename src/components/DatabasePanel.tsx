@@ -149,7 +149,7 @@ export const DatabasePanel: React.FC = () => {
             {/* Quick Metrics */}
             <div className="hidden sm:flex flex-col justify-center px-4 py-1.5 bg-[#1E293B]/40 border border-[#334155]/50 rounded-xl backdrop-blur-md">
                <span className="text-[9px] uppercase tracking-widest text-[#64748B] font-bold">Total Volume</span>
-               <span className="text-xs font-mono font-bold text-[#FCD535]">${totalVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+               <span className="text-xs font-mono font-bold text-[var(--holo-gold)]">${totalVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="hidden sm:flex flex-col justify-center px-4 py-1.5 bg-[#1E293B]/40 border border-[#334155]/50 rounded-xl backdrop-blur-md">
                <span className="text-[9px] uppercase tracking-widest text-[#64748B] font-bold">Executions</span>
@@ -325,7 +325,7 @@ export const DatabasePanel: React.FC = () => {
                     </div>
 
                     {/* Price */}
-                    <div className="col-span-1 text-right font-mono text-[11px] text-[#FCD535]">
+                    <div className="col-span-1 text-right font-mono text-[11px] text-[var(--holo-gold)]">
                       ${parseFloat(t.price).toLocaleString()}
                     </div>
 

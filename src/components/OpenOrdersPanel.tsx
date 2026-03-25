@@ -50,9 +50,9 @@ export const OpenOrdersPanel: React.FC<{ symbol?: string }> = ({ symbol }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0b0e11] overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-[#0d1117] shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-black/20 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)] animate-pulse" />
           <span className="text-[11px] font-bold uppercase tracking-widest text-white">Open Orders</span>
@@ -95,7 +95,7 @@ export const OpenOrdersPanel: React.FC<{ symbol?: string }> = ({ symbol }) => {
               <div key={order.id} className="grid grid-cols-6 items-center px-4 py-2.5 border-b border-white/[0.03] hover:bg-white/[0.02] transition-all group">
                 <span className="text-[11px] font-mono font-bold text-gray-200">{order.symbol?.replace('/', '') || '—'}</span>
                 <span className="text-[9px] font-mono font-bold text-gray-500 uppercase">{getTypeBadge(order.type)}</span>
-                <span className={`text-[10px] font-bold uppercase ${isBuy ? 'text-emerald-400' : 'text-rose-400'}`}>{order.side?.toUpperCase()}</span>
+                <span className={`text-[10px] font-bold uppercase ${isBuy ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{order.side?.toUpperCase()}</span>
                 <span className="text-[11px] font-mono text-gray-300 text-right">
                   {price > 0 ? price.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}
                 </span>
@@ -105,7 +105,7 @@ export const OpenOrdersPanel: React.FC<{ symbol?: string }> = ({ symbol }) => {
                 <div className="flex justify-end">
                   <button
                     onClick={() => cancelOrder(order.id)}
-                    className="text-[9px] font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 hover:border-rose-500/50 transition-all opacity-0 group-hover:opacity-100"
+                    className="text-[9px] font-bold px-2 py-0.5 rounded bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border border-[var(--holo-magenta)]/20 hover:bg-[var(--holo-magenta)]/20 hover:border-[var(--holo-magenta)]/50 transition-all opacity-0 group-hover:opacity-100 shadow-[0_0_10px_var(--holo-magenta-glow)]"
                   >
                     Cancel
                   </button>

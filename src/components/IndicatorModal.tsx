@@ -85,12 +85,12 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
                   <button
                     key={ind.id}
                     onClick={() => setMain(isActive ? null : ind.id)}
-                    className={`relative p-2 py-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${isActive ? 'bg-[#fcd535]/10 border-[#fcd535] text-[#fcd535] shadow-[inset_0_0_15px_rgba(252,213,53,0.1)]' : 'bg-black/30 border-white/5 text-[#848e9c] hover:bg-white/5 hover:text-white'}`}
+                    className={`relative p-2 py-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${isActive ? 'bg-[var(--holo-gold)]/10 border-[var(--holo-gold)] text-[var(--holo-gold)] shadow-[inset_0_0_15px_rgba(252,213,53,0.1)]' : 'bg-black/30 border-white/5 text-[#848e9c] hover:bg-white/5 hover:text-white'}`}
                     title={ind.desc}
                   >
                     <span className="font-bold text-[11px] tracking-widest">{ind.title}</span>
                     {isActive && (
-                      <div className="absolute -top-1.5 -right-1.5 bg-[#fcd535] text-black w-4 h-4 rounded-full flex items-center justify-center shadow-[0_0_10px_#fcd535]">
+                      <div className="absolute -top-1.5 -right-1.5 bg-[var(--holo-gold)] text-black w-4 h-4 rounded-full flex items-center justify-center shadow-[0_0_10px_#fcd535]">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                       </div>
                     )}
@@ -142,3 +142,4 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
     </div>
   )
 }
+

@@ -37,8 +37,10 @@
   --holo-cyan-glow: rgba(0, 229, 255, 0.4);
   --holo-magenta: #FF007F;
   --holo-magenta-glow: rgba(255, 0, 127, 0.4);
-  --glass-bg: rgba(5, 11, 20, 0.6);
-  --glass-border: rgba(0, 229, 255, 0.15);
+  --holo-gold: #fcd535;
+  --holo-gold-glow: rgba(252, 213, 53, 0.4);
+  --glass-bg: rgba(5, 11, 20, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.08);
 }
 
 /* ─── Base ─────────────────────────────────────────────────────── */
@@ -273,4 +275,67 @@ input[type="number"] {
 .watermark-2050 {
   animation: hue-rotate-svg 10s infinite alternate linear;
   fill: url(#watermark-gradient);
+}
+
+/* ─── 2050 Extreme Institutional Overlays ────────────────────────── */
+.scan-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+  background-size: 100% 4px;
+  opacity: 0.4;
+  z-index: 50;
+}
+
+.noise-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opactiy='0.05'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  z-index: 49;
+}
+
+.grid-pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 20px 20px;
+  z-index: 0;
+}
+
+/* Futuristic App Range Slider */
+.range-slider-holo {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  outline: none;
+}
+.range-slider-holo::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.1);
+  border-radius: 99px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+.range-slider-holo::-webkit-slider-thumb {
+  height: 16px;
+  width: 8px;
+  border-radius: 4px;
+  background: var(--holo-cyan);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  box-shadow: 0 0 10px var(--holo-cyan-glow);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.range-slider-holo::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px var(--holo-cyan-glow), 0 0 5px white;
 }

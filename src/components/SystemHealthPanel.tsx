@@ -72,7 +72,7 @@ export const SystemHealthPanel: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <Server className="w-4 h-4 text-[#fcd535]" />
+          <Server className="w-4 h-4 text-[var(--holo-gold)]" />
           <span className="text-[11px] font-bold text-[#eaecef] uppercase tracking-widest">System Health Monitor</span>
         </div>
         <div className="flex items-center gap-1.5 bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/20 rounded-lg px-2 py-1">
@@ -91,10 +91,14 @@ export const SystemHealthPanel: React.FC = () => {
 
       {/* Memory Gauges */}
       <div className="bg-black/40 border border-white/10 rounded-xl p-3 mb-4">
-        <h4 className="text-[10px] text-[#5e6673] uppercase tracking-widest font-bold mb-3">Memory Allocation</h4>
-        <div className="space-y-2.5">
-          <MiniGauge label="Heap" value={info.memory.heapUsed} max={info.memory.heapTotal} color="#bc13fe" />
-          <MiniGauge label="RSS" value={info.memory.rss} max={info.os.totalMemMB} color="#fcd535" />
+        <StatCard label="Uptime" value={info.uptime} icon={<Clock className="w-3.5 h-3.5" />} color="var(--holo-gold)" />
+      </div>
+
+      <div className="space-y-4">
+        {/* Memory Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <MiniGauge label="Heap Used" value={info.memory.heapUsed} max={info.memory.heapTotal} color="var(--holo-cyan)" />
+          <MiniGauge label="RSS" value={info.memory.rss} max={info.os.totalMemMB} color="var(--holo-gold)" />
           <MiniGauge label="System RAM" value={info.os.totalMemMB - info.os.freeMemMB} max={info.os.totalMemMB} color="var(--holo-cyan)" />
         </div>
       </div>
@@ -126,3 +130,4 @@ export const SystemHealthPanel: React.FC = () => {
     </div>
   );
 };
+

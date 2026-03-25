@@ -251,7 +251,7 @@ export function CurrentPositions() {
                     {isLong ? 'LONG' : 'SHORT'}
                   </span>
                   {marginTag && (
-                    <span className="text-[10px] text-[#fcd535] bg-[#fcd535]/10 px-1.5 py-0.5 rounded font-mono border border-[#fcd535]/20">{marginTag}</span>
+                    <span className="text-[10px] text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 px-1.5 py-0.5 rounded font-mono border border-[var(--holo-gold)]/20">{marginTag}</span>
                   )}
                 </div>
 
@@ -289,7 +289,7 @@ export function CurrentPositions() {
                     <span className="text-[13px] font-bold font-mono text-[#eaecef]">{pos.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="text-[#848e9c] text-[10px]">Entry / Mark:</span>
-                      <span className="text-[11px] font-mono text-[#eaecef]">{pos.averageEntryPrice.toFixed(2)} / <span className="text-[#fcd535]">{livePrc.toFixed(2)}</span></span>
+                      <span className="text-[11px] font-mono text-[#eaecef]">{pos.averageEntryPrice.toFixed(2)} / <span className="text-[var(--holo-gold)]">{livePrc.toFixed(2)}</span></span>
                     </div>
                   </div>
                 </div>
@@ -631,7 +631,7 @@ export function CurrentPositions() {
               <div className="relative px-5 pt-5 pb-4 border-b border-[#2b3139]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#fcd535]/10 flex items-center justify-center text-[#fcd535]">
+                    <div className="w-9 h-9 rounded-xl bg-[var(--holo-gold)]/10 flex items-center justify-center text-[var(--holo-gold)]">
                       <Briefcase className="w-5 h-5" />
                     </div>
                     <div>
@@ -669,8 +669,8 @@ export function CurrentPositions() {
                     </div>
                   </div>
                   <div className="relative w-full h-8 flex items-center">
-                    <input type="range" min="1" max="125" step="1" value={leverageValue} onChange={e => setLeverageValue(parseInt(e.target.value))} className="w-full relative z-10 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-runnable-track]:bg-[#2b3139] [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-[#fcd535] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(252,213,53,0.5)]" />
-                    <div className="absolute left-0 h-1.5 bg-[#fcd535] rounded-l-full z-0 pointer-events-none" style={{ width: `${((leverageValue - 1) / 124) * 100}%` }} />
+                    <input type="range" min="1" max="125" step="1" value={leverageValue} onChange={e => setLeverageValue(parseInt(e.target.value))} className="w-full relative z-10 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-runnable-track]:bg-[#2b3139] [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-[var(--holo-gold)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:shadow-[0_0_10px_var(--holo-gold-glow)]" />
+                    <div className="absolute left-0 h-1.5 bg-[var(--holo-gold)] rounded-l-full z-0 pointer-events-none" style={{ width: `${((leverageValue - 1) / 124) * 100}%` }} />
                   </div>
                   <div className="flex justify-between mt-1 px-1">
                     {[1, 10, 20, 50, 100, 125].map(val => (
@@ -683,7 +683,7 @@ export function CurrentPositions() {
 
               {/* Footer */}
               <div className="px-5 pb-5 pt-1 space-y-3">
-                <button onClick={executeLeverageChange} disabled={isSubmittingLeverage} className={`w-full py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2.5 transition-all duration-150 ${isSubmittingLeverage ? 'bg-[#2b3139] text-[#474d57] cursor-not-allowed' : 'bg-[#fcd535] hover:bg-[#f0c800] active:scale-[0.98] text-[#0b0e11] shadow-[0_4px_24px_rgba(252,213,53,0.3)] hover:shadow-[0_6px_32px_rgba(252,213,53,0.45)]'}`}>
+                <button onClick={executeLeverageChange} disabled={isSubmittingLeverage} className={`w-full py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2.5 transition-all duration-150 ${isSubmittingLeverage ? 'bg-[#2b3139] text-[#474d57] cursor-not-allowed' : 'bg-[var(--holo-gold)] hover:brightness-110 active:scale-[0.98] text-[#0b0e11] shadow-[0_4px_24px_var(--holo-gold-glow)] hover:shadow-[0_6px_32px_var(--holo-gold-glow)]'}`}>
                   {isSubmittingLeverage ? <><RefreshCw className="w-4 h-4 animate-spin" /> Updating…</> : 'Confirm Adjustment'}
                 </button>
               </div>

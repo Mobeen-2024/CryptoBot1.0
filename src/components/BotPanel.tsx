@@ -47,7 +47,7 @@ const StatusBadge: React.FC<{ status: BotStatus | 'connected' | 'disconnected' |
   const map: Record<string, { text: string; cls: string; dot: string }> = {
     running:      { text: 'ONLINE',      cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
     stopped:      { text: 'STANDBY',     cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
-    paused:       { text: 'SUSPENDED',   cls: 'bg-[#fcd535]/10 text-[#fcd535] border-[#fcd535]/30', dot: 'bg-[#fcd535]' },
+    paused:       { text: 'SUSPENDED',   cls: 'bg-[var(--holo-gold)]/10 text-[var(--holo-gold)] border-[var(--holo-gold)]/30', dot: 'bg-[var(--holo-gold)]' },
     error:        { text: 'FAIL',        cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
     connected:    { text: 'LINKED',      cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
     disconnected: { text: 'SEVERED',     cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
@@ -113,7 +113,7 @@ const APModal: React.FC<{ onClose: () => void; onSave: (ap: AccessPoint) => void
           <Field label="Public Key" icon={Zap}><Input type="password" placeholder="[ENCRYPTED_KEY_STRING]" value={form.apiKey} onChange={e => set('apiKey', e.target.value)} /></Field>
           <Field label="Private Secret" icon={ShieldCheck}><Input type="password" placeholder="[CLASSIFIED_SECRET]" value={form.apiSecret} onChange={e => set('apiSecret', e.target.value)} /></Field>
           
-          <div className="bg-[#fcd535]/10 border border-[#fcd535]/20 rounded-lg p-3 text-[10px] text-[#fcd535] flex gap-2 mt-4 font-mono uppercase tracking-widest">
+          <div className="bg-[var(--holo-gold)]/10 border border-[var(--holo-gold)]/20 rounded-lg p-3 text-[10px] text-[var(--holo-gold)] flex gap-2 mt-4 font-mono uppercase tracking-widest">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>Restrict API tokens to READ/TRADE execution only. Vault transfers explicitly denied.</span>
           </div>
@@ -208,8 +208,8 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
 
           {/* Variables */}
           <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-             <h4 className="text-[10px] text-[#fcd535] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-               <span className="w-2 h-2 bg-[#fcd535] animate-pulse" /> [03] execution_variables
+             <h4 className="text-[10px] text-[var(--holo-gold)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
+               <span className="w-2 h-2 bg-[var(--holo-gold)] animate-pulse" /> [03] execution_variables
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <Field label="Vol (USDT)"><Input type="number" value={cfg.orderVolume} onChange={e => set('orderVolume', +e.target.value)} /></Field>
@@ -540,3 +540,4 @@ export const BotPanel: React.FC = () => {
     </div>
   );
 };
+

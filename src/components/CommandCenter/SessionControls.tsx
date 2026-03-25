@@ -70,7 +70,7 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
           onClick={() => setEntryMode('SCHEDULED')} 
           className={`py-2.5 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 border ${
             entryMode === 'SCHEDULED' 
-              ? 'bg-[#FCD535]/15 border-[#FCD535]/40 text-[#FCD535] shadow-[0_4px_20px_rgba(252,213,53,0.15)] scale-[1.02]' 
+              ? 'bg-[var(--holo-gold)]/15 border-[var(--holo-gold)]/40 text-[var(--holo-gold)] shadow-[0_4px_20px_rgba(252,213,53,0.15)] scale-[1.02]' 
               : 'bg-white/[0.02] hover:bg-white/5 border-white/5 text-gray-400'
           }`}
         >
@@ -109,3 +109,4 @@ export const SessionControls: React.FC<SessionControlsProps> = ({
     </div>
   );
 };
+

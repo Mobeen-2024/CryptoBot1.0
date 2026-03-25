@@ -90,40 +90,40 @@ export function PerformanceChart() {
     return () => { socket.disconnect(); };
   }, []);
 
-  // 2035 Cyber Neon Palette
-  const colors = ['#00f0ff', '#39ff14', '#bc13fe', '#ff073a', '#fcd535'];
+  // 2035 Cyber Neon Palette (Using Hex for Recharts SVG compat)
+  const colors = ['#00E5FF', '#FF007F', '#fcd535', '#bc13fe', '#2962FF'];
 
   return (
-    <div className="bg-[#05070a] backdrop-blur-2xl rounded-xl border border-white/[0.05] overflow-hidden flex flex-col h-full relative shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+    <div className="glass-card backdrop-blur-2xl rounded-xl border border-white/[0.05] overflow-hidden flex flex-col h-full relative shadow-[0_0_40px_rgba(0,0,0,0.5)]">
       
       {/* Background Decorative Gradient Elements */}
-      <div className="absolute top-0 left-1/4 w-1/2 h-px bg-gradient-to-r from-transparent via-[#00f0ff]/50 to-transparent" />
-      <div className="absolute bottom-[-50%] left-[-10%] w-[120%] h-[100%] bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-[#00f0ff]/5 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/50 to-transparent" />
+      <div className="absolute bottom-[-50%] left-[-10%] w-[120%] h-[100%] bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-[var(--holo-cyan)]/5 via-transparent to-transparent pointer-events-none" />
 
       {/* Header HUD */}
       <div className="px-5 py-4 border-b border-white/[0.05] flex items-center justify-between bg-white/[0.01]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded border border-[#00f0ff]/30 bg-[#00f0ff]/10 flex items-center justify-center relative inner-glow">
-            <Activity className="w-4 h-4 text-[#00f0ff]" />
-            <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-[#00f0ff] animate-ping rounded-full" />
+          <div className="w-8 h-8 rounded border border-[var(--holo-cyan)]/30 bg-[var(--holo-cyan)]/10 flex items-center justify-center relative inner-glow">
+            <Activity className="w-4 h-4 text-[var(--holo-cyan)]" />
+            <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-[var(--holo-cyan)] animate-ping rounded-full" />
           </div>
           <div>
             <h2 className="text-[13px] font-black text-white tracking-[0.2em] uppercase">Tactical Analytics</h2>
             <p className="text-[10px] text-gray-500 font-mono tracking-widest mt-0.5">SYS.NET.FLOW_OVERVIEW // V2.0</p>
           </div>
         </div>
-        <button onClick={fetchAnalytics} className="flex items-center gap-2 px-3 py-1.5 rounded bg-white/[0.03] border border-white/[0.1] hover:bg-white/[0.1] hover:border-[#00f0ff]/50 transition-all group">
-          <RefreshCw className={`w-3.5 h-3.5 text-gray-400 group-hover:text-[#00f0ff] ${loading ? 'animate-spin text-[#00f0ff]' : ''}`} />
+        <button onClick={fetchAnalytics} className="flex items-center gap-2 px-3 py-1.5 rounded bg-white/[0.03] border border-white/[0.1] hover:bg-white/[0.1] hover:border-[var(--holo-cyan)]/50 transition-all group">
+          <RefreshCw className={`w-3.5 h-3.5 text-gray-400 group-hover:text-[var(--holo-cyan)] ${loading ? 'animate-spin text-[var(--holo-cyan)]' : ''}`} />
           <span className="text-[10px] font-bold text-gray-400 group-hover:text-white uppercase tracking-widest hidden sm:block">Sync</span>
         </button>
       </div>
 
       {/* Top Statistic Modules */}
       <div className="grid grid-cols-2 md:grid-cols-4 border-b border-white/[0.05] divide-y md:divide-y-0 md:divide-x divide-white/[0.05] shrink-0">
-        <StatModule icon={TrendingUp} label="Total Net Flow" value={stats.flow} prefix="$" color={stats.flow >= 0 ? 'text-[#39ff14]' : 'text-[#ff073a]'} />
+        <StatModule icon={TrendingUp} label="Total Net Flow" value={stats.flow} prefix="$" color={stats.flow >= 0 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'} />
         <StatModule icon={BarChart2} label="Total Traded Vol" value={stats.volume} prefix="$" color="text-white" />
-        <StatModule icon={Layers} label="Executions" value={stats.trades} isInt color="text-[#00f0ff]" />
-        <StatModule icon={Cpu} label="Active Nodes" value={stats.accounts} isInt color="text-[#bc13fe]" />
+        <StatModule icon={Layers} label="Executions" value={stats.trades} isInt color="text-[var(--holo-cyan)]" />
+        <StatModule icon={Cpu} label="Active Nodes" value={stats.accounts} isInt color="text-[var(--holo-gold)]" />
       </div>
       
       {/* Chart Canvas */}
@@ -208,7 +208,7 @@ const CustomTooltip = ({ active, payload, label, colors }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#0a0d14]/90 backdrop-blur-md p-3 rounded-lg border border-white/[0.1] shadow-2xl relative">
-        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#00f0ff] to-transparent opacity-50" />
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[var(--holo-cyan)] to-transparent opacity-50" />
         <p className="text-[10px] text-gray-500 font-mono mb-2 pb-2 border-b border-white/[0.1]">TICK: {label}</p>
         <div className="flex flex-col gap-1.5">
           {payload.map((entry: any, index: number) => (
@@ -217,7 +217,7 @@ const CustomTooltip = ({ active, payload, label, colors }: any) => {
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                 {entry.name}
               </span>
-              <span className={`text-[12px] font-mono font-bold ${entry.value >= 0 ? 'text-[#39ff14]' : 'text-[#ff073a]'}`}>
+              <span className={`text-[12px] font-mono font-bold ${entry.value >= 0 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>
                 {entry.value >= 0 ? '+' : ''}${entry.value.toFixed(2)}
               </span>
             </div>

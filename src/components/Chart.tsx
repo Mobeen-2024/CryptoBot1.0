@@ -1534,7 +1534,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             {crosshairData.volume !== undefined && (
                <div className="flex justify-between items-center text-[10px] font-mono leading-tight border-t border-white/5 pt-1.5 mt-0.5">
                  <span className="text-[#848e9c] font-bold tracking-wider capitalize">Vol</span>
-                 <span className="font-bold text-[#fcd535]">{crosshairData.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                 <span className="font-bold text-[var(--holo-gold)]">{crosshairData.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                </div>
             )}
             
@@ -1548,7 +1548,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             {subIndicators.includes('RSI') && crosshairData.rsi && (
               <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
                 <span className="text-[#848e9c] font-bold tracking-wider">RSI</span>
-                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[var(--holo-magenta)]' : crosshairData.rsi <= 30 ? 'text-[var(--holo-cyan)]' : 'text-[#fcd535]'}`}>{crosshairData.rsi.toFixed(1)}</span>
+                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[var(--holo-magenta)]' : crosshairData.rsi <= 30 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-gold)]'}`}>{crosshairData.rsi.toFixed(1)}</span>
               </div>
             )}
           </div>
@@ -1671,5 +1671,6 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     </div>
   );
 };
+
 
 

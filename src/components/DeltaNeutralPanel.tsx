@@ -126,24 +126,24 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
     <div className="h-full flex flex-col sm:flex-row gap-4 p-4 items-start justify-center bg-transparent transition-colors duration-500 overflow-y-auto custom-scrollbar">
       
       {/* ── THE MASTER BOT WIDGET ── */}
-      <div className="flex-1 shrink-0 bg-[#0a0a0c]/90 backdrop-blur-xl border border-white/5 rounded-2xl p-5 w-full min-w-[300px] max-w-[360px] flex flex-col text-white shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
+      <div className="flex-1 shrink-0 glass-panel border border-[var(--holo-cyan)]/20 rounded-2xl p-5 w-full min-w-[300px] max-w-[360px] flex flex-col text-white shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden group hover:border-[var(--holo-cyan)]/40 transition-colors">
         
         {/* Ambient Glow */}
-        <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-indigo-500/10 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[var(--holo-cyan)]/10 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-[var(--holo-cyan)]/20 transition-colors" />
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 relative z-10">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center shadow-[0_4px_20px_rgba(99,102,241,0.15)] shrink-0">
-            <Cpu className="w-5 h-5 text-indigo-400" />
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[var(--holo-cyan)]/20 to-transparent border border-[var(--holo-cyan)]/30 flex items-center justify-center shadow-[0_4px_20px_var(--holo-cyan-glow)] shrink-0">
+            <Cpu className="w-5 h-5 text-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan)]" />
           </div>
           <div>
             <h2 className="text-sm font-black tracking-widest text-[#eaecef] uppercase">Master Bot</h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] font-mono text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+              <span className="text-[10px] font-mono text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 px-1.5 py-0.5 rounded border border-[var(--holo-cyan)]/20">
                 {symbol}
               </span>
-              <span className={`text-[10px] font-bold uppercase flex items-center gap-1 ${status.isActive ? 'text-emerald-400' : 'text-gray-500'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${status.isActive ? 'bg-emerald-400 animate-pulse' : 'bg-gray-600'}`} />
+              <span className={`text-[10px] font-bold uppercase flex items-center gap-1 ${status.isActive ? 'text-[var(--holo-cyan)]' : 'text-gray-500'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${status.isActive ? 'bg-[var(--holo-cyan)] animate-pulse shadow-[0_0_5px_var(--holo-cyan)]' : 'bg-gray-600'}`} />
                 {status.isActive ? status.phase : 'STANDBY'}
               </span>
             </div>
@@ -162,10 +162,10 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
                 type="number"
                 value={customAnchorPrice}
                 onChange={(e) => setCustomAnchorPrice(Number(e.target.value))}
-                className="w-full bg-black/40 border border-white/5 text-white font-mono font-bold text-sm rounded-xl pl-6 pr-3 py-2.5 outline-none focus:border-indigo-500/50 transition-colors shadow-inner"
+                className="w-full bg-black/40 border border-white/5 text-white font-mono font-bold text-sm rounded-xl pl-6 pr-3 py-2.5 outline-none focus:border-[var(--holo-cyan)]/50 transition-colors shadow-inner"
               />
             </div>
-            <div className="flex items-center justify-between text-[9px] text-indigo-300/60 font-medium">
+            <div className="flex items-center justify-between text-[9px] text-[var(--holo-cyan)]/60 font-medium tracking-widest uppercase">
               <span>Live: ${currentPrice.toFixed(2)}</span>
               {lastClosedCandle && <span>Prev Candle: ${lastClosedCandle.price.toFixed(2)}</span>}
             </div>
@@ -179,12 +179,12 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
                 type="number"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
-                className="flex-1 bg-black/40 border border-white/5 text-white font-mono font-bold text-sm rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500/50 transition-colors shadow-inner text-center"
+                className="flex-1 bg-black/40 border border-white/5 text-white font-mono font-bold text-sm rounded-xl px-3 py-2.5 outline-none focus:border-[var(--holo-cyan)]/50 transition-colors shadow-inner text-center"
               />
               {['0.001', '0.01'].map(size => (
                 <button 
                   key={size} onClick={() => setQty(size)}
-                  className={`px-3 rounded-xl border font-mono text-[10px] font-bold transition-colors ${qty === size ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300' : 'bg-white/5 border-transparent text-gray-400'}`}
+                  className={`px-3 rounded-xl border font-mono text-[10px] font-bold transition-colors ${qty === size ? 'bg-[var(--holo-cyan)]/15 border-[var(--holo-cyan)]/40 text-[var(--holo-cyan)] shadow-[0_0_10px_var(--holo-cyan-glow)]' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
                 >
                   {size}
                 </button>
@@ -197,8 +197,8 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
             <div className="flex justify-between items-center">
               <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Execution Mode</label>
               <div className="flex gap-1 bg-black/40 rounded-lg p-0.5 border border-white/5">
-                <button onClick={() => setEntryMode('INSTANT')} className={`px-2 py-1 text-[9px] font-bold uppercase rounded-md transition-colors ${entryMode === 'INSTANT' ? 'bg-indigo-500/20 text-indigo-300' : 'text-gray-500'}`}>Instant</button>
-                <button onClick={() => setEntryMode('SCHEDULED')} className={`px-2 py-1 text-[9px] font-bold uppercase rounded-md transition-colors ${entryMode === 'SCHEDULED' ? 'bg-amber-500/20 text-amber-400' : 'text-gray-500'}`}>Schedule</button>
+                <button onClick={() => setEntryMode('INSTANT')} className={`px-2 py-1 text-[9px] font-bold uppercase rounded-md transition-colors ${entryMode === 'INSTANT' ? 'bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)] shadow-sm' : 'text-gray-500 hover:text-white'}`}>Instant</button>
+                <button onClick={() => setEntryMode('SCHEDULED')} className={`px-2 py-1 text-[9px] font-bold uppercase rounded-md transition-colors ${entryMode === 'SCHEDULED' ? 'bg-[var(--holo-gold)]/20 text-[var(--holo-gold)] shadow-sm' : 'text-gray-500 hover:text-white'}`}>Schedule</button>
               </div>
             </div>
             
@@ -208,7 +208,7 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
                   {['LONDON', 'NEW_YORK', 'ASIA'].map(session => (
                     <button 
                       key={session} onClick={() => setSessionTarget(session as any)}
-                      className={`flex-1 py-1.5 text-[9px] font-bold uppercase rounded-lg border transition-colors ${sessionTarget === session ? 'bg-amber-500/15 border-amber-500/30 text-amber-400' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
+                      className={`flex-1 py-1.5 text-[9px] font-bold uppercase rounded-lg border transition-colors ${sessionTarget === session ? 'bg-[var(--holo-gold)]/15 border-[var(--holo-gold)]/30 text-[var(--holo-gold)]' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}
                     >
                       {session.replace('_', ' ')}
                     </button>
@@ -218,7 +218,7 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
                   type="datetime-local" 
                   value={scheduleTimeStr}
                   onChange={(e) => setScheduleTimeStr(e.target.value)}
-                  className="w-full bg-black/40 border border-white/5 text-white/90 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-amber-500/50"
+                  className="w-full bg-black/40 border border-white/5 text-white/90 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-[var(--holo-gold)]/50"
                 />
               </div>
             )}
@@ -241,13 +241,13 @@ export const DeltaNeutralPanel: React.FC<DeltaNeutralPanelProps> = ({ symbol, cu
         {/* Footer Action */}
         <div className="mt-6 relative z-10 pt-4 border-t border-white/5">
           {status.isActive ? (
-            <button onClick={handleStop} disabled={loading} className="w-full py-3.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] transition-all flex justify-center items-center gap-2 group shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+            <button onClick={handleStop} disabled={loading} className="w-full py-3.5 bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 text-[var(--holo-magenta)] border border-[var(--holo-magenta)]/30 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] transition-all flex justify-center items-center gap-2 group shadow-[0_0_15px_var(--holo-magenta-glow)] hover:shadow-[0_0_25px_var(--holo-magenta-glow)]">
               <XCircle className="w-4 h-4 group-hover:scale-110 transition-transform" /> SEVER NEURAL LINK
             </button>
           ) : (
-            <button onClick={handleStart} disabled={loading || !symbol} className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white border border-indigo-400/30 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all flex justify-center items-center gap-2 group overflow-hidden relative">
-              <div className="absolute inset-0 bg-white/10 translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-700 pointer-events-none" />
-              <Cpu className="w-4 h-4 group-hover:rotate-180 transition-transform duration-700 text-indigo-200" /> 
+            <button onClick={handleStart} disabled={loading || !symbol} className="w-full py-3.5 bg-gradient-to-r from-[var(--holo-cyan)] to-[var(--holo-cyan)]/80 hover:brightness-110 text-black border border-[var(--holo-cyan)]/30 rounded-xl font-black uppercase tracking-[0.2em] text-[11px] shadow-[0_0_20px_var(--holo-cyan-glow)] hover:shadow-[0_0_30px_var(--holo-cyan-glow)] transition-all flex justify-center items-center gap-2 group overflow-hidden relative">
+              <div className="absolute inset-0 bg-white/20 translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-700 pointer-events-none" />
+              <Cpu className="w-4 h-4 group-hover:rotate-180 transition-transform duration-700 text-black" /> 
               {entryMode === 'SCHEDULED' ? 'SCHEDULE VOLTRON' : 'DEPLOY VOLTRON'}
             </button>
           )}

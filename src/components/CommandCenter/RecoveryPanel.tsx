@@ -50,10 +50,10 @@ export const RecoveryPanel: React.FC<RecoveryPanelProps> = ({ recoveryTarget, re
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-[#fcd535]/5 border border-[#fcd535]/30 rounded-xl mb-4 relative overflow-hidden group">
-      <div className="absolute top-0 left-0 w-1 h-full bg-[#fcd535] shadow-[0_0_15px_#fcd535]" />
+    <div className="flex flex-col gap-3 p-4 bg-[var(--holo-gold)]/5 border border-[var(--holo-gold)]/30 rounded-xl mb-4 relative overflow-hidden group">
+      <div className="absolute top-0 left-0 w-1 h-full bg-[var(--holo-gold)] shadow-[0_0_15px_#fcd535]" />
       <div className="flex items-center justify-between">
-        <h3 className="text-[#fcd535] font-black uppercase text-xs tracking-widest flex items-center gap-2">
+        <h3 className="text-[var(--holo-gold)] font-black uppercase text-xs tracking-widest flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 animate-pulse" />
           Recovery Protocol Engaged
         </h3>
@@ -72,7 +72,7 @@ export const RecoveryPanel: React.FC<RecoveryPanelProps> = ({ recoveryTarget, re
       <div className="grid grid-cols-3 gap-2 mt-2">
         <button 
           onClick={() => setSelectedMode('AUTO')}
-          className={`flex flex-col gap-1 items-center justify-center p-2 rounded-lg border transition-all ${selectedMode === 'AUTO' ? 'bg-[#fcd535]/15 border-[#fcd535]/50 text-[#fcd535] shadow-[inset_0_0_10px_rgba(252,213,53,0.1)]' : 'bg-white/5 border-transparent text-[#5e6673] hover:text-[#eaecef]'}`}
+          className={`flex flex-col gap-1 items-center justify-center p-2 rounded-lg border transition-all ${selectedMode === 'AUTO' ? 'bg-[var(--holo-gold)]/15 border-[var(--holo-gold)]/50 text-[var(--holo-gold)] shadow-[inset_0_0_10px_rgba(252,213,53,0.1)]' : 'bg-white/5 border-transparent text-[#5e6673] hover:text-[#eaecef]'}`}
         >
           <CheckCircle2 className="w-4 h-4" />
           <span className="text-[9px] font-bold tracking-widest uppercase">Auto-Close</span>
@@ -97,7 +97,7 @@ export const RecoveryPanel: React.FC<RecoveryPanelProps> = ({ recoveryTarget, re
         <select 
           value={deadlineHours} 
           onChange={(e) => setDeadlineHours(Number(e.target.value))}
-          className="bg-black/40 border border-[#2b3139] text-[#eaecef] text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-[#fcd535]/50"
+          className="bg-black/40 border border-[#2b3139] text-[#eaecef] text-xs font-bold rounded-lg px-2 py-1.5 outline-none focus:border-[var(--holo-gold)]/50"
         >
           <option value={1}>1 Hour TTL</option>
           <option value={4}>4 Hours TTL</option>
@@ -114,3 +114,4 @@ export const RecoveryPanel: React.FC<RecoveryPanelProps> = ({ recoveryTarget, re
     </div>
   );
 };
+

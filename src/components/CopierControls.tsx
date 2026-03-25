@@ -116,13 +116,13 @@ export const CopierControls: React.FC = () => {
         disabled={isLiquidating}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all duration-200 border ${
           isLiquidating
-            ? 'bg-rose-500/50 text-white border-rose-500 cursor-not-allowed opacity-70'
-            : 'bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border-rose-500/50 hover:border-rose-500 hover:shadow-[0_0_20px_rgba(244,63,94,0.4)]'
+            ? 'bg-[var(--holo-magenta)]/50 text-white border-[var(--holo-magenta)] cursor-not-allowed opacity-70'
+            : 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)] hover:text-white border-[var(--holo-magenta)]/50 hover:border-[var(--holo-magenta)] hover:shadow-[0_0_20px_var(--holo-magenta-glow)]'
         }`}
         title="Liquidate all active Slave positions immediately"
       >
-        <AlertOctagon className={`w-4 h-4 ${isLiquidating ? 'animate-pulse' : ''} ${!isLiquidating && 'fill-rose-500/20'}`} />
-        {isLiquidating ? 'Liquidating...' : 'Close All'}
+        <AlertOctagon className={`w-4 h-4 ${isLiquidating ? 'animate-pulse' : ''} ${!isLiquidating && 'fill-[var(--holo-magenta)]/20'}`} />
+        <span>{isLiquidating ? 'Liquidating...' : 'Liquidate Portfolio'}</span>
       </button>
 
       <SyncTradesModal 

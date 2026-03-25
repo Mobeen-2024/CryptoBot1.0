@@ -43,7 +43,7 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({ status, usePreviou
             {/* Candle Sync Pill */}
             <span className={`flex justify-center items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-widest border transition-colors duration-300 ${
               !usePreviousDayAvg && !status.isActive 
-                ? 'bg-[#FCD535]/10 text-[#FCD535] border-[#FCD535]/30 shadow-[0_0_15px_rgba(252,213,53,0.1)]' 
+                ? 'bg-[var(--holo-gold)]/10 text-[var(--holo-gold)] border-[var(--holo-gold)]/30 shadow-[0_0_15px_rgba(252,213,53,0.1)]' 
                 : 'bg-white/5 text-gray-400 border-white/10'
             }`}>
               <Radio className={`w-3 h-3 ${!usePreviousDayAvg && !status.isActive ? "animate-pulse" : ""}`} />
@@ -66,3 +66,4 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({ status, usePreviou
     </div>
   );
 };
+

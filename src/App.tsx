@@ -397,8 +397,8 @@ export default function App() {
         position="bottom-right" 
         toastOptions={{
           className: '!bg-[#181a20] !text-[#eaecef] !font-sans !text-xs !border !border-[#2b3139] !shadow-2xl !rounded-xl',
-          success: { iconTheme: { primary: '#0ecb81', secondary: '#0b0e11' } },
-          error: { iconTheme: { primary: '#f6465d', secondary: '#0b0e11' } },
+          success: { iconTheme: { primary: 'var(--holo-cyan)', secondary: '#0b0e11' } },
+          error: { iconTheme: { primary: 'var(--holo-magenta)', secondary: '#0b0e11' } },
         }} 
       />
 
@@ -408,10 +408,10 @@ export default function App() {
         <div className="flex items-center gap-2 sm:gap-3 md:gap-5 h-full min-w-0">
           {/* Logo */}
           <div className="flex items-center gap-1.5 sm:gap-2 pr-2 sm:pr-4 border-r border-[#2b3139] h-full shrink-0">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#fcd535] flex items-center justify-center">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[var(--holo-gold)] flex items-center justify-center">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0b0e11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
-            <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight hidden sm:block">CryptoBot<span className="text-[#fcd535]">.</span></span>
+            <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight hidden sm:block">CryptoBot<span className="text-[var(--holo-gold)]">.</span></span>
           </div>
 
           {/* Pair Selector */}
@@ -453,14 +453,14 @@ export default function App() {
 
           {/* Wallet Balance Pill */}
           <div className="hidden md:flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 sm:px-3 py-1.5">
-            <Wallet className="w-3.5 h-3.5 text-[#fcd535]" />
+            <Wallet className="w-3.5 h-3.5 text-[var(--holo-gold)]" />
             <span className="text-[10px] sm:text-xs font-mono font-bold text-[#eaecef]">${parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
 
           {/* §9.1 Nav Action Buttons (Delta Master Context) */}
           {activeMode === 'DELTA' && (
             <div className="hidden md:flex items-center gap-1">
-              <button onClick={() => { refreshBalance(); toast.success('Synced'); }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#fcd535] bg-[#fcd535]/5 hover:bg-[#fcd535]/15 border border-[#fcd535]/20 rounded-md transition-all" title="Force Sync">
+              <button onClick={() => { refreshBalance(); toast.success('Synced'); }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[var(--holo-gold)] bg-[var(--holo-gold)]/5 hover:bg-[var(--holo-gold)]/15 border border-[var(--holo-gold)]/20 rounded-md transition-all" title="Force Sync">
                 <RefreshCw className="w-3 h-3" /> Sync
               </button>
               <button onClick={async () => { try { const r = await fetch('/api/bot/pause', { method: 'POST' }); const d = await r.json(); toast(r.ok ? d.message : d.error, { icon: r.ok ? '⏸️' : '❌' }); } catch { toast.error('Pause failed'); } }} className="flex items-center gap-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/5 hover:bg-amber-500/15 border border-amber-500/20 rounded-md transition-all" title="Pause Engine">
@@ -475,7 +475,7 @@ export default function App() {
           {/* 24h Change (mobile only - compact) */}
           {ticker24h && (
             <div className="flex xl:hidden items-center">
-              <span className={`text-[10px] font-mono font-bold ${priceChange >= 0 ? 'text-[#0ecb81]' : 'text-[#f6465d]'}`}>
+              <span className={`text-[10px] font-mono font-bold ${priceChange >= 0 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>
                 {priceChange >= 0 ? '+' : ''}{parseFloat(ticker24h.priceChangePercent).toFixed(2)}%
               </span>
             </div>
@@ -489,7 +489,7 @@ export default function App() {
 
           {/* Sandbox Badge */}
           {isSandbox && (
-            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-[#fcd535] bg-[#fcd535]/10 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-[#fcd535]/20">Test</span>
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-[var(--holo-gold)]/20">Test</span>
           )}
         </div>
       </header>
@@ -500,19 +500,21 @@ export default function App() {
         {/* Error Overlay */}
         {error && (
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-1rem)] sm:w-full max-w-md px-2 sm:px-0">
-            <div className="bg-[#181a20] border border-[#f6465d]/30 p-4 rounded-xl shadow-[0_8px_32px_rgba(246,70,93,0.15)] flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#f6465d]/15 flex items-center justify-center shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f6465d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <div className="bg-black/40 backdrop-blur-md border border-[var(--holo-magenta)]/30 p-4 rounded-xl shadow-[0_8px_32px_rgba(255,0,127,0.15)] flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[var(--holo-magenta)]/15 flex items-center justify-center shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--holo-magenta)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-bold text-[#f6465d]">{error.message}</h3>
+                <h3 className="text-sm font-bold text-[var(--holo-magenta)]">{error.message}</h3>
                 {error.details && <p className="text-xs text-[#848e9c] mt-1 leading-relaxed">{error.details}</p>}
-                {error.code === 'INVALID_API_KEY' && (
-                  <div className="mt-2 flex gap-2">
-                    <span className="text-[10px] bg-[#f6465d]/10 border border-[#f6465d]/20 px-2 py-0.5 rounded text-[#f6465d] font-mono">Check .env</span>
-                    <span className="text-[10px] bg-[#f6465d]/10 border border-[#f6465d]/20 px-2 py-0.5 rounded text-[#f6465d] font-mono">Verify Keys</span>
-                  </div>
-                )}
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {error.message.includes('WebSocket') ? (
+                    <span className="text-[10px] bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/20 px-2 py-0.5 rounded text-[var(--holo-magenta)] font-mono">Retrying connect...</span>
+                  ) : (
+                    <span className="text-[10px] bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/20 px-2 py-0.5 rounded text-[var(--holo-magenta)] font-mono">Check .env</span>
+                  )}
+                  {error.message.includes('API') && <span className="text-[10px] bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/20 px-2 py-0.5 rounded text-[var(--holo-magenta)] font-mono">Verify Keys</span>}
+                </div>
               </div>
               <button onClick={() => setError(null)} className="text-[#5e6673] hover:text-[#eaecef] transition-colors p-1">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -537,7 +539,7 @@ export default function App() {
                 <div className="flex items-center overflow-x-auto whitespace-nowrap scrollbar-hide gap-1 pr-2">
                   <button 
                     onClick={() => setChartConfig({ ...chartConfig, style: 'line' })}
-                    className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartConfig.style === 'line' ? 'text-[#fcd535] bg-[#fcd535]/10' : 'text-[#848e9c] hover:text-white'}`}
+                    className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartConfig.style === 'line' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10' : 'text-[#848e9c] hover:text-white'}`}
                   >
                     Time
                   </button>
@@ -548,7 +550,7 @@ export default function App() {
                         setChartInterval(tf);
                         if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
                       }}
-                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartInterval === tf && chartConfig.style === 'candle' ? 'text-[#fcd535] bg-[#fcd535]/10' : 'text-[#848e9c] hover:text-white'}`}
+                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartInterval === tf && chartConfig.style === 'candle' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10' : 'text-[#848e9c] hover:text-white'}`}
                     >
                       {tf}
                     </button>
@@ -558,7 +560,7 @@ export default function App() {
                   <div className="relative">
                     <button 
                       onClick={() => setIsTimeframeDropdownOpen(!isTimeframeDropdownOpen)}
-                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors flex items-center gap-0.5 ${chartInterval === visibleTimeframes[visibleTimeframes.length-1] && chartConfig.style === 'candle' ? 'text-[#fcd535] bg-[#fcd535]/10' : 'text-[#848e9c] hover:text-white'}`}
+                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors flex items-center gap-0.5 ${chartInterval === visibleTimeframes[visibleTimeframes.length-1] && chartConfig.style === 'candle' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10' : 'text-[#848e9c] hover:text-white'}`}
                     >
                       {visibleTimeframes[visibleTimeframes.length - 1]}
                       <ChevronDown className="w-3 h-3" />
@@ -592,7 +594,7 @@ export default function App() {
                 {/* Depth Toggle */}
                 <button 
                   onClick={() => setChartView(chartView === 'price' ? 'depth' : 'price')}
-                  className={`px-3 py-1 text-[11px] font-bold uppercase tracking-widest rounded transition-all ${chartView === 'depth' ? 'text-[#fcd535] bg-[#fcd535]/10 shadow-[inset_0_0_10px_rgba(252,213,53,0.1)]' : 'text-[#848e9c] hover:text-white'}`}
+                  className={`px-3 py-1 text-[11px] font-bold uppercase tracking-widest rounded transition-all ${chartView === 'depth' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[inset_0_0_10px_rgba(252,213,53,0.1)]' : 'text-[#848e9c] hover:text-white'}`}
                 >
                   Depth
                 </button>
@@ -601,7 +603,7 @@ export default function App() {
               <div className="flex items-center gap-1 sm:gap-2">
                 <button 
                   onClick={() => setIsStyleModalOpen(true)}
-                  className="p-1.5 text-[#848e9c] hover:text-[#fcd535] hover:bg-white/5 rounded transition-all"
+                  className="p-1.5 text-[#848e9c] hover:text-[var(--holo-gold)] hover:bg-white/5 rounded transition-all"
                   title="Chart Settings & Indicators"
                 >
                   <SlidersHorizontal className="w-4 h-4" />
@@ -640,8 +642,8 @@ export default function App() {
                      </button>
                      <button 
                         onClick={() => setMainIndicator(null)}
-                        className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-[#f6465d] transition-colors"
-                     >
+                        className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-[var(--holo-magenta)] transition-colors"
+                        title="Dismiss">
                         <Trash2 className="w-3.5 h-3.5" />
                      </button>
                    </div>
@@ -762,7 +764,7 @@ export default function App() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'text-[#fcd535] border-[#fcd535] bg-[#fcd535]/5'
+                    ? 'text-[var(--holo-gold)] border-[var(--holo-gold)] bg-[var(--holo-gold)]/5'
                     : 'text-[#5e6673] border-transparent hover:text-[#848e9c] hover:bg-[#1e2329]'
                 }`}
               >
@@ -834,3 +836,4 @@ export default function App() {
     </div>
   );
 }
+

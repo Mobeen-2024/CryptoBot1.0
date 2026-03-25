@@ -51,7 +51,7 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
         <div className="px-5 pb-4 md:pt-6 flex justify-between items-center">
           <h2 className="text-white text-lg font-bold">Adjust {marginMode} Max Leverage</h2>
           {/* Yellow switch mock */}
-          <div className="w-8 h-4 bg-[#fcd535] rounded-full relative cursor-pointer opacity-80 overflow-hidden">
+          <div className="w-8 h-4 bg-[var(--holo-gold)] rounded-full relative cursor-pointer opacity-80 overflow-hidden">
             <div className="absolute right-0.5 top-0.5 w-3 h-3 glass-panel rounded-full"></div>
           </div>
         </div>
@@ -83,7 +83,7 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
           <div className="relative w-full h-[2px] bg-white/5 flex items-center mb-6">
             {/* Active Track */}
             <div 
-              className={`absolute left-0 h-[2px] transition-colors ${leverage >= 8 ? 'bg-var(--holo-magenta)' : leverage >= 5 ? 'bg-[#fcd535]' : 'bg-[var(--holo-cyan)]'}`}
+              className={`absolute left-0 h-[2px] transition-colors ${leverage >= 8 ? 'bg-var(--holo-magenta)' : leverage >= 5 ? 'bg-[var(--holo-gold)]' : 'bg-[var(--holo-cyan)]'}`}
               style={{ width: `${sliderPercentage}%` }}
             ></div>
 
@@ -100,8 +100,8 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
                 currentBorder = 'border-var(--holo-magenta)';
                 pastBg = 'bg-var(--holo-magenta)';
               } else if (leverage >= 5) {
-                currentBorder = 'border-[#fcd535]';
-                pastBg = 'bg-[#fcd535]';
+                currentBorder = 'border-[var(--holo-gold)]';
+                pastBg = 'bg-[var(--holo-gold)]';
               }
               
               return (
@@ -147,13 +147,13 @@ export const LeverageModal: React.FC<LeverageModalProps> = ({
                leverage >= 5 ? 
                 `Moderate Risk: ${leverage}x leverage amplifies volatility. Carefully manage your stop losses.` : 
                 `Standard Risk: Normal margin borrow limits active. Always manage your risk level.`
-              } <span className="text-[#fcd535] cursor-pointer hover:underline text-[11px] font-normal ml-1">Learn More</span>
+              } <span className="text-[var(--holo-gold)] cursor-pointer hover:underline text-[11px] font-normal ml-1">Learn More</span>
             </p>
           </div>
 
           <button 
             onClick={() => onConfirm(leverage)}
-            className={`w-full font-bold py-3.5 rounded-[12px] hover:brightness-110 active:scale-[0.98] transition-all text-sm uppercase tracking-wide border-transparent border shadow-lg ${leverage >= 8 ? 'bg-var(--holo-magenta)/20 text-var(--holo-magenta) border-var(--holo-magenta)/50 hover:bg-var(--holo-magenta) hover:text-white' : 'bg-[#fcd535] text-black'}`}
+            className={`w-full font-bold py-3.5 rounded-[12px] hover:brightness-110 active:scale-[0.98] transition-all text-sm uppercase tracking-wide border-transparent border shadow-lg ${leverage >= 8 ? 'bg-var(--holo-magenta)/20 text-var(--holo-magenta) border-var(--holo-magenta)/50 hover:bg-var(--holo-magenta) hover:text-white' : 'bg-[var(--holo-gold)] text-black'}`}
           >
             Confirm {leverage}x Leverage
           </button>
