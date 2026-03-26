@@ -232,7 +232,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       visible: config?.style === 'line',
     });
     mainLineSeriesRef.current = mainLineSeries;
-    mainLineSeries.setData(data.map((d: any) => ({ time: d.time, value: d.close })));
+    mainLineSeries.setData(data.filter(d => d.close != null).map((d: any) => ({ time: d.time, value: d.close })));
 
     // Dummy markers removed. Will be set by trades useEffect.
 
@@ -356,27 +356,27 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     // Generate Dummy SuperTrend Data matching the input `data` length
     if (data.length > 0) {
       // Map existing historical data for indicators
-      const emaData = data.filter(d => d.ema200 !== undefined && d.ema200 !== null).map(d => ({ time: d.time, value: d.ema200 }));
+      const emaData = data.filter(d => d.ema200 != null).map(d => ({ time: d.time, value: d.ema200 }));
       if (emaData.length > 0) emaSeries.setData(emaData);
 
-      const smaData = data.filter(d => d.sma !== undefined && d.sma !== null).map(d => ({ time: d.time, value: d.sma }));
+      const smaData = data.filter(d => d.sma != null).map(d => ({ time: d.time, value: d.sma }));
       if (smaData.length > 0) smaSeries.setData(smaData);
 
-      const sarData = data.filter(d => d.sar !== undefined && d.sar !== null).map(d => ({ time: d.time, value: d.sar }));
+      const sarData = data.filter(d => d.sar != null).map(d => ({ time: d.time, value: d.sar }));
       if (sarData.length > 0) sarSeries.setData(sarData);
 
-      const bollUp = data.filter(d => d.boll?.upper !== undefined).map(d => ({ time: d.time, value: d.boll.upper }));
-      const bollMid = data.filter(d => d.boll?.middle !== undefined).map(d => ({ time: d.time, value: d.boll.middle }));
-      const bollLow = data.filter(d => d.boll?.lower !== undefined).map(d => ({ time: d.time, value: d.boll.lower }));
+      const bollUp = data.filter(d => d.boll?.upper != null).map(d => ({ time: d.time, value: d.boll.upper }));
+      const bollMid = data.filter(d => d.boll?.middle != null).map(d => ({ time: d.time, value: d.boll.middle }));
+      const bollLow = data.filter(d => d.boll?.lower != null).map(d => ({ time: d.time, value: d.boll.lower }));
       if (bollUp.length > 0) {
         bollUpper.setData(bollUp);
         bollMiddle.setData(bollMid);
         bollLower.setData(bollLow);
       }
 
-      const jaw = data.filter(d => d.alligator?.jaw !== undefined && d.alligator?.jaw !== null).map(d => ({ time: d.time, value: d.alligator.jaw }));
-      const teeth = data.filter(d => d.alligator?.teeth !== undefined && d.alligator?.teeth !== null).map(d => ({ time: d.time, value: d.alligator.teeth }));
-      const lips = data.filter(d => d.alligator?.lips !== undefined && d.alligator?.lips !== null).map(d => ({ time: d.time, value: d.alligator.lips }));
+      const jaw = data.filter(d => d.alligator?.jaw != null).map(d => ({ time: d.time, value: d.alligator.jaw }));
+      const teeth = data.filter(d => d.alligator?.teeth != null).map(d => ({ time: d.time, value: d.alligator.teeth }));
+      const lips = data.filter(d => d.alligator?.lips != null).map(d => ({ time: d.time, value: d.alligator.lips }));
       if (jaw.length > 0) {
         alligatorJaw.setData(jaw);
         alligatorTeeth.setData(teeth);
@@ -399,9 +399,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       }
 
       if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
-        const mD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
-        const sD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.signal }));
-        const hD = data.filter(d => d.macd != null).map(d => ({
+        const mD = data.filter(d => d.macd?.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
+        const sD = data.filter(d => d.macd?.signal != null).map(d => ({ time: d.time, value: d.macd.signal }));
+        const hD = data.filter(d => d.macd?.histogram != null).map(d => ({
           time: d.time,
           value: d.macd.histogram,
           color: d.macd.histogram >= 0 ? 'rgba(0, 229, 255, 0.5)' : 'rgba(255, 0, 127, 0.5)'
@@ -427,15 +427,15 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       }
 
       if (stochKRef.current && stochDRef.current) {
-        const skD = data.filter(d => d.stochRsi != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
+        const skD = data.filter(d => d.stochRsi?.stochRSI != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
         // Dummy D for stochRsi if not provided (mapping stochRsi to stoch)
         stochKRef.current.setData(skD);
       }
 
       if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
-        const kD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.k }));
-        const dD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.d }));
-        const jD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.j }));
+        const kD = data.filter(d => d.kdj?.k != null).map(d => ({ time: d.time, value: d.kdj.k }));
+        const dD = data.filter(d => d.kdj?.d != null).map(d => ({ time: d.time, value: d.kdj.d }));
+        const jD = data.filter(d => d.kdj?.j != null).map(d => ({ time: d.time, value: d.kdj.j }));
         kdjKRef.current.setData(kD);
         kdjDRef.current.setData(dD);
         kdjJRef.current.setData(jD);
@@ -981,25 +981,25 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       if (seriesRef.current && data.length > 0) {
         seriesRef.current.setData(data);
 
-      if (emaSeriesRef.current) {
-        const emaData = data.filter(d => d.ema200 !== undefined).map(d => ({ time: d.time, value: d.ema200 }));
-        emaSeriesRef.current.setData(emaData);
-      }
+        if (emaSeriesRef.current) {
+          const emaData = data.filter(d => d.ema200 != null).map(d => ({ time: d.time, value: d.ema200 }));
+          emaSeriesRef.current.setData(emaData);
+        }
 
-      if (smaSeriesRef.current) {
-        const smaData = data.filter(d => d.sma !== undefined).map(d => ({ time: d.time, value: d.sma }));
+        if (smaSeriesRef.current) {
+        const smaData = data.filter(d => d.sma != null).map(d => ({ time: d.time, value: d.sma }));
         smaSeriesRef.current.setData(smaData);
       }
-
+      
       if (sarSeriesRef.current) {
-        const sarData = data.filter(d => d.sar !== undefined).map(d => ({ time: d.time, value: d.sar }));
+        const sarData = data.filter(d => d.sar != null).map(d => ({ time: d.time, value: d.sar }));
         sarSeriesRef.current.setData(sarData);
       }
-
+      
       if (bollUpperRef.current) {
-        const bU = data.filter(d => d.boll?.upper !== undefined).map(d => ({ time: d.time, value: d.boll.upper }));
-        const bM = data.filter(d => d.boll?.middle !== undefined).map(d => ({ time: d.time, value: d.boll.middle }));
-        const bL = data.filter(d => d.boll?.lower !== undefined).map(d => ({ time: d.time, value: d.boll.lower }));
+        const bU = data.filter(d => d.boll?.upper != null).map(d => ({ time: d.time, value: d.boll.upper }));
+        const bM = data.filter(d => d.boll?.middle != null).map(d => ({ time: d.time, value: d.boll.middle }));
+        const bL = data.filter(d => d.boll?.lower != null).map(d => ({ time: d.time, value: d.boll.lower }));
         bollUpperRef.current.setData(bU);
         bollMiddleRef.current.setData(bM);
         bollLowerRef.current.setData(bL);
@@ -1015,7 +1015,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       }
 
       if (volumeSeriesRef.current) {
-        volumeSeriesRef.current.setData(data.map(d => ({
+        volumeSeriesRef.current.setData(data.filter(d => d.volume != null).map(d => ({
           time: d.time,
           value: d.volume,
           color: d.close >= d.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
@@ -1026,9 +1026,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         rsiSeriesRef.current.setData(rsiD);
       }
       if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
-        const mD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
-        const sD = data.filter(d => d.macd != null).map(d => ({ time: d.time, value: d.macd.signal }));
-        const hD = data.filter(d => d.macd != null).map(d => ({
+        const mD = data.filter(d => d.macd?.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
+        const sD = data.filter(d => d.macd?.signal != null).map(d => ({ time: d.time, value: d.macd.signal }));
+        const hD = data.filter(d => d.macd?.histogram != null).map(d => ({
           time: d.time,
           value: d.macd.histogram,
           color: d.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
@@ -1050,13 +1050,13 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         obvSeriesRef.current.setData(obvD);
       }
       if (stochKRef.current && stochDRef.current) {
-        const skD = data.filter(d => d.stochRsi != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
+        const skD = data.filter(d => d.stochRsi?.stochRSI != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
         stochKRef.current.setData(skD);
       }
       if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
-        const kD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.k }));
-        const dD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.d }));
-        const jD = data.filter(d => d.kdj != null).map(d => ({ time: d.time, value: d.kdj.j }));
+        const kD = data.filter(d => d.kdj?.k != null).map(d => ({ time: d.time, value: d.kdj.k }));
+        const dD = data.filter(d => d.kdj?.d != null).map(d => ({ time: d.time, value: d.kdj.d }));
+        const jD = data.filter(d => d.kdj?.j != null).map(d => ({ time: d.time, value: d.kdj.j }));
         kdjKRef.current.setData(kD);
         kdjDRef.current.setData(dD);
         kdjJRef.current.setData(jD);
