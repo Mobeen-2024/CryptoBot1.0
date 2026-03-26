@@ -21,44 +21,99 @@ import { ChartStyleModal } from './components/ChartStyleModal';
 import { ChartConfig, DEFAULT_CHART_CONFIG } from './types/chart';
 import toast, { Toaster } from 'react-hot-toast';
 
-// Simple deterministic countdown hook based on current UTC time and Binance intervals
+// Advanced, high-precision candle countdown with session status
 const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
   const [timeLeft, setTimeLeft] = useState<string>('--:--');
+  const [progress, setProgress] = useState<number>(0);
+  const [session, setSession] = useState<{ name: string, color: string } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       const msSinceEpoch = now.getTime();
-      let msPerInterval = 60000;
       
-      const val = parseInt(interval);
+      const val = parseInt(interval) || 1;
       const unit = interval.slice(-1);
-      
-      if (unit === 'm') msPerInterval = val * 60 * 1000;
-      else if (unit === 'h') msPerInterval = val * 60 * 60 * 1000;
-      else if (unit === 'd') msPerInterval = val * 24 * 60 * 60 * 1000;
-      
-      const nextTick = Math.ceil(msSinceEpoch / msPerInterval) * msPerInterval;
-      const remains = nextTick - msSinceEpoch;
-      
+      let msPerInterval = 60000;
+      let nextTick: number;
+
+      if (unit === 'M') {
+        // Precise month boundary: 1st of next month at 00:00:00 UTC
+        const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+        nextTick = nextMonth.getTime();
+        const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        msPerInterval = nextTick - currentMonth.getTime();
+      } else {
+        if (unit === 'm') msPerInterval = val * 60 * 1000;
+        else if (unit === 'h') msPerInterval = val * 60 * 60 * 1000;
+        else if (unit === 'd') msPerInterval = val * 24 * 60 * 60 * 1000;
+        else if (unit === 'w') msPerInterval = val * 7 * 24 * 60 * 60 * 1000;
+        
+        const offset = unit === 'w' ? 4 * 24 * 60 * 60 * 1000 : 0;
+        nextTick = Math.ceil((msSinceEpoch - offset) / msPerInterval) * msPerInterval + offset;
+      }
+
+      const remains = Math.max(0, nextTick - msSinceEpoch);
       const h = Math.floor(remains / (1000 * 60 * 60));
       const m = Math.floor((remains % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((remains % (1000 * 60)) / 1000);
       
-      if (h > 0) {
-        setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
-      } else {
-        setTimeLeft(`${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
-      }
+      setTimeLeft(h > 0 
+        ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      );
+      setProgress((remains / msPerInterval) * 100);
+
+      // Session Logic (UTC)
+      const hour = now.getUTCHours();
+      if (hour >= 8 && hour < 16) setSession({ name: 'London', color: '#00E5FF' });
+      else if (hour >= 13 && hour < 21) setSession({ name: 'New York', color: '#FF007F' });
+      else if (hour >= 0 && hour < 8) setSession({ name: 'Tokyo', color: '#FCD535' });
+      else setSession(null);
+
     }, 1000);
     return () => clearInterval(timer);
   }, [interval]);
 
   return (
-    <span className="text-[10px] font-mono font-bold text-[#848e9c] bg-[#0b0e11] px-2 py-1 rounded-lg flex items-center gap-1.5 border border-[#2b3139]">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-      {timeLeft}
-    </span>
+    <div className="flex items-center gap-2.5 bg-[#05070a]/80 backdrop-blur-2xl border border-white/5 shadow-[0_0_20px_rgba(0,0,0,0.4)] rounded-full px-3 py-1.5 transition-all hover:border-[var(--holo-cyan)]/20 group/time">
+      <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
+        <svg className="w-full h-full -rotate-90">
+          <circle cx="50%" cy="50%" r="6" className="stroke-white/5 fill-none" strokeWidth="2" />
+          <circle 
+            cx="50%" cy="50%" r="6" 
+            className="stroke-[var(--holo-cyan)] fill-none transition-all duration-1000 ease-linear"
+            strokeWidth="2"
+            strokeDasharray="37.7"
+            strokeDashoffset={37.7 * (1 - progress / 100)}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-1 h-1 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]" />
+        </div>
+      </div>
+      
+      <div className="flex flex-col min-w-[42px]">
+        <span className="text-[11px] font-mono font-black text-white leading-none tracking-tighter group-hover:text-[var(--holo-cyan)] transition-colors">
+          {timeLeft}
+        </span>
+        {session && (
+          <span className="text-[7px] font-black uppercase tracking-[0.2em] leading-none mt-1 flex items-center gap-1" style={{ color: session.color }}>
+            <span className="w-1 h-1 rounded-full bg-current animate-pulse" />
+            {session.name}
+          </span>
+        )}
+      </div>
+
+      <div className="w-px h-5 bg-white/5 mx-0.5 hidden sm:block" />
+      <div className="hidden sm:flex flex-col items-start">
+        <span className="text-[8px] font-black text-white/40 uppercase tracking-widest leading-none">UTC Clock</span>
+        <span className="text-[10px] font-mono font-bold text-white/60 leading-none mt-1">
+          {new Date().getUTCHours().toString().padStart(2, '0')}:{new Date().getUTCMinutes().toString().padStart(2, '0')}
+        </span>
+      </div>
+    </div>
   );
 };
 
@@ -73,7 +128,7 @@ export default function App() {
   const [baseBalance, setBaseBalance] = useState<string>('0.00');
   const [userTrades, setUserTrades] = useState<any[]>([]);
   const [openOrders, setOpenOrders] = useState<any[]>([]);
-  
+
   // Secondary Account State (Mocked or Future implementation)
   const [slaveBalance, setSlaveBalance] = useState<string>('1500.00');
   const [slaveBaseBalance, setSlaveBaseBalance] = useState<string>('0.00');
@@ -157,7 +212,7 @@ export default function App() {
 
   useEffect(() => {
     refreshBalance();
-    
+
     // Fetch historical user trades
     fetch('/api/backend/trades')
       .then(res => res.json())
@@ -377,9 +432,9 @@ export default function App() {
       setTimeout(refreshBalance, 1000);
     } catch (err: any) {
       console.error('Order error:', err);
-      toast.error(err.message || 'Execution Failed', { 
+      toast.error(err.message || 'Execution Failed', {
         id: orderToast,
-        duration: 5000 
+        duration: 5000
       });
       setError({
         message: err.message,
@@ -393,13 +448,13 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-2050-gradient text-[#eaecef] font-sans selection:bg-[var(--holo-cyan)]/20 selection:text-white flex flex-col">
-      <Toaster 
-        position="bottom-right" 
+      <Toaster
+        position="bottom-right"
         toastOptions={{
           className: '!bg-[#181a20] !text-[#eaecef] !font-sans !text-xs !border !border-[#2b3139] !shadow-2xl !rounded-xl',
           success: { iconTheme: { primary: 'var(--holo-cyan)', secondary: '#0b0e11' } },
           error: { iconTheme: { primary: 'var(--holo-magenta)', secondary: '#0b0e11' } },
-        }} 
+        }}
       />
 
       {/* ═══════════════════════════ HEADER ═══════════════════════════ */}
@@ -525,72 +580,97 @@ export default function App() {
 
         {/* ─── TOP ROW: Chart + Order Panels ──────────────────────── */}
         <div className="flex flex-col lg:flex-row gap-2 shrink-0 items-stretch">
-          
+
           {/* Chart Panel */}
-          <div 
+          <div
             id="crypto-terminal-chart-wrapper"
             className="h-[450px] sm:h-[550px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300 bg-black/90"
           >
             {/* Chart Toolbar: Command Center */}
-            <div 
+            <div
               className="px-2 py-1.5 border-b border-white/5 flex items-center justify-between shrink-0 transition-colors duration-300 relative z-20"
             >
               <div className="flex items-center gap-1 sm:gap-4 overflow-hidden">
                 {/* Resolution Strip */}
-                <div className="flex items-center overflow-x-auto whitespace-nowrap scrollbar-hide gap-1 pr-2">
-                  <button 
+                <div className="flex items-center bg-[#0b0e11]/60 backdrop-blur-xl border border-white/5 shadow-[inset_0_1px_10px_rgba(0,0,0,0.5)] rounded-xl p-1 gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide relative group/res">
+                  {/* Sliding highlight indicator could go here, but let's keep it simple with per-button active states */}
+                  <button
                     onClick={() => setChartConfig({ ...chartConfig, style: 'line' })}
-                    className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartConfig.style === 'line' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10' : 'text-[#848e9c] hover:text-white'}`}
+                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all duration-300 flex items-center gap-1.5 relative ${
+                      chartConfig.style === 'line' 
+                        ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[0_0_15px_rgba(252,213,53,0.1)] border border-[var(--holo-gold)]/20' 
+                        : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
+                    }`}
+                    title="Time Series"
                   >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     Time
                   </button>
-                  {visibleTimeframes.slice(0, -1).map(tf => (
-                    <button 
-                      key={tf}
-                      onClick={() => {
-                        setChartInterval(tf);
-                        if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
-                      }}
-                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors ${chartInterval === tf && chartConfig.style === 'candle' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10' : 'text-[#848e9c] hover:text-white'}`}
-                    >
-                      {tf}
-                    </button>
-                  ))}
+
+                  <div className="w-px h-3.5 bg-white/5 mx-0.5" />
+
+                  {visibleTimeframes.slice(0, -1).map(tf => {
+                    const isActive = chartInterval === tf && chartConfig.style === 'candle';
+                    return (
+                      <button
+                        key={tf}
+                        onClick={() => {
+                          setChartInterval(tf);
+                          if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
+                        }}
+                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-all duration-300 relative ${
+                          isActive 
+                            ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_20px_rgba(0,229,255,0.15)] border border-[var(--holo-cyan)]/30' 
+                            : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {tf}
+                        {isActive && <div className="absolute -bottom-0.5 left-1 right-1 h-0.5 bg-[var(--holo-cyan)] rounded-full blur-[2px] opacity-60" />}
+                      </button>
+                    );
+                  })}
 
                   {/* Dropdown Timeframe */}
                   <div className="relative">
-                    <button 
+                    <button
                       onClick={() => setIsTimeframeDropdownOpen(!isTimeframeDropdownOpen)}
-                      className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded transition-colors flex items-center gap-0.5 ${chartInterval === visibleTimeframes[visibleTimeframes.length-1] && chartConfig.style === 'candle' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10' : 'text-[#848e9c] hover:text-white'}`}
+                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-all duration-300 flex items-center gap-1 ${
+                        chartInterval === visibleTimeframes[visibleTimeframes.length-1] && chartConfig.style === 'candle' 
+                          ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_20px_rgba(0,229,255,0.1)] border border-[var(--holo-cyan)]/30' 
+                          : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
+                      }`}
                     >
                       {visibleTimeframes[visibleTimeframes.length - 1]}
-                      <ChevronDown className="w-3 h-3" />
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-500 ${isTimeframeDropdownOpen ? 'rotate-180 text-[var(--holo-cyan)]' : ''}`} />
                     </button>
-                    
+
                     {isTimeframeDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-32 glass-tooltip rounded-lg z-[100] py-1 animate-in fade-in slide-in-from-top-1 overflow-hidden">
-                        {['1m', '3m', '2h', '4h', '12h', '1d', '1w'].map(tf => (
-                          <button
-                            key={tf}
-                            onClick={() => {
-                              const newTfs = [...visibleTimeframes];
-                              newTfs[newTfs.length - 1] = tf;
-                              setVisibleTimeframes(newTfs);
-                              setChartInterval(tf);
-                              if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
-                              setIsTimeframeDropdownOpen(false);
-                            }}
-                            className="w-full text-left px-3 py-2 text-[11px] font-bold text-[#848e9c] hover:text-[var(--holo-cyan)] hover:bg-white/5 transition-colors uppercase"
-                          >
-                            {tf}
-                          </button>
-                        ))}
+                      <div className="absolute top-full left-0 mt-2 w-36 glass-panel border border-[var(--holo-cyan)]/20 shadow-[0_10px_40px_rgba(0,0,0,0.8)] rounded-xl z-[100] py-1.5 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                        <div className="px-3 py-1.5 text-[9px] font-bold text-[#5e6673] uppercase tracking-widest border-b border-white/5 mb-1">Extended Range</div>
+                        <div className="grid grid-cols-2 gap-1 px-1.5">
+                          {['1m', '3m', '2h', '4h', '12h', '1d', '1w', '1M'].map(tf => (
+                            <button
+                              key={tf}
+                              onClick={() => {
+                                const newTfs = [...visibleTimeframes];
+                                newTfs[newTfs.length - 1] = tf;
+                                setVisibleTimeframes(newTfs);
+                                setChartInterval(tf);
+                                if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
+                                setIsTimeframeDropdownOpen(false);
+                              }}
+                              className="text-left px-2 py-1.5 text-[11px] font-bold text-[#848e9c] hover:text-[var(--holo-cyan)] hover:bg-[var(--holo-cyan)]/10 rounded transition-colors uppercase flex items-center justify-center"
+                            >
+                              {tf}
+                            </button>
+                          ))}
+                        </div>
                         <button
                           onClick={() => {
                             setIsTimeframeDropdownOpen(false);
                             const customTf = window.prompt('ENTER CUSTOM SYS_TIME OVERRIDE (e.g. 45m, 3d, 1M):');
                             if (customTf && customTf.trim()) {
-                              const t = customTf.trim().toLowerCase();
+                              const t = customTf.trim();
                               const newTfs = [...visibleTimeframes];
                               newTfs[newTfs.length - 1] = t;
                               setVisibleTimeframes(newTfs);
@@ -598,9 +678,9 @@ export default function App() {
                               if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
                             }
                           }}
-                          className="w-full text-left px-3 py-2 text-[11px] font-black tracking-widest text-[var(--holo-gold)] hover:text-black hover:bg-[var(--holo-gold)] transition-colors uppercase border-t border-white/5 mt-1"
+                          className="w-[calc(100%-12px)] mx-auto text-center mt-2 px-3 py-1.5 text-[9px] font-black tracking-widest text-[var(--holo-cyan)] hover:text-black hover:bg-[var(--holo-cyan)] rounded transition-colors uppercase border border-[var(--holo-cyan)]/30 block"
                         >
-                          CUSTOM...
+                          Override...
                         </button>
                       </div>
                     )}
@@ -610,7 +690,7 @@ export default function App() {
                 <div className="h-4 w-px bg-[#2b3139] shrink-0" />
 
                 {/* Depth Toggle */}
-                <button 
+                <button
                   onClick={() => setChartView(chartView === 'price' ? 'depth' : 'price')}
                   className={`px-3 py-1 text-[11px] font-bold uppercase tracking-widest rounded transition-all ${chartView === 'depth' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[inset_0_0_10px_rgba(252,213,53,0.1)]' : 'text-[#848e9c] hover:text-white'}`}
                 >
@@ -619,19 +699,19 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-1 sm:gap-2">
-                <button 
+                <button
                   onClick={() => setIsStyleModalOpen(true)}
                   className="p-1.5 text-[#848e9c] hover:text-[var(--holo-gold)] hover:bg-white/5 rounded transition-all"
                   title="Chart Settings & Indicators"
                 >
                   <SlidersHorizontal className="w-4 h-4" />
                 </button>
-                <button 
+                <button
                   onClick={() => toast('Advanced Tactical Tools Module requires Pro License authorization.', { icon: '🔒', style: { background: 'var(--surface-modal)', color: 'var(--holo-gold)', border: '1px solid var(--holo-gold)' }})}
                   className="p-1.5 text-[#848e9c] hover:text-[var(--holo-gold)] hover:bg-white/5 rounded transition-all shadow-[0_0_10px_var(--holo-gold-glow)]" title="Advanced Tools">
                   <LayoutGrid className="w-4 h-4" />
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     const chartEl = document.getElementById('crypto-terminal-chart-wrapper');
                     if (!document.fullscreenElement && chartEl) {
@@ -654,22 +734,22 @@ export default function App() {
                      {mainIndicator === 'SUPER' ? 'SUPERTREND (10, 3)' : mainIndicator}
                      <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                    </span>
-                   
+
                    {/* Quick Action Popover */}
                    <div className="hidden group-hover:flex items-center bg-[#1e2329]/90 backdrop-blur-md border border-white/10 rounded-lg p-1 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                     <button 
+                     <button
                         onClick={() => setIsIndicatorLegendVisible(!isIndicatorLegendVisible)}
                         className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-white transition-colors"
                      >
                         {isIndicatorLegendVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                      </button>
-                     <button 
+                     <button
                         onClick={() => setIsStyleModalOpen(true)}
                         className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-white transition-colors"
                      >
                         <Settings className="w-3.5 h-3.5" />
                      </button>
-                     <button 
+                     <button
                         onClick={() => setMainIndicator(null)}
                         className="p-1.5 hover:bg-white/5 rounded text-[#848e9c] hover:text-[var(--holo-magenta)] transition-colors"
                         title="Dismiss">
@@ -685,9 +765,9 @@ export default function App() {
               {chartView === 'price' ? (
                 <div className="absolute inset-1.5">
                   {marketData.length > 0 ? (
-                    <Chart 
-                      data={marketData} 
-                      symbol={symbol} 
+                    <Chart
+                      data={marketData}
+                      symbol={symbol}
                       chartInterval={chartInterval}
                       mainIndicator={isIndicatorLegendVisible ? mainIndicator : null}
                       subIndicators={subIndicators}
@@ -730,19 +810,19 @@ export default function App() {
 
           {/* ─── Side Column: Telemetry + Order Panels ───────────────────── */}
           <div className="flex flex-col gap-2 w-full lg:w-[650px] shrink-0 z-10">
-            
+
             {/* VOLTRON ARCHITECTURE: PILL SLIDER TOGGLE */}
             <div className="relative flex bg-[#0A0D14] border border-[#1E293B] rounded-full p-1 mx-auto w-[240px] shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
-              <div 
+              <div
                 className={`absolute top-1 bottom-1 w-[114px] bg-[#1E293B] border border-cyan-500/30 rounded-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_0_15px_rgba(6,182,212,0.15)] z-0 ${activeMode === 'SPOT' ? 'left-1' : 'left-[120px]'}`}
               />
-              <button 
+              <button
                 onClick={() => setActiveMode('SPOT')}
                 className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'SPOT' ? 'text-cyan-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
               >
                 Spot Margin
               </button>
-              <button 
+              <button
                 onClick={() => setActiveMode('DELTA')}
                 className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'DELTA' ? 'text-cyan-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
               >
@@ -843,7 +923,7 @@ export default function App() {
       </main>
 
       {/* Unified Chart Style & Indicators Modal */}
-      <ChartStyleModal 
+      <ChartStyleModal
         isOpen={isStyleModalOpen}
         onClose={() => setIsStyleModalOpen(false)}
         config={chartConfig}
@@ -865,4 +945,3 @@ export default function App() {
     </div>
   );
 }
-
