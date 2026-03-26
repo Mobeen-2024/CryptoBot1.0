@@ -48,7 +48,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
           onChange={(e) => onChange(e.target.value)}
           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
         />
-        <div 
+        <div
           className="w-full h-full rounded-full border border-black/50 transition-transform group-hover:scale-110 z-10"
           style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}40` }}
         />
@@ -59,11 +59,11 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
 
   const cyberToggle = (active: boolean, onToggle: () => void, label1: string, label2: string) => (
     <div className="flex bg-black/60 rounded-lg p-1 border border-white/5 relative shadow-inner">
-      <div 
+      <div
         className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-gradient-to-r from-[var(--holo-cyan)] to-[var(--holo-cyan)] opacity-20 rounded-md transition-all duration-300 ease-out z-0"
         style={{ left: active ? '4px' : 'calc(50%)' }}
       />
-      <div 
+      <div
         className="absolute top-1 bottom-1 w-[calc(50%-4px)] border border-[var(--holo-cyan)]/50 rounded-md transition-all duration-300 ease-out z-0 shadow-[0_0_10px_var(--holo-cyan-glow)]"
         style={{ left: active ? '4px' : 'calc(50%)' }}
       />
@@ -89,7 +89,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
       {/* Deep Blur Backdrop */}
-      <div 
+      <div
         className={`absolute inset-0 bg-[#050b14]/80 backdrop-blur-md transition-opacity duration-300 pointer-events-auto ${
           isOpen ? 'opacity-100' : 'opacity-0'
         }`}
@@ -97,7 +97,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
       />
 
       {/* 2050 HUD Container */}
-      <div 
+      <div
         className={`relative w-full max-w-2xl bg-[#0a0f1a]/95 backdrop-blur-3xl rounded-2xl border border-[var(--holo-cyan)]/30 shadow-[0_0_50px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(0,229,255,0.05)] transform transition-all duration-500 ease-out pointer-events-auto overflow-hidden flex flex-col ${
           isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-8'
         }`}
@@ -108,7 +108,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
         <div className="scan-lines" />
         <div className="noise-grain" />
         <div className="grid-pattern opacity-30" />
-        
+
         {/* Floating Neon Orbs */}
         <div className="absolute -top-32 -left-32 w-64 h-64 bg-[var(--holo-cyan)]/20 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-[var(--holo-magenta)]/20 rounded-full blur-[100px] pointer-events-none" />
@@ -117,7 +117,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
         <div className="h-1 w-full bg-gradient-to-r from-[var(--holo-cyan)] via-[var(--holo-magenta)] to-[var(--holo-cyan)] opacity-70" />
 
         <div className="flex flex-col h-full relative z-10">
-          
+
           {/* Header & Tabs */}
           <div className="px-6 py-5 border-b border-white/10 flex flex-col gap-5 sm:flex-row sm:items-center justify-between shrink-0 bg-black/20">
             <div className="flex items-center gap-3">
@@ -132,13 +132,13 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
 
             <div className="flex items-center gap-4">
               <div className="flex bg-black/50 p-1 rounded-xl border border-white/5 shadow-inner">
-                <button 
+                <button
                   onClick={() => setActiveTab('indicators')}
                   className={`px-5 py-2 rounded-lg text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 ${activeTab === 'indicators' ? 'bg-[var(--holo-cyan)] text-black shadow-[0_0_15px_var(--holo-cyan-glow)] scale-105' : 'text-[#848e9c] hover:text-white hover:bg-white/5'}`}
                 >
                   Modules
                 </button>
-                <button 
+                <button
                   onClick={() => setActiveTab('style')}
                   className={`px-5 py-2 rounded-lg text-xs font-black uppercase tracking-[0.15em] transition-all duration-300 ${activeTab === 'style' ? 'bg-[var(--holo-gold)] text-black shadow-[0_0_15px_var(--holo-gold-glow)] scale-105' : 'text-[#848e9c] hover:text-white hover:bg-white/5'}`}
                 >
@@ -153,18 +153,18 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
 
           {/* Scrollable Body */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-            
+
             {/* INDICATORS TAB */}
             {activeTab === 'indicators' && (
               <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
-                
+
                 {/* Main Overlay */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-white/10 pb-2">
                     <Activity className="w-4 h-4 text-[#848e9c]" />
                     <span className="text-[10px] font-black text-[#5e6673] uppercase tracking-[0.2em]">Core Overlay Algorithms</span>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
                       { id: 'SUPER', label: 'Supertrend', desc: 'Volatility-based trailing stop', color: 'var(--holo-cyan)' },
@@ -180,13 +180,13 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                           key={ind.id}
                           onClick={() => setLocalMain(isActive ? null : ind.id)}
                           className={`relative text-left p-4 rounded-xl border transition-all duration-300 group overflow-hidden ${
-                            isActive 
-                              ? `bg-[${ind.color}]/10 border-[${ind.color}]/50 shadow-[0_4px_20px_${ind.color}20,inset_0_0_15px_${ind.color}10]` 
+                            isActive
+                              ? `bg-[${ind.color}]/10 border-[${ind.color}]/50 shadow-[0_4px_20px_${ind.color}20,inset_0_0_15px_${ind.color}10]`
                               : 'bg-black/40 border-white/5 hover:border-white/20 hover:bg-white/[0.02]'
                           }`}
                         >
                           <div className={`absolute top-0 left-0 w-1 h-full transition-colors ${isActive ? `bg-[${ind.color}] shadow-[0_0_10px_${ind.color}]` : 'bg-transparent group-hover:bg-white/10'}`} />
-                          
+
                           <div className="flex justify-between items-start mb-1.5 pl-2">
                             <span className={`text-[12px] font-black uppercase tracking-widest ${isActive ? `text-[${ind.color}] drop-shadow-[0_0_8px_${ind.color}80]` : 'text-gray-300'}`}>
                               {ind.label}
@@ -210,7 +210,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                     <TrendingUp className="w-4 h-4 text-[#848e9c]" />
                     <span className="text-[10px] font-black text-[#5e6673] uppercase tracking-[0.2em]">Sub-Chart Oscillators</span>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
                       { id: 'VOL', label: 'Volume', icon: BarChart2, color: 'var(--holo-cyan)' },
@@ -229,13 +229,13 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                           key={ind.id}
                           onClick={() => toggleSub(ind.id)}
                           className={`relative flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-300 group overflow-hidden ${
-                            isActive 
-                              ? `bg-[${ind.color}]/10 border-[${ind.color}]/50 shadow-[0_4px_20px_${ind.color}30]` 
+                            isActive
+                              ? `bg-[${ind.color}]/10 border-[${ind.color}]/50 shadow-[0_4px_20px_${ind.color}30]`
                               : 'bg-black/40 border-white/5 hover:border-white/20 hover:bg-white/[0.02]'
                           }`}
                         >
                           {isActive && <div className={`absolute inset-0 bg-gradient-to-t from-[${ind.color}]/10 to-transparent pointer-events-none`} />}
-                          
+
                           <Icon className={`w-5 h-5 mb-2 transition-colors ${isActive ? `text-[${ind.color}] drop-shadow-[0_0_8px_${ind.color}]` : 'text-[#5e6673] group-hover:text-gray-400'}`} />
                           <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? `text-[${ind.color}]` : 'text-gray-400'}`}>
                             {ind.label}
@@ -252,7 +252,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
             {/* STYLE TAB */}
             {activeTab === 'style' && (
               <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
-                
+
                 {/* Main Render Type */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-black/40 border border-white/5 shadow-lg relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--holo-gold)]/5 rounded-full blur-3xl" />
@@ -266,8 +266,8 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                         key={mode}
                         onClick={() => setLocalConfig({ ...localConfig, style: mode })}
                         className={`flex-1 sm:w-28 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-all duration-300 ${
-                          localConfig.style === mode 
-                            ? 'bg-gradient-to-b from-white/10 to-transparent border border-white/20 text-white shadow-lg' 
+                          localConfig.style === mode
+                            ? 'bg-gradient-to-b from-white/10 to-transparent border border-white/20 text-white shadow-lg'
                             : 'text-[#5e6673] hover:text-[#848e9c] border border-transparent'
                         }`}
                       >
@@ -286,10 +286,10 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                       <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
                         <TrendingUp className="w-16 h-16 text-[var(--holo-cyan)]" />
                       </div>
-                      
+
                       <div className="relative z-10 space-y-5">
                         <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Bullish Action</h3>
-                        
+
                         <div className="flex flex-col gap-2">
                           <span className="text-[9px] font-bold text-[#5e6673] uppercase tracking-widest">Body Fill Protocol</span>
                           <div className="w-3/4">
@@ -319,10 +319,10 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                       <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity rotate-180">
                         <TrendingUp className="w-16 h-16 text-[var(--holo-magenta)]" />
                       </div>
-                      
+
                       <div className="relative z-10 space-y-5">
                         <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Bearish Action</h3>
-                        
+
                         <div className="flex flex-col gap-2">
                           <span className="text-[9px] font-bold text-[#5e6673] uppercase tracking-widest">Body Fill Protocol</span>
                           <div className="w-3/4">
@@ -349,7 +349,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                 ) : (
                   <div className="p-5 rounded-2xl bg-black/40 border border-white/5 shadow-lg space-y-6 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-[var(--holo-cyan)]/5 to-transparent opacity-50 pointer-events-none" />
-                    
+
                     <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                       <div className="flex flex-col gap-2">
                         <span className="text-[10px] font-black text-[#5e6673] uppercase tracking-[0.2em]">Trajectory Color</span>
@@ -363,9 +363,9 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                           <span className="text-[10px] font-black text-[#5e6673] uppercase tracking-[0.2em]">Stroke Thickness</span>
                           <span className="text-[10px] font-mono text-[var(--holo-cyan)] font-bold">{localConfig.line.width}px</span>
                         </div>
-                        <input 
-                          type="range" 
-                          min="1" max="5" step="1" 
+                        <input
+                          type="range"
+                          min="1" max="5" step="1"
                           value={localConfig.line.width}
                           onChange={(e) => setLocalConfig({ ...localConfig, line: { ...localConfig.line, width: parseInt(e.target.value) } })}
                           className="range-slider-holo"
@@ -381,7 +381,7 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                     <LayoutGrid className="w-4 h-4 text-[#848e9c]" />
                     <span className="text-[10px] font-black text-[#5e6673] uppercase tracking-[0.2em]">Global Environment</span>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3 shadow-lg">
                       <span className="text-[9px] font-black text-[#5e6673] uppercase tracking-widest">Canvas Background</span>
@@ -394,6 +394,16 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                       {colorSwatch(localConfig.global.gridLines, (color) => {
                         setLocalConfig({ ...localConfig, global: { ...localConfig.global, gridLines: color } })
                       })}
+                    </div>
+                    <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3 shadow-lg col-span-2">
+                      <span className="text-[9px] font-black text-[#5e6673] uppercase tracking-widest">Pattern Overlay (Bullish Engulfing)</span>
+                      <div className="w-1/2 mt-2">
+                        {cyberToggle(
+                          localConfig.patternOverlay !== false,
+                          () => setLocalConfig({ ...localConfig, patternOverlay: localConfig.patternOverlay === false }),
+                          'ON', 'OFF'
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -415,8 +425,8 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
             <button
               onClick={handleApply}
               className={`flex-[2] h-12 sm:h-14 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)] active:scale-[0.98] ${
-                activeTab === 'style' 
-                  ? 'bg-[var(--holo-gold)] text-black shadow-[0_0_20px_var(--holo-gold-glow)] hover:brightness-110' 
+                activeTab === 'style'
+                  ? 'bg-[var(--holo-gold)] text-black shadow-[0_0_20px_var(--holo-gold-glow)] hover:brightness-110'
                   : 'bg-[var(--holo-cyan)] text-black shadow-[0_0_20px_var(--holo-cyan-glow)] hover:brightness-110'
               }`}
             >

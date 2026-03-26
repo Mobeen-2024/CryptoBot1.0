@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
+import { isBullishEngulfing } from '../utils/patternDetection';
 
 interface ChartProps {
   data: any[];
@@ -92,6 +93,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
 
+  const [patternMarkers, setPatternMarkers] = useState<any[]>([]);
+  const patternMarkersRef = useRef<any[]>([]);
+
   const [visibleHighLow, setVisibleHighLow] = useState<{ high: any, low: any } | null>(null);
   const visibleHighLowRef = useRef<{ high: any, low: any } | null>(null);
   const dataRef = useRef<any[]>(data);
@@ -128,9 +132,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       if (entries.length === 0 || entries[0].target !== chartContainerRef.current) return;
       const newRect = entries[0].contentRect;
       if (newRect.width > 0 && newRect.height > 0 && chartRef.current) {
-        chartRef.current.applyOptions({ 
-          width: newRect.width, 
-          height: newRect.height 
+        chartRef.current.applyOptions({
+          width: newRect.width,
+          height: newRect.height
         });
       }
     });
@@ -142,31 +146,31 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       console.log("[Chart] Initializing createChart...");
       const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { 
-          type: ColorType.Solid, 
-          color: 'transparent', 
+        background: {
+          type: ColorType.Solid,
+          color: 'transparent',
         },
         textColor: 'rgba(255,255,255,0.7)',
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
       grid: {
-        vertLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true }, 
+        vertLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
         horzLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
       },
       crosshair: {
-        mode: 1, 
+        mode: 1,
         horzLine: {
           color: 'rgba(0, 229, 255, 0.8)',
-          labelBackgroundColor: '#00E5FF', 
+          labelBackgroundColor: '#00E5FF',
           labelVisible: true,
-          style: 3, 
+          style: 3,
         },
         vertLine: {
           color: 'rgba(0, 229, 255, 0.8)',
-          labelBackgroundColor: '#00E5FF', 
-          labelVisible: true, 
-          style: 3, 
+          labelBackgroundColor: '#00E5FF',
+          labelVisible: true,
+          style: 3,
         },
       },
       timeScale: {
@@ -201,17 +205,17 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     console.log("[Chart] Creating series...");
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#00E5FF', 
-      downColor: '#FF007F', 
-      borderVisible: true, 
+      upColor: '#00E5FF',
+      downColor: '#FF007F',
+      borderVisible: true,
       wickVisible: true,
       borderColor: '#333',
       borderUpColor: '#00E5FF',
       borderDownColor: '#FF007F',
-      wickUpColor: '#00E5FF', 
+      wickUpColor: '#00E5FF',
       wickDownColor: '#FF007F',
-      lastValueVisible: false, 
-      priceLineVisible: true, 
+      lastValueVisible: false,
+      priceLineVisible: true,
       visible: config?.style !== 'line',
     });
 
@@ -292,7 +296,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     // --- Sub-Chart Oscillators Initialization ---
     // Note: We use dedicated price scales (rsi, macd, etc.) so they can be layered/stacked.
-    
+
     // Volume
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#26a69a',
@@ -454,13 +458,13 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       });
       stDataRef.current = stData;
       supertrendSeries.setData(stData);
-      
+
       // Setup Average Price Lines (Dark Version)
       // Pick dynamic mock locations based on chart data
       const currentPr = data[data.length - 1].close;
       const mockBuyPrice = currentPr * 0.99;
       const mockSellPrice = currentPr * 1.01;
-      
+
       buyLineRef.current = candlestickSeries.createPriceLine({
         price: mockBuyPrice,
         color: '#00E5FF',
@@ -521,7 +525,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       if (param.time && param.seriesData.size > 0 && candlestickSeries && param.point) {
         const hoveredData = param.seriesData.get(candlestickSeries) as any;
         const srcData = data.find(d => d.time === hoveredData?.time);
-        
+
         setCrosshairData(hoveredData ? {
           ...hoveredData,
           x: param.point.x,
@@ -556,7 +560,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         setAvgPositions(prev => {
           const buyY = series.priceToCoordinate(prev.buyPrice);
           const sellY = series.priceToCoordinate(prev.sellPrice);
-          
+
           const newBuy = buyY !== null ? buyY : -100;
           const newSell = sellY !== null ? sellY : -100;
 
@@ -572,7 +576,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         const timeScale = chartRef.current.timeScale();
         const { high, low } = visibleHighLowRef.current;
         const series = seriesRef.current;
-        
+
         const topEl = document.getElementById('recent-top-marker');
         if (topEl && high) {
            const x = timeScale.timeToCoordinate(high.time);
@@ -582,7 +586,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               topEl.style.opacity = '1';
            } else { topEl.style.opacity = '0'; }
         }
-        
+
         const bottomEl = document.getElementById('recent-bottom-marker');
         if (bottomEl && low) {
            const x = timeScale.timeToCoordinate(low.time);
@@ -598,7 +602,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       if (seriesRef.current && chartRef.current && htmlMarkersRef.current.length > 0) {
         const timeScale = chartRef.current.timeScale();
         const series = seriesRef.current;
-        
+
         htmlMarkersRef.current.forEach(m => {
           const el = document.getElementById(`trade-marker-${m.id}`);
           if (el) {
@@ -608,26 +612,49 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
             if (x !== null && y !== null) {
               const xPos = x - 10; // Center the 20px wide marker
-              
+
               // Anchor logic (CRITICAL for pixel perfect alignment):
               // The main container div is `w-5 h-5` (20x20px).
               // The `y` coordinate is the Exact Pixel of the Candle Wick (High or Low).
-              
+
               // BUY MARKER (Placed Below):
               // - The top of the CSS triangle pointer is geometrically at `-5px` from the top of the container.
               // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `+5px` DOWN away from `y`.
               // - Therefore: yPos = y + 5
-              
+
               // SELL MARKER (Placed Above):
               // - The bottom of the CSS triangle pointer is geometrically at `+25px` from the top of the container (20px body + 5px pointer).
               // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `-25px` UP away from `y`.
               // - Therefore: yPos = y - 25
-              
+
               const yPos = m.isBuy ? y + 5 : y - 25;
 
               el.style.transform = `translate(${xPos}px, ${yPos}px)`;
               el.style.opacity = '1';
               // Pointer events block scroll/zoom, so we use pointer-events-none inside the container anyway
+            } else {
+              el.style.opacity = '0';
+            }
+          }
+        });
+      }
+
+      // Sync Pattern Markers
+      if (seriesRef.current && chartRef.current && patternMarkersRef.current.length > 0 && config?.patternOverlay !== false) {
+        const timeScale = chartRef.current.timeScale();
+        const series = seriesRef.current;
+
+        patternMarkersRef.current.forEach(m => {
+          const el = document.getElementById(`pattern-marker-${m.id}`);
+          if (el) {
+            const x = timeScale.timeToCoordinate(m.time);
+            const y = series.priceToCoordinate(m.low);
+
+            if (x !== null && y !== null) {
+              const xPos = x - 10; // Center 20px wide marker
+              const yPos = y + 5; // Offset below candle
+              el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+              el.style.opacity = '1';
             } else {
               el.style.opacity = '0';
             }
@@ -741,18 +768,18 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           }
           // Realtime tick extension for Sub-indicators
           if (volumeSeriesRef.current && lastValid.volume) {
-            volumeSeriesRef.current.update({ 
-               time: t, 
-               value: lastValid.volume, 
-               color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' 
+            volumeSeriesRef.current.update({
+               time: t,
+               value: lastValid.volume,
+               color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
             });
           }
           if (rsiSeriesRef.current && lastValid.rsi) rsiSeriesRef.current.update({ time: t, value: lastValid.rsi });
           if (macdSeriesRef.current && lastValid.macd) {
             macdSeriesRef.current.update({ time: t, value: lastValid.macd.macd });
             macdSignalRef.current.update({ time: t, value: lastValid.macd.signal });
-            macdHistRef.current.update({ 
-              time: t, 
+            macdHistRef.current.update({
+              time: t,
               value: lastValid.macd.histogram,
               color: lastValid.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
             });
@@ -943,9 +970,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   // Handle Dynamic style config changes
   useEffect(() => {
     if (!chartRef.current) return;
-    
+
     const isCandle = config?.style === 'candle';
-    
+
     // 1. Global Updates
     const textColor = getContrastColor(config?.global.background || '#0b1622');
     chartRef.current.applyOptions({
@@ -1159,10 +1186,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       if (closestBar) {
         const sideCln = trade.side?.trim().toUpperCase();
         if (sideCln !== 'BUY' && sideCln !== 'SELL') return; // Ensure we only map valid trades
-        
+
         const isBuy = sideCln === 'BUY';
         const timeKey = `${String(closestBar.time)}_${isBuy ? 'BUY' : 'SELL'}`;
-        
+
         const tradeDetail = {
           id: trade.master_trade_id,
           type: sideCln,
@@ -1198,6 +1225,29 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       try { seriesRef.current.setMarkers([]); } catch(e) {}
     }
   }, [data, trades]);
+
+  // Calculate pattern markers
+  useEffect(() => {
+    if (!data || data.length === 0 || config?.patternOverlay === false) {
+      setPatternMarkers([]);
+      patternMarkersRef.current = [];
+      return;
+    }
+    const newPatternMarkers = [];
+    for (let i = 1; i < data.length; i++) {
+      if (isBullishEngulfing(data[i - 1], data[i])) {
+        newPatternMarkers.push({
+          id: `${data[i].time}`,
+          time: data[i].time,
+          low: data[i].low,
+          open: data[i].open,
+          close: data[i].close
+        });
+      }
+    }
+    patternMarkersRef.current = newPatternMarkers;
+    setPatternMarkers(newPatternMarkers);
+  }, [data, config?.patternOverlay]);
 
   // Sync Open Orders to Price Lines
   useEffect(() => {
@@ -1271,10 +1321,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   return (
     <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
-      
+
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
-      
+
       {/* ═══════════════ CHART TOOLBAR ═══════════════ */}
       <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/[0.03] bg-gradient-to-b from-white/[0.03] to-transparent relative z-10">
 
@@ -1298,23 +1348,23 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               <div className="flex items-center gap-2 bg-[#00E5FF]/5 border border-[#00E5FF]/20 shadow-[0_0_15px_rgba(0,229,255,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#00E5FF]/50 focus-within:shadow-[0_0_20px_rgba(0,229,255,0.15)_inset] transition-all">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
                 <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#00E5FF]/80 flex-shrink-0">Buy</span>
-                <input 
-                  type="number" 
-                  placeholder="—" 
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#00E5FF] font-mono font-bold placeholder:text-[#00E5FF]/30 text-right selection:bg-[#00E5FF]/30" 
-                  value={customBuy} 
-                  onChange={e => setCustomBuy(e.target.value)} 
+                <input
+                  type="number"
+                  placeholder="—"
+                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#00E5FF] font-mono font-bold placeholder:text-[#00E5FF]/30 text-right selection:bg-[#00E5FF]/30"
+                  value={customBuy}
+                  onChange={e => setCustomBuy(e.target.value)}
                 />
               </div>
               <div className="flex items-center gap-2 bg-[#FF007F]/5 border border-[#FF007F]/20 shadow-[0_0_15px_rgba(255,0,127,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#FF007F]/50 focus-within:shadow-[0_0_20px_rgba(255,0,127,0.15)_inset] transition-all">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#FF007F] shadow-[0_0_8px_#FF007F]" />
                 <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#FF007F]/80 flex-shrink-0">Sell</span>
-                <input 
-                  type="number" 
-                  placeholder="—" 
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#FF007F] font-mono font-bold placeholder:text-[#FF007F]/30 text-right selection:bg-[#FF007F]/30" 
-                  value={customSell} 
-                  onChange={e => setCustomSell(e.target.value)} 
+                <input
+                  type="number"
+                  placeholder="—"
+                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#FF007F] font-mono font-bold placeholder:text-[#FF007F]/30 text-right selection:bg-[#FF007F]/30"
+                  value={customSell}
+                  onChange={e => setCustomSell(e.target.value)}
                 />
               </div>
             </div>
@@ -1383,7 +1433,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
-        
+
         {/* Recent High/Low Markers Overlay Layer */}
         {visibleHighLow && (
           <div className="absolute inset-0 z-40 pointer-events-none overflow-hidden">
@@ -1423,6 +1473,47 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           </div>
         )}
 
+      {/* Pattern Markers Overlay Layer */}
+      {config?.patternOverlay !== false && (
+        <div className="absolute inset-0 z-[45] pointer-events-none overflow-hidden">
+          {patternMarkers.map((m) => (
+            <div
+              key={m.id}
+              id={`pattern-marker-${m.id}`}
+              className="absolute top-0 left-0 w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern"
+              style={{ transition: 'opacity 0.15s ease' }}
+            >
+              {/* Green Triangle Pointing Up */}
+              <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-[#00E676] drop-shadow-[0_0_6px_rgba(0,230,118,0.8)] relative z-10" />
+              {/* Subtle Candle Glow */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-4 h-12 bg-[#00E676]/20 blur-md rounded-full pointer-events-none z-0 mb-1" />
+
+              {/* Pattern Tooltip */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-opacity duration-200 z-[100] w-48">
+                <div className="relative rounded-lg border border-[#00E676]/30 bg-black/90 backdrop-blur-3xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-1.5">
+                  <div className="text-[9px] font-black text-[#00E676] border-b border-[#00E676]/20 pb-1.5 uppercase tracking-[0.2em]">
+                    Bullish Engulfing
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between items-center text-[10px] font-mono">
+                      <span className="text-white/40">Open</span>
+                      <span className="text-white font-bold">{m.open.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] font-mono">
+                      <span className="text-white/40">Close</span>
+                      <span className="text-white font-bold text-[#00E676]">{m.close.toFixed(2)}</span>
+                    </div>
+                    <div className="text-[9px] text-white/60 font-medium leading-relaxed mt-1 italic border-t border-white/5 pt-1.5">
+                      "High Probability Reversal"
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
         {/* HTML Markers Overlay Layer */}
         <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
           {htmlMarkers.map((m) => (
@@ -1445,9 +1536,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               )}
 
               {/* Main Rounded Box Backend */}
-              <div 
+              <div
                 className={`absolute inset-0 border border-white/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)] backdrop-blur-2xl flex justify-center items-center z-10 transition-transform duration-300 group-hover:scale-110 ${
-                  m.isBuy 
+                  m.isBuy
                     ? 'bg-gradient-to-br from-[#00E5FF] to-[#00aaee] rounded-md'
                     : 'bg-gradient-to-br from-[#FF007F] to-[#ee0070] rounded-md'
                 }`}
@@ -1457,7 +1548,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                   <span className="relative z-20 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] text-[10px] font-black tracking-tighter">
                     {m.text}
                   </span>
-                  
+
                   {/* Cyberpunk Core Highlight */}
                   <div className="absolute inset-[20%] bg-[radial-gradient(circle,rgba(255,255,255,0.6)_0%,transparent_70%)] mix-blend-overlay rounded-full blur-[1px] pointer-events-none z-10" />
                 </div>
@@ -1496,7 +1587,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       {/* ── OHLC Floating Hover HUD ──────────────────────────── */}
       {crosshairData && crosshairData.x !== undefined && (
-        <div 
+        <div
           className="absolute z-20 pointer-events-none select-none"
           style={{
             left: `clamp(4px, ${crosshairData.x > 150 ? crosshairData.x - 125 : crosshairData.x + 15}px, calc(100% - 130px))`,
@@ -1507,7 +1598,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           <div className="flex flex-col gap-1.5 glass-panel p-2.5 w-[115px] animate-float-glow rounded-xl">
             {/* Header / Date */}
             <div className="text-white/60 text-[9px] font-black tracking-widest uppercase border-b border-white/10 pb-1.5 mb-0.5 text-center">
-              {(typeof crosshairData.time === 'number') 
+              {(typeof crosshairData.time === 'number')
                 ? new Date(crosshairData.time * 1000).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
                 : String(crosshairData.time)}
             </div>
@@ -1516,10 +1607,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             {(['open', 'high', 'low', 'close'] as const).map((key) => {
               const val = crosshairData[key];
               const isUp = crosshairData.close >= crosshairData.open;
-              const colorClass = key === 'close' 
-                ? (isUp ? 'neon-text-cyan' : 'neon-text-magenta') 
+              const colorClass = key === 'close'
+                ? (isUp ? 'neon-text-cyan' : 'neon-text-magenta')
                 : 'text-white';
-              
+
               return (
                 <div key={key} className="flex justify-between items-center text-[10px] font-mono leading-tight">
                   <span className="text-[#848e9c] font-bold tracking-wider capitalize">{key}</span>
@@ -1537,7 +1628,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                  <span className="font-bold text-[var(--holo-gold)]">{crosshairData.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                </div>
             )}
-            
+
             {/* Optional Sub-Indicators (if active and data exists) */}
             {subIndicators.includes('MACD') && crosshairData.macd && (
               <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
@@ -1558,7 +1649,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* ── Brand Watermark 2050 ─────────────────────────────── */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
         <div className="flex flex-col items-center gap-2 max-w-full px-4">
-          <span 
+          <span
             className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-10 whitespace-nowrap"
             style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
           >
@@ -1576,7 +1667,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
       {showAvgLines && avgPositions.buyPrice > 0 && (
-        <div 
+        <div
           className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-cyan)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(0,229,255,0.2)] pointer-events-none transition-all duration-100"
           style={{ top: avgPositions.buyPrice, transform: 'translateY(-50%)' }}
         >
@@ -1593,7 +1684,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
       )}
       {showAvgLines && avgPositions.sellPrice > 0 && (
-        <div 
+        <div
           className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-magenta)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(255,0,127,0.2)] pointer-events-none transition-all duration-100"
           style={{ top: avgPositions.sellPrice, transform: 'translateY(-50%)' }}
         >
@@ -1621,15 +1712,15 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       {/* ── Active Candle Highlight Aura ── */}
       {hoveredCandleX !== null && (
-        <div 
+        <div
           className="absolute top-0 bottom-0 z-[5] pointer-events-none bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/10 to-transparent w-[12px]"
-          style={{ left: hoveredCandleX - 6 }} 
+          style={{ left: hoveredCandleX - 6 }}
         />
       )}
 
       {/* ── Holographic Crosshair Intersection ── */}
       {crosshairPos !== null && (
-        <div 
+        <div
           className="absolute z-[21] pointer-events-none w-3 h-3 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_15px_var(--holo-cyan),inset_0_0_4px_white] -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
           style={{ left: crosshairPos.x, top: crosshairPos.y }}
         >
@@ -1643,6 +1734,3 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     </div>
   );
 };
-
-
-
