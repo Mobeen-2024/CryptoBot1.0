@@ -89,6 +89,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   // Phase 2: Ultra 2050 Enhancements State
   const [crosshairPos, setCrosshairPos] = useState<{ x: number, y: number } | null>(null);
   const [hoveredCandleX, setHoveredCandleX] = useState<number | null>(null);
+  const [isChartReady, setIsChartReady] = useState(false);
+
 
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
@@ -870,8 +872,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     };
 
     resizeObserver.observe(chartContainerRef.current);
+    setIsChartReady(true);
 
     return () => {
+      setIsChartReady(false);
       resizeObserver.disconnect();
       if (chart) chart.remove();
       ws.close();
@@ -1130,7 +1134,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   // Create / remove price lines when toggle or prices change
   useEffect(() => {
-    if (!seriesRef.current) return;
+    if (!seriesRef.current || !isChartReady) return;
 
     if (showAvgLines) {
       const buyP = customBuy ? parseFloat(customBuy) : avgPositions.buyPrice;
@@ -1165,11 +1169,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         sellLineRef.current = null;
       }
     }
-  }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice]);
+  }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice, isChartReady]);
 
   // Calculate custom HTML markers
   useEffect(() => {
-    if (!data || data.length === 0 || !trades || trades.length === 0) return;
+    if (!isChartReady || !data || data.length === 0 || !trades || trades.length === 0) return;
 
     const uniqueMap = new Map();
 
@@ -1224,11 +1228,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     if (seriesRef.current) {
       try { seriesRef.current.setMarkers([]); } catch(e) {}
     }
-  }, [data, trades]);
+  }, [data, trades, isChartReady]);
 
   // Calculate pattern markers
   useEffect(() => {
-    if (!data || data.length === 0 || config?.patternOverlay === false) {
+    if (!isChartReady || !data || data.length === 0 || config?.patternOverlay === false) {
       setPatternMarkers([]);
       patternMarkersRef.current = [];
       return;
@@ -1247,12 +1251,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
     patternMarkersRef.current = newPatternMarkers;
     setPatternMarkers(newPatternMarkers);
-  }, [data, config?.patternOverlay]);
+  }, [data, config?.patternOverlay, isChartReady]);
 
   // Sync Open Orders to Price Lines
   useEffect(() => {
     const series = seriesRef.current;
-    if (!series) return;
+    if (!series || !isChartReady) return;
 
     const currentLineMap = openOrderLinesRef.current;
     const activeIds = new Set<string>();
@@ -1317,7 +1321,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       }
     });
 
-  }, [openOrders, seriesRef.current]);
+  }, [openOrders, isChartReady]);
 
   return (
     <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
