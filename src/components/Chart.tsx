@@ -1326,7 +1326,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
       {/* ═══════════════ CHART TOOLBAR ═══════════════ */}
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent relative z-10">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent relative z-10 opacity-0 group-hover/chart:opacity-100 transition-opacity duration-500">
 
         {/* Avg Price Toggle + Inputs */}
         <div className="hidden md:flex items-center gap-3">
