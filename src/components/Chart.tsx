@@ -116,14 +116,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   // Helper to parse interval into ms
   const getIntervalMs = (interval: string) => {
-    const value = parseInt(interval);
-    const unit = interval.slice(-1);
+    const canonical = canonicalInterval(interval);
+    const value = parseInt(canonical);
+    const unit = canonical.slice(-1);
     switch (unit) {
       case 'm': return value * 60 * 1000;
       case 'h': return value * 60 * 60 * 1000;
       case 'd': return value * 24 * 60 * 60 * 1000;
       case 'w': return value * 7 * 24 * 60 * 60 * 1000;
-      default: return 60000; // Default to 1 minute if unknown
+      case 'M': return value * 30 * 24 * 60 * 60 * 1000; // Approximate month for countdown
+      default: return 60000;
     }
   };
 
@@ -821,9 +823,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             // Compute Y position of current price on chart
             let priceY = -100;
             const closePrice = parseFloat(kline.c);
-            if (seriesRef.current && chartRef.current) {
+            const activeSeries = seriesRef.current?.options().visible ? seriesRef.current : mainLineSeriesRef.current;
+            if (activeSeries && chartRef.current) {
               try {
-                const coord = seriesRef.current.priceToCoordinate(closePrice);
+                const coord = activeSeries.priceToCoordinate(closePrice);
                 if (coord !== null && coord !== undefined) priceY = coord;
               } catch(e) {}
             }
@@ -839,9 +842,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           // Update direction & position on each tick
           const closePrice = parseFloat(kline.c);
           let priceY = -100;
-          if (seriesRef.current && chartRef.current) {
+          const activeSeries = seriesRef.current?.options().visible ? seriesRef.current : mainLineSeriesRef.current;
+          if (activeSeries && chartRef.current) {
             try {
-              const coord = seriesRef.current.priceToCoordinate(closePrice);
+              const coord = activeSeries.priceToCoordinate(closePrice);
               if (coord !== null && coord !== undefined) priceY = coord;
             } catch(e) {}
           }
@@ -1627,7 +1631,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           className="absolute z-20 pointer-events-none select-none"
           style={{
             left: `clamp(4px, ${crosshairData.x > 150 ? crosshairData.x - 125 : crosshairData.x + 15}px, calc(100% - 130px))`,
-            top: `${Math.max(10, (seriesRef.current?.priceToCoordinate(crosshairData.high) || crosshairData.y) - 10)}px`,
+            top: `${Math.max(10, crosshairData.y - 120)}px`,
           }}
         >
           {/* Cyberpunk Floating Card */}
@@ -1761,6 +1765,23 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           style={{ left: crosshairPos.x, top: crosshairPos.y }}
         >
           <div className="absolute inset-0 rounded-full animate-ping bg-[var(--holo-cyan)] opacity-20" />
+        </div>
+      )}
+
+      {/* ── Floating Candle Countdown HUD (Pinned to Price) ── */}
+      {candleCountdown && candleCountdown.priceY > 0 && (
+        <div
+          className="absolute z-30 right-0 pointer-events-none pr-1 transition-all duration-100 ease-linear"
+          style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
+        >
+          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-l-lg border-y border-l backdrop-blur-md shadow-lg ${
+            candleCountdown.isUp
+              ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
+              : 'bg-[var(--holo-magenta)]/10 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
+          }`}>
+            <div className={`w-1 h-1 rounded-full animate-pulse ${candleCountdown.isUp ? 'bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]' : 'bg-[var(--holo-magenta)] shadow-[0_0_8px_var(--holo-magenta)]'}`} />
+            <span className="text-[10px] font-mono font-black tracking-widest">{candleCountdown.text}</span>
+          </div>
         </div>
       )}
 
