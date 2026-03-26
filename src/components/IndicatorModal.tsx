@@ -53,7 +53,7 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[200] flex justify-center md:items-center bg-black/60 backdrop-blur-md" onClick={onClose}>
-      <div 
+      <div
         className="glass-panel w-full max-w-sm md:max-w-md absolute bottom-0 md:relative md:bottom-auto rounded-t-[20px] md:rounded-[20px] shadow-[0_10px_50px_rgba(0,0,0,0.8)] flex flex-col font-sans animate-in slide-in-from-bottom md:zoom-in-95 border-t md:border border-[var(--holo-cyan)]/20"
         onClick={e => e.stopPropagation()}
         style={{ maxHeight: '90vh' }}
@@ -71,7 +71,7 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
           </button>
         </div>
 
-        <div className="overflow-y-auto px-5 py-4 custom-scrollbar" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+        <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar" style={{ maxHeight: 'calc(90vh - 120px)' }}>
           {/* Main Indicators */}
           <div className="mb-6">
             <h3 className="text-xs font-bold text-[#848e9c] uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -131,7 +131,7 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 px-5 border-t border-[var(--holo-cyan)]/20 bg-black/40 rounded-b-[20px] shrink-0">
-           <button 
+           <button
              onClick={handleApply}
              className="w-full bg-[var(--holo-cyan)] text-black font-black py-3.5 rounded-xl hover:brightness-110 active:scale-95 transition-all uppercase tracking-[0.2em] text-xs shadow-[0_0_20px_var(--holo-cyan-glow)]"
            >
@@ -142,4 +142,3 @@ export const IndicatorModal: React.FC<IndicatorModalProps> = ({
     </div>
   )
 }
-

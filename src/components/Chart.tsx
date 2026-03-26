@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
@@ -90,6 +91,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     kdj?: { k: number, d: number, j: number };
     alligator?: { jaw: number | null, teeth: number | null, lips: number | null };
   } | null>(null);
+
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
   const [candleCountdown, setCandleCountdown] = useState<{
     text: string;
@@ -622,7 +625,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         patternMarkersRef.current.forEach(m => {
           const el = document.getElementById(`pattern-marker-${m.id}`);
           const boxEl = document.getElementById(`engulf-box-${m.id}`);
-          
+
           if (el) {
             const x = timeScale.timeToCoordinate(m.time);
             const yHigh = series.priceToCoordinate(m.high);
@@ -631,7 +634,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             if (x !== null && yHigh !== null && yLow !== null) {
               const xPos = x - 10; // Center 20px wide marker
               // Adjust Y-axis Vertical Zone: Engulfing patterns always 10px below the candle
-              const yPos = yLow + 10; 
+              const yPos = yLow + 10;
               el.style.transform = `translate(${xPos}px, ${yPos}px)`;
               el.style.opacity = '1';
             } else {
@@ -643,11 +646,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           if (boxEl) {
             const x1 = timeScale.timeToCoordinate(m.prevTime);
             const x2 = timeScale.timeToCoordinate(m.time);
-            
+
             // Box should cover both candles' high/low range
             const pHigh = Math.max(m.high, m.prevCandle.high);
             const pLow = Math.min(m.low, m.prevCandle.low);
-            
+
             const y1 = series.priceToCoordinate(pHigh);
             const y2 = series.priceToCoordinate(pLow);
 
@@ -1301,11 +1304,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     const newPatternMarkers = [];
     for (let i = 1; i < data.length; i++) {
       const { isBullish, isBearish, hasHighVolume } = analyzeEngulfing(data[i - 1], data[i]);
-      
+
       if (isBullish || isBearish) {
         const currMa = ma10[i];
         const prevMa = ma10[i - 1];
-        
+
         // Trend context logic
         let context: 'REVERSAL' | 'CONTINUATION' = 'CONTINUATION';
         if (currMa !== null && prevMa !== null) {
@@ -1412,63 +1415,78 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   }, [openOrders, seriesRef.current]);
 
+  // Handle global click to deselect markers on mobile
+  const handleChartClick = () => {
+    if (selectedMarkerId) setSelectedMarkerId(null);
+  };
+
   return (
-    <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
+    <div
+      className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart"
+      onClick={handleChartClick}
+    >
 
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
       {/* ═══════════════ CHART TOOLBAR ═══════════════ */}
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent relative z-10 opacity-0 group-hover/chart:opacity-100 transition-opacity duration-500">
+      <div className="flex flex-col sm:flex-row items-center justify-between px-2 sm:px-4 py-2 gap-3 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent relative z-10 opacity-100 lg:opacity-0 lg:group-hover/chart:opacity-100 transition-opacity duration-500 min-h-[48px]">
 
-        {/* Avg Price Toggle + Inputs */}
-        <div className="hidden md:flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer group select-none">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={showAvgLines}
-                onChange={e => setShowAvgLines(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
-              <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
-            </div>
-            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Avg</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer group select-none">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={showEngulfing}
-                onChange={e => setShowEngulfing(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
-              <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
-            </div>
-            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Engulf</span>
-          </label>
+        {/* Left: Toggles + Contextual Inputs */}
+        <div className="flex flex-nowrap sm:flex-wrap items-center gap-3 sm:gap-6 w-full sm:w-auto overflow-x-auto sm:overflow-x-visible custom-scrollbar pb-2 sm:pb-0">
+          <div className="flex-shrink-0 flex items-center gap-3 sm:gap-4">
+            {/* Avg Toggle */}
+            <label className="flex items-center gap-1.5 sm:gap-2 cursor-pointer group select-none">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={showAvgLines}
+                  onChange={e => setShowAvgLines(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-7 h-3.5 sm:w-8 sm:h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
+                <div className="absolute top-[2.5px] sm:top-[3px] left-[2.5px] sm:left-[3px] w-[9px] h-[9px] sm:w-[10px] sm:h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-3.5 sm:peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
+              </div>
+              <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Avg</span>
+            </label>
+
+            {/* Engulf Toggle */}
+            <label className="flex items-center gap-1.5 sm:gap-2 cursor-pointer group select-none">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={showEngulfing}
+                  onChange={e => setShowEngulfing(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-7 h-3.5 sm:w-8 sm:h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
+                <div className="absolute top-[2.5px] sm:top-[3px] left-[2.5px] sm:left-[3px] w-[9px] h-[9px] sm:w-[10px] sm:h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-3.5 sm:peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
+              </div>
+              <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Engulf</span>
+            </label>
+          </div>
+
+          {/* Avg Price Inputs (Zoned contextually) */}
           {showAvgLines && (
-            <div className="flex items-center gap-2 animate-in slide-in-from-left-2 fade-in duration-300">
-              <div className="flex items-center gap-2 bg-[#00E5FF]/5 border border-[#00E5FF]/20 shadow-[0_0_15px_rgba(0,229,255,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#00E5FF]/50 focus-within:shadow-[0_0_20px_rgba(0,229,255,0.15)_inset] transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
-                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#00E5FF]/80 flex-shrink-0">Buy</span>
+            <div className="flex-shrink-0 flex items-center gap-2 animate-in slide-in-from-left-2 fade-in duration-300">
+              <div className="flex items-center gap-2 bg-[#00E5FF]/5 border border-[#00E5FF]/20 shadow-[0_0_15px_rgba(0,229,255,0.05)_inset] rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 focus-within:border-[#00E5FF]/50 focus-within:shadow-[0_0_20px_rgba(0,229,255,0.15)_inset] transition-all">
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
+                <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-widest font-bold text-[#00E5FF]/80 flex-shrink-0">Buy</span>
                 <input
                   type="number"
                   placeholder="—"
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#00E5FF] font-mono font-bold placeholder:text-[#00E5FF]/30 text-right selection:bg-[#00E5FF]/30"
+                  className="bg-transparent w-[55px] sm:w-[65px] outline-none text-[10px] sm:text-[11px] text-[#00E5FF] font-mono font-bold placeholder:text-[#00E5FF]/30 text-right"
                   value={customBuy}
                   onChange={e => setCustomBuy(e.target.value)}
                 />
               </div>
-              <div className="flex items-center gap-2 bg-[#FF007F]/5 border border-[#FF007F]/20 shadow-[0_0_15px_rgba(255,0,127,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#FF007F]/50 focus-within:shadow-[0_0_20px_rgba(255,0,127,0.15)_inset] transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#FF007F] shadow-[0_0_8px_#FF007F]" />
-                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#FF007F]/80 flex-shrink-0">Sell</span>
+              <div className="flex items-center gap-2 bg-[#FF007F]/5 border border-[#FF007F]/20 shadow-[0_0_15px_rgba(255,0,127,0.05)_inset] rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 focus-within:border-[#FF007F]/50 focus-within:shadow-[0_0_20px_rgba(255,0,127,0.15)_inset] transition-all">
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-[#FF007F] shadow-[0_0_8px_#FF007F]" />
+                <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-widest font-bold text-[#FF007F]/80 flex-shrink-0">Sell</span>
                 <input
                   type="number"
                   placeholder="—"
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#FF007F] font-mono font-bold placeholder:text-[#FF007F]/30 text-right selection:bg-[#FF007F]/30"
+                  className="bg-transparent w-[55px] sm:w-[65px] outline-none text-[10px] sm:text-[11px] text-[#FF007F] font-mono font-bold placeholder:text-[#FF007F]/30 text-right"
                   value={customSell}
                   onChange={e => setCustomSell(e.target.value)}
                 />
@@ -1477,68 +1495,78 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           )}
         </div>
 
-        {/* Center: Drawing Tools */}
-        <div className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.2)] rounded-xl p-1 backdrop-blur-md">
-          {([
-            { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select',          color: '#ffffff' },
-            { id: 'trendline',  icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',      title: 'Trendline',       color: '#00E5FF' },
-            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Support/Resist',  color: '#fcd535' },
-            { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#FF007F' },
-          ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
+        {/* Center/Right: Drawing and Utility Block */}
+        <div className="flex items-center justify-start sm:justify-end gap-3 w-full sm:w-auto overflow-x-auto sm:overflow-x-visible custom-scrollbar pb-2 sm:pb-0">
+          {/* Drawing Tools (Compact for Mobile) */}
+          <div className="flex items-center gap-1 bg-white/5 border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.2)] rounded-xl p-1 backdrop-blur-md">
+            {([
+              { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select',          color: '#ffffff' },
+              { id: 'trendline',  icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',      title: 'Trendline',       color: '#00E5FF' },
+              { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#FF007F' },
+            ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
+              <button
+                key={tool.id}
+                title={tool.title}
+                onClick={() => setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool)}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 relative group/btn ${
+                  activeTool === tool.id ? 'bg-white/10' : 'hover:bg-white/5'
+                }`}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke={activeTool === tool.id ? tool.color : '#848e9c'}
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={tool.icon}/>
+                </svg>
+              </button>
+            ))}
+            <div className="w-px h-3 bg-white/10 mx-1"/>
             <button
-              key={tool.id}
-              title={tool.title}
-              onClick={() => setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool)}
-              className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 relative group/btn ${
-                activeTool === tool.id
-                  ? 'bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
-                  : 'hover:bg-white/5'
-              }`}
+              title="Clear all"
+              onClick={() => { setCustomBuy(''); setCustomSell(''); toast.success('Reset'); }}
+              className="p-1.5 sm:p-2 rounded-lg text-[#848e9c] hover:text-[#FF007F] transition-all"
             >
-              {activeTool === tool.id && (
-                <div className="absolute inset-0 rounded-lg shadow-[0_0_12px_currentColor] opacity-30" style={{ color: tool.color }} />
-              )}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke={activeTool === tool.id ? tool.color : '#848e9c'}
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                className="relative z-10 transition-colors group-hover/btn:drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-                <path d={tool.icon}/>
-              </svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
             </button>
-          ))}
-          <div className="w-px h-4 bg-white/10 mx-1"/>
-          <button
-            title="Clear all drawings"
-            onClick={() => {
-              localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
-              setActiveTool('none');
-              window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
-            }}
-            className="p-1.5 sm:p-2 rounded-lg text-[#848e9c] hover:text-[#FF007F] hover:bg-[#FF007F]/10 transition-all duration-300 group/clear"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover/clear:drop-shadow-[0_0_8px_#FF007F]">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-            </svg>
-          </button>
-        </div>
+          </div>
 
-        {/* Right: Utility Actions */}
-        <div className="flex items-center gap-1.5">
-          <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Grid Settings" onClick={(e) => e.preventDefault()}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
-            </svg>
-          </button>
-          <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Screenshot" onClick={(e) => e.preventDefault()}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-            </svg>
-          </button>
+          {/* Screenshot & Settings */}
+          <div className="flex items-center gap-1.5">
+            <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white transition-all">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
+        
+        {/* ── Persistent Indicator Legend (Top Left Overlay) ── */}
+        <div className="absolute top-2 left-2 z-[40] flex flex-col gap-1.5 max-w-[140px] md:max-w-none max-h-[160px] md:max-h-none overflow-y-auto custom-scrollbar pointer-events-auto pr-2">
+          {/* Symbol & Interval Info (Persistent Context) */}
+          <div className="flex items-center gap-2 px-2 py-1 bg-black/60 backdrop-blur-xl border border-white/10 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-tighter text-white/80 shrink-0">
+            <span className="text-[var(--holo-gold)]">● {symbol.replace('USDT', '')}</span>
+            <span className="opacity-40">{chartInterval}</span>
+            <span className={data[data.length-1].close >= data[data.length-1].open ? 'text-[#00FF9D]' : 'text-[#FF007F]'}>
+              {data[data.length-1].close.toFixed(2)}
+            </span>
+          </div>
+
+          {/* Active Main Indicator */}
+          {mainIndicator && (
+             <div className="flex items-center gap-2 px-2 py-1 bg-black/40 backdrop-blur-md border border-white/5 rounded-lg text-[9px] font-bold text-white/60 shrink-0">
+                <span className="text-[var(--holo-gold)]/80 uppercase tracking-widest">{mainIndicator}</span>
+                <span className="font-mono">{/* Value could be derived from last point if needed */}</span>
+             </div>
+          )}
+
+          {/* Sub Indicators (Scrollable List) */}
+          {subIndicators.map(id => (
+             <div key={id} className="flex items-center justify-between gap-3 px-2 py-1 bg-white/5 backdrop-blur-md border border-white/[0.03] rounded-lg text-[9px] font-bold text-white/50 shrink-0 hover:bg-white/10 transition-colors">
+                <span className="text-[var(--holo-cyan)]/60 uppercase tracking-widest">{id}</span>
+             </div>
+          ))}
+        </div>
 
         {/* Recent High/Low Markers Overlay Layer */}
         {visibleHighLow && (
@@ -1601,8 +1629,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 {/* Primary Pattern Marker (Zoned 10px below candle) */}
                 <div
                   id={`pattern-marker-${m.id}`}
-                  className="absolute w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern"
+                  className="absolute w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern cursor-pointer"
                   style={{ transition: 'opacity 0.2s ease' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedMarkerId(prev => prev === m.id ? null : m.id);
+                  }}
                 >
                   <div className="relative flex flex-col items-center">
                     {/* UI Marker Logic: Primary Small Icons */}
@@ -1633,10 +1665,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
                     {/* Vertical Growing Label: "Bullish/Bearish" */}
                     <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-                      <div 
-                        className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap opacity-0 group-hover/pattern:opacity-100 transition-opacity"
-                        style={{ 
-                          writingMode: 'vertical-lr', 
+                      <div
+                        className={`text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-opacity ${selectedMarkerId === m.id ? 'opacity-100' : 'opacity-0 group-hover/pattern:opacity-100'}`}
+                        style={{
+                          writingMode: 'vertical-lr',
                           transform: 'rotate(180deg)',
                           color: mainColor,
                           textShadow: `0 0 10px ${mainColor}`
@@ -1647,8 +1679,14 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                     </div>
                   </div>
 
-                  {/* Enhanced Educational Tooltip */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-all duration-300 z-[100] w-60 translate-y-2 group-hover/pattern:translate-y-0">
+                  {/* Enhanced Educational Tooltip (Support for touch selection) */}
+                  <div
+                    className={`absolute top-full left-1/2 -translate-x-1/2 mt-3 pointer-events-none transition-all duration-300 z-[100] w-60 ${
+                      selectedMarkerId === m.id
+                        ? 'opacity-100 translate-y-0'
+                        : 'opacity-0 translate-y-2 group-hover/pattern:opacity-100 group-hover/pattern:translate-y-0'
+                    }`}
+                  >
                     <div className="relative rounded-xl border border-white/10 bg-black/95 backdrop-blur-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-2">
                       <div className="flex justify-between items-center border-b border-white/5 pb-2">
                         <span className={`text-[10px] font-black uppercase tracking-[0.2em]`} style={{ color: mainColor }}>
@@ -1658,7 +1696,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                       </div>
 
                       <div className="text-[9px] text-white/80 font-medium leading-relaxed italic">
-                        {isBullish 
+                        {isBullish
                           ? "Buyers have fully overwhelmed sellers, reclaiming the local price boundaries."
                           : "Sellers have fully overwhelmed buyers, breaking the local support structure."
                         }
@@ -1773,7 +1811,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           }}
         >
           {/* Cyberpunk Floating Card */}
-          <div className="flex flex-col gap-1.5 glass-panel p-2.5 w-[115px] animate-float-glow rounded-xl">
+          <div className="flex flex-col gap-1.5 glass-panel p-2.5 w-[115px] animate-float-glow rounded-xl max-h-[240px] overflow-y-auto custom-scrollbar">
             {/* Header / Date */}
             <div className="text-white/60 text-[9px] font-black tracking-widest uppercase border-b border-white/10 pb-1.5 mb-0.5 text-center">
               {(typeof crosshairData.time === 'number')
@@ -1824,22 +1862,22 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>
       )}
 
-      {/* ── Brand Watermark 2050 ─────────────────────────────── */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
-        <div className="flex flex-col items-center gap-2 max-w-full px-4">
-          <span
-            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.05] whitespace-nowrap"
-            style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
-          >
-            MOBEEN
-          </span>
-          <div className="flex items-center gap-3">
-            <div className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--holo-cyan)]" />
-            <span className="text-[10px] md:text-[12px] font-bold text-[var(--holo-cyan)] opacity-40 tracking-[0.8em] uppercase">CryptoBot Terminal</span>
-            <div className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--holo-magenta)]" />
+        {/* ── Brand Watermark 2050 ─────────────────────────────── */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
+          <div className="flex flex-col items-center gap-1 sm:gap-2 max-w-full px-4 text-center">
+            <span
+              className="text-[14vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.2em] sm:tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.03] sm:opacity-[0.05] whitespace-nowrap"
+              style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
+            >
+              MOBEEN
+            </span>
+            <div className="flex items-center gap-2 sm:gap-3 scale-75 sm:scale-100">
+              <div className="h-px w-6 sm:w-8 bg-gradient-to-r from-transparent to-[var(--holo-cyan)]" />
+              <span className="text-[8px] sm:text-[10px] md:text-[12px] font-bold text-[var(--holo-cyan)] opacity-30 tracking-[0.4em] sm:tracking-[0.8em] uppercase">CryptoBot Terminal</span>
+              <div className="h-px w-6 sm:w-8 bg-gradient-to-l from-transparent to-[var(--holo-magenta)]" />
+            </div>
           </div>
         </div>
-      </div>
 
       {/* ── Recent Top & Bottom Price Tags handled by Overlay Layer above ── */}
 

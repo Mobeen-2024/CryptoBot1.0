@@ -68,15 +68,23 @@ body {
 }
 
 /* ─── Scrollbar Theme (WebKit) ─────────────────────────────────── */
-.custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 99px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
-
-*::-webkit-scrollbar { width: 5px; height: 5px; }
+/* Default for all elements */
+*::-webkit-scrollbar { width: 6px; height: 6px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 99px; }
 *::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* Enhanced for specific scroll areas to be more visible */
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 99px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { border: 1px solid rgba(0,0,0,0.3); }
+
+/* Mobile-specific scrollbar for better touch */
+@media (max-width: 768px) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+}
 
 /* ─── Trade Flash Animations ───────────────────────────────────── */
 @keyframes flash-buy {
@@ -122,9 +130,9 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-input[type="number"] { 
-  -moz-appearance: textfield; 
-  appearance: textfield; 
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* ─── Tab Pill Transitions ─────────────────────────────────────── */

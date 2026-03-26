@@ -908,7 +908,7 @@ export default function App() {
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 overflow-hidden bg-[#0b0e11]">
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#0b0e11]">
             {activeTab === 'positions' && <CurrentPositions />}
             {activeTab === 'analytics' && <PerformanceChart />}
             {activeTab === 'history' && <RecentTrades trades={recentTrades} />}
