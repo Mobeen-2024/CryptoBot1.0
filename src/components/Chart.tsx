@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
-import { isBullishEngulfing } from '../utils/patternDetection';
+import { analyzeEngulfing } from '../utils/patternDetection';
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -614,24 +614,52 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         });
       }
 
-      // Sync Pattern Markers
+      // Sync Pattern Markers (Intelligence Upgrade)
       if (seriesRef.current && chartRef.current && patternMarkersRef.current.length > 0 && config?.patternOverlay !== false) {
         const timeScale = chartRef.current.timeScale();
         const series = seriesRef.current;
 
         patternMarkersRef.current.forEach(m => {
           const el = document.getElementById(`pattern-marker-${m.id}`);
+          const boxEl = document.getElementById(`engulf-box-${m.id}`);
+          
           if (el) {
             const x = timeScale.timeToCoordinate(m.time);
-            const y = series.priceToCoordinate(m.low);
+            const yHigh = series.priceToCoordinate(m.high);
+            const yLow = series.priceToCoordinate(m.low);
 
-            if (x !== null && y !== null) {
+            if (x !== null && yHigh !== null && yLow !== null) {
               const xPos = x - 10; // Center 20px wide marker
-              const yPos = y + 5; // Offset below candle
+              // Adjust Y-axis Vertical Zone: Engulfing patterns always 10px below the candle
+              const yPos = yLow + 10; 
               el.style.transform = `translate(${xPos}px, ${yPos}px)`;
               el.style.opacity = '1';
             } else {
               el.style.opacity = '0';
+            }
+          }
+
+          // Sync the Encapsulating Box
+          if (boxEl) {
+            const x1 = timeScale.timeToCoordinate(m.prevTime);
+            const x2 = timeScale.timeToCoordinate(m.time);
+            
+            // Box should cover both candles' high/low range
+            const pHigh = Math.max(m.high, m.prevCandle.high);
+            const pLow = Math.min(m.low, m.prevCandle.low);
+            
+            const y1 = series.priceToCoordinate(pHigh);
+            const y2 = series.priceToCoordinate(pLow);
+
+            if (x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
+              const width = (x2 - x1) + 20; // Cover both candles plus margin
+              const height = (y2 - y1) + 10;
+              boxEl.style.transform = `translate(${x1 - 10}px, ${y1 - 5}px)`;
+              boxEl.style.width = `${width}px`;
+              boxEl.style.height = `${height}px`;
+              boxEl.style.opacity = '1';
+            } else {
+              boxEl.style.opacity = '0';
             }
           }
         });
@@ -1253,22 +1281,60 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
   }, [data, trades]);
 
-  // Calculate pattern markers
+  // Calculate pattern markers (Intelligence Upgrade)
   useEffect(() => {
     if (!data || data.length === 0 || config?.patternOverlay === false || !showEngulfing) {
       setPatternMarkers([]);
       patternMarkersRef.current = [];
       return;
     }
+
+    // 1. Calculate SMA 10 (Trend Context)
+    const maPeriod = 10;
+    const ma10 = data.map((_, idx) => {
+      if (idx < maPeriod - 1) return null;
+      let sum = 0;
+      for (let j = 0; j < maPeriod; j++) sum += data[idx - j].close;
+      return sum / maPeriod;
+    });
+
     const newPatternMarkers = [];
     for (let i = 1; i < data.length; i++) {
-      if (isBullishEngulfing(data[i - 1], data[i])) {
+      const { isBullish, isBearish, hasHighVolume } = analyzeEngulfing(data[i - 1], data[i]);
+      
+      if (isBullish || isBearish) {
+        const currMa = ma10[i];
+        const prevMa = ma10[i - 1];
+        
+        // Trend context logic
+        let context: 'REVERSAL' | 'CONTINUATION' = 'CONTINUATION';
+        if (currMa !== null && prevMa !== null) {
+          const maSlopingUp = currMa > prevMa;
+          if (isBullish) {
+            context = maSlopingUp ? 'CONTINUATION' : 'REVERSAL';
+          } else {
+            context = maSlopingUp ? 'REVERSAL' : 'CONTINUATION';
+          }
+        }
+
         newPatternMarkers.push({
-          id: `${data[i].time}`,
+          id: `${data[i].time}_${isBullish ? 'BULL' : 'BEAR'}`,
           time: data[i].time,
+          prevTime: data[i-1].time,
+          type: isBullish ? 'BULLISH' : 'BEARISH',
+          context: context,
+          strength: context === 'REVERSAL' ? 'HIGH' : 'STANDARD',
+          hasHighVolume: hasHighVolume,
           low: data[i].low,
+          high: data[i].high,
           open: data[i].open,
-          close: data[i].close
+          close: data[i].close,
+          prevCandle: {
+            open: data[i-1].open,
+            close: data[i-1].close,
+            high: data[i-1].high,
+            low: data[i-1].low
+          }
         });
       }
     }
@@ -1513,44 +1579,116 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           </div>
         )}
 
-      {/* Pattern Markers Overlay Layer */}
+      {/* Pattern Markers Overlay Layer (Intelligence Upgrade) */}
       {config?.patternOverlay !== false && showEngulfing && (
         <div className="absolute inset-0 z-[45] pointer-events-none overflow-hidden">
-          {patternMarkers.map((m) => (
-            <div
-              key={m.id}
-              id={`pattern-marker-${m.id}`}
-              className="absolute top-0 left-0 w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern"
-              style={{ transition: 'opacity 0.15s ease' }}
-            >
-              {/* Green Triangle Pointing Up */}
-              <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-[#00E676] drop-shadow-[0_0_6px_rgba(0,230,118,0.8)] relative z-10" />
-              {/* Subtle Candle Glow */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-4 h-12 bg-[#00E676]/20 blur-md rounded-full pointer-events-none z-0 mb-1" />
+          {patternMarkers.map((m, idx) => {
+            const isBullish = m.type === 'BULLISH';
+            const isReversal = m.context === 'REVERSAL';
+            const isMostRecent = idx === patternMarkers.length - 1;
+            const shouldGlow = isMostRecent || m.hasHighVolume;
+            const mainColor = isBullish ? '#00FF9D' : '#FF007F';
+            const secondaryColor = isBullish ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 127, 0.4)';
 
-              {/* Pattern Tooltip */}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-opacity duration-200 z-[100] w-48">
-                <div className="relative rounded-lg border border-[#00E676]/30 bg-black/90 backdrop-blur-3xl p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-1.5">
-                  <div className="text-[9px] font-black text-[#00E676] border-b border-[#00E676]/20 pb-1.5 uppercase tracking-[0.2em]">
-                    Bullish Engulfing
+            return (
+              <React.Fragment key={m.id}>
+                {/* The "Engulf" Box (Standardized subtle opacity) */}
+                <div
+                  id={`engulf-box-${m.id}`}
+                  className="absolute pointer-events-none border border-white/5 bg-white/[0.01] rounded-md transition-opacity duration-300 opacity-0"
+                />
+
+                {/* Primary Pattern Marker (Zoned 10px below candle) */}
+                <div
+                  id={`pattern-marker-${m.id}`}
+                  className="absolute w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern"
+                  style={{ transition: 'opacity 0.2s ease' }}
+                >
+                  <div className="relative flex flex-col items-center">
+                    {/* UI Marker Logic: Primary Small Icons */}
+                    {isBullish ? (
+                      isReversal ? (
+                        // BOLD GREEN UP-ARROW (Selective Glow)
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={`w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[8px] border-b-[#00FF9D] relative z-10 ${shouldGlow ? 'animate-float-glow' : ''}`}
+                            style={{ filter: shouldGlow ? 'drop-shadow(0 0 8px #00FF9D)' : 'none' }}
+                          />
+                          {/* Selective Subtle Glow */}
+                          {shouldGlow && <div className="absolute -bottom-1 w-6 h-6 bg-[#00FF9D]/10 blur-xl rounded-full" />}
+                        </div>
+                      ) : (
+                        // SMALL GREEN TRIANGLE (Scaled Down)
+                        <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-[#00FF9D]/50" />
+                      )
+                    ) : (
+                      // RED DOWN-ARROW (Bearish)
+                      <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] border-t-[#FF007F] relative z-10" />
+                    )}
+
+                    {/* Scaled Down Confluence Star ⭐ */}
+                    {m.hasHighVolume && (
+                      <span className="absolute -top-2 -right-1.5 text-[7px] animate-pulse drop-shadow-[0_0_5px_#fcd535]">⭐</span>
+                    )}
+
+                    {/* Vertical Growing Label: "Bullish/Bearish" */}
+                    <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+                      <div 
+                        className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap opacity-0 group-hover/pattern:opacity-100 transition-opacity"
+                        style={{ 
+                          writingMode: 'vertical-lr', 
+                          transform: 'rotate(180deg)',
+                          color: mainColor,
+                          textShadow: `0 0 10px ${mainColor}`
+                        }}
+                      >
+                        {m.context} {m.type.toLowerCase()}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between items-center text-[10px] font-mono">
-                      <span className="text-white/40">Open</span>
-                      <span className="text-white font-bold">{m.open.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] font-mono">
-                      <span className="text-white/40">Close</span>
-                      <span className="text-white font-bold text-[#00E676]">{m.close.toFixed(2)}</span>
-                    </div>
-                    <div className="text-[9px] text-white/60 font-medium leading-relaxed mt-1 italic border-t border-white/5 pt-1.5">
-                      "High Probability Reversal"
+
+                  {/* Enhanced Educational Tooltip */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-all duration-300 z-[100] w-60 translate-y-2 group-hover/pattern:translate-y-0">
+                    <div className="relative rounded-xl border border-white/10 bg-black/95 backdrop-blur-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-2">
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span className={`text-[10px] font-black uppercase tracking-[0.2em]`} style={{ color: mainColor }}>
+                          {m.type === 'BULLISH' ? 'Bullish Engulfing' : 'Bearish Engulfing'}
+                        </span>
+                        {m.hasHighVolume && <span className="text-[10px] text-[var(--holo-gold)] font-bold">⭐ Volume Spike</span>}
+                      </div>
+
+                      <div className="text-[9px] text-white/80 font-medium leading-relaxed italic">
+                        {isBullish 
+                          ? "Buyers have fully overwhelmed sellers, reclaiming the local price boundaries."
+                          : "Sellers have fully overwhelmed buyers, breaking the local support structure."
+                        }
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 mt-1 border-t border-white/5 pt-2">
+                        <div className="flex justify-between items-center text-[10px] font-mono">
+                          <span className="text-white/40">Market Context</span>
+                          <span className={`${isReversal ? 'text-[var(--holo-gold)]' : 'text-white/60'} font-bold`}>
+                            {m.context === 'REVERSAL' ? 'Downtrend Reversal' : 'Trend Continuation'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-mono">
+                          <span className="text-white/40">Setup Strength</span>
+                          <span className={m.strength === 'HIGH' ? 'text-[#00FF9D]' : 'text-white/60'}>
+                             {m.strength === 'HIGH' ? 'HIGH POWER' : 'STANDARD'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Educational Instruction */}
+                      <div className="bg-white/5 rounded-md p-1.5 mt-1 text-[8px] text-white/40 leading-tight">
+                        Confirms reversal when forming at deep capitulation bottoms or trend cycle ends.
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </React.Fragment>
+            );
+          })}
         </div>
       )}
 
@@ -1690,7 +1828,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
         <div className="flex flex-col items-center gap-2 max-w-full px-4">
           <span
-            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-10 whitespace-nowrap"
+            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.05] whitespace-nowrap"
             style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
           >
             MOBEEN
