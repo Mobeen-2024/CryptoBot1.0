@@ -89,8 +89,6 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   // Phase 2: Ultra 2050 Enhancements State
   const [crosshairPos, setCrosshairPos] = useState<{ x: number, y: number } | null>(null);
   const [hoveredCandleX, setHoveredCandleX] = useState<number | null>(null);
-  const [isChartReady, setIsChartReady] = useState(false);
-
 
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
@@ -443,47 +441,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         kdjJRef.current.setData(jD);
       }
 
-      let trend = 1;
-      let st = data[0]?.close || 0;
-      const stData = data.map((d: any, i: number) => {
-        if (i % 7 === 0) {
-          if (d.close > st) { trend = 1; st = d.close * 0.985; }
-          else { trend = -1; st = d.close * 1.015; }
-        }
-        return {
-          time: d.time,
-          value: st,
-          lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
-          topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
-          bottomColor: 'rgba(0, 0, 0, 0)',
-        };
-      });
-      stDataRef.current = stData;
-      supertrendSeries.setData(stData);
-
-      // Setup Average Price Lines (Dark Version)
-      // Pick dynamic mock locations based on chart data
-      const currentPr = data[data.length - 1].close;
-      const mockBuyPrice = currentPr * 0.99;
-      const mockSellPrice = currentPr * 1.01;
-
-      buyLineRef.current = candlestickSeries.createPriceLine({
-        price: mockBuyPrice,
-        color: '#00E5FF',
-        lineWidth: 1,
-        lineStyle: 1, // Solid focus line
-        axisLabelVisible: false,
-      });
-
-      sellLineRef.current = candlestickSeries.createPriceLine({
-        price: mockSellPrice,
-        color: '#FF007F',
-        lineWidth: 1,
-        lineStyle: 1, // Solid focus line
-        axisLabelVisible: false,
-      });
-
-      setAvgPositions(prev => ({ ...prev, buyPrice: mockBuyPrice, sellPrice: mockSellPrice }));
+      // Average Price Lines and High/Low markers moved to data-dependent effect to prevent race conditions on startup
     }
 
     // Subscribe to visible range to calculate Recent High / Low
@@ -872,10 +830,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     };
 
     resizeObserver.observe(chartContainerRef.current);
-    setIsChartReady(true);
 
     return () => {
-      setIsChartReady(false);
       resizeObserver.disconnect();
       if (chart) chart.remove();
       ws.close();
@@ -1126,6 +1082,45 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         supertrendSeriesRef.current.setData(stData);
       }
 
+      // --- Initialization Fix: Ensure AVG and High/Low markers are primed ---
+      
+      // 1. Initial High/Low Calculation (if not already set)
+      if (!visibleHighLowRef.current && data.length > 0) {
+        let maxItem = data[0];
+        let minItem = data[0];
+        // Scan initial data for a reasonable starting high/low
+        const scanCount = Math.min(data.length, 100); 
+        for (let i = data.length - scanCount; i < data.length; i++) {
+          if (data[i].high > maxItem.high) maxItem = data[i];
+          if (data[i].low < minItem.low) minItem = data[i];
+        }
+        const initialHl = { high: maxItem, low: minItem };
+        visibleHighLowRef.current = initialHl;
+        setVisibleHighLow(initialHl);
+      }
+
+      // 2. Initial Average Price Lines logic
+      if (avgPositions.buyPrice === 0 && data.length > 0) {
+        const currentPr = data[data.length - 1].close;
+        const mockBuyPrice = currentPr * 0.99;
+        const mockSellPrice = currentPr * 1.01;
+
+        setAvgPositions(prev => ({ ...prev, buyPrice: mockBuyPrice, sellPrice: mockSellPrice }));
+        
+        // Ensure price lines are created if they don't exist
+        if (seriesRef.current) {
+           if (!buyLineRef.current) {
+              buyLineRef.current = seriesRef.current.createPriceLine({
+                price: mockBuyPrice, color: '#00E5FF', lineWidth: 1, lineStyle: 1, axisLabelVisible: false,
+              });
+           }
+           if (!sellLineRef.current) {
+              sellLineRef.current = seriesRef.current.createPriceLine({
+                price: mockSellPrice, color: '#FF007F', lineWidth: 1, lineStyle: 1, axisLabelVisible: false,
+              });
+           }
+        }
+        }
       }
     } catch (err) {
       console.error("[Chart] Error during data update:", err);
@@ -1134,7 +1129,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   // Create / remove price lines when toggle or prices change
   useEffect(() => {
-    if (!seriesRef.current || !isChartReady) return;
+    if (!seriesRef.current) return;
 
     if (showAvgLines) {
       const buyP = customBuy ? parseFloat(customBuy) : avgPositions.buyPrice;
@@ -1169,11 +1164,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         sellLineRef.current = null;
       }
     }
-  }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice, isChartReady]);
+  }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice]);
 
   // Calculate custom HTML markers
   useEffect(() => {
-    if (!isChartReady || !data || data.length === 0 || !trades || trades.length === 0) return;
+    if (!data || data.length === 0 || !trades || trades.length === 0) return;
 
     const uniqueMap = new Map();
 
@@ -1228,11 +1223,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     if (seriesRef.current) {
       try { seriesRef.current.setMarkers([]); } catch(e) {}
     }
-  }, [data, trades, isChartReady]);
+  }, [data, trades]);
 
   // Calculate pattern markers
   useEffect(() => {
-    if (!isChartReady || !data || data.length === 0 || config?.patternOverlay === false) {
+    if (!data || data.length === 0 || config?.patternOverlay === false) {
       setPatternMarkers([]);
       patternMarkersRef.current = [];
       return;
@@ -1251,12 +1246,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
     patternMarkersRef.current = newPatternMarkers;
     setPatternMarkers(newPatternMarkers);
-  }, [data, config?.patternOverlay, isChartReady]);
+  }, [data, config?.patternOverlay]);
 
   // Sync Open Orders to Price Lines
   useEffect(() => {
     const series = seriesRef.current;
-    if (!series || !isChartReady) return;
+    if (!series) return;
 
     const currentLineMap = openOrderLinesRef.current;
     const activeIds = new Set<string>();
@@ -1321,7 +1316,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       }
     });
 
-  }, [openOrders, isChartReady]);
+  }, [openOrders, seriesRef.current]);
 
   return (
     <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
