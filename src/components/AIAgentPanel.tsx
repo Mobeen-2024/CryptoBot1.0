@@ -9,22 +9,45 @@ interface AIAgentPanelProps {
 export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
   const [typedText, setTypedText] = useState('');
   const [pulse, setPulse] = useState(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const fullText = `[SYS.AI_CORE] Initializing bidirectional delta-neutral market initiation protocol for ${symbol}...\n\nAnalyzing order book density and microstructure friction metrics. Current parameters dictate simultaneous LONG/SHORT execution with hyper-tight [1 USDT] risk parity.\n\nWARNING: Deploying discrete identical opposing orders across unauthorized multi-node architectures triggers high-probability compliance violation flags (Market Manipulation / Wash Trading). \n\nAlgorithmic friction detected: Volatility whipsaw events will compound taker-fee attrition. Recommend shifting to native hedge-mode or options-based synthetic straddle routing to mitigate spread slippage. \n\nCalculating re-entry matrix...\nStandby.`;
+  const placeholderText = `[SYS.AI_CORE] Initializing neural bridge for ${symbol}...\n\nRequesting institutional-grade risk audit via Gemini AI Engine...\n\nStandby for assessment.`;
 
   useEffect(() => {
-    let i = 0;
-    setTypedText('');
-    const typingInterval = setInterval(() => {
-      if (i < fullText.length) {
-        setTypedText(prev => prev + fullText.charAt(i));
-        i++;
-      } else {
-        clearInterval(typingInterval);
-      }
-    }, 15);
+    const fetchAnalysis = async () => {
+      setIsAnalyzing(true);
+      setTypedText('');
+      
+      try {
+        const response = await fetch('/api/ai/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol, side: 'buy', amount: 1, price: 0 })
+        });
+        
+        const data = await response.json();
+        const analysisText = data.analysis || "Error: Failed to retrieve analysis.";
+        
+        let i = 0;
+        const typingInterval = setInterval(() => {
+          if (i < analysisText.length) {
+            setTypedText(prev => prev + analysisText.charAt(i));
+            i++;
+          } else {
+            clearInterval(typingInterval);
+            setIsAnalyzing(false);
+          }
+        }, 10); // Slightly faster typing for longer AI responses
 
-    return () => clearInterval(typingInterval);
+        return () => clearInterval(typingInterval);
+      } catch (error) {
+        console.error("AI Analysis Error:", error);
+        setTypedText("SYSTEM ERROR: Failed to establish neural link with Gemini Core. Check backend logs and .env configuration.");
+        setIsAnalyzing(false);
+      }
+    };
+
+    fetchAnalysis();
   }, [symbol]);
 
   useEffect(() => {
@@ -54,7 +77,9 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
           <div>
             <h2 className="text-[14px] font-black text-white tracking-[0.15em] uppercase flex items-center gap-2">
               Neural Agent
-              <span className="px-1.5 py-0.5 rounded bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] text-[8px] tracking-widest animate-pulse">ONLINE</span>
+              <span className={`px-1.5 py-0.5 rounded border text-[8px] tracking-widest ${isAnalyzing ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500 animate-pulse' : 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'}`}>
+                {isAnalyzing ? 'ANALYZING...' : 'ONLINE'}
+              </span>
             </h2>
             <p className="text-[9px] text-gray-500 font-mono tracking-widest mt-0.5">MODEL: QUANT-X 2035 // CORE: ACTIVE</p>
           </div>

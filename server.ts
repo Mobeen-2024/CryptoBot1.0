@@ -12,6 +12,8 @@ import { Logger } from './logger';
 import Database from 'better-sqlite3';
 import os from 'os';
 import { EMA, MACD, RSI, BollingerBands, ATR, SMA, PSAR, WilliamsR, OBV, StochasticRSI, Stochastic } from 'technicalindicators';
+import { TradeCopier } from './tradeCopier';
+import { DeltaNeutralBot } from './src/services/deltaNeutralBot.js';
 
 dotenv.config({ quiet: true });
 
@@ -36,31 +38,30 @@ shadowDb.exec(`
 export const pendingShadowOrders: any[] = shadowDb.prepare('SELECT * FROM shadow_pending_orders WHERE status = ?').all('open');
 
 export function addPendingShadowOrder(order: any) {
-    pendingShadowOrders.push(order);
-    const stmt = shadowDb.prepare(`
-        INSERT OR REPLACE INTO shadow_pending_orders 
+  pendingShadowOrders.push(order);
+  const stmt = shadowDb.prepare(`
+        INSERT OR REPLACE INTO shadow_pending_orders
         (id, symbol, side, type, amount, limitPrice, stopPrice, marginMode, baseAsset, quoteAsset, balanceAsset, status)
         VALUES (@id, @symbol, @side, @type, @amount, @limitPrice, @stopPrice, @marginMode, @baseAsset, @quoteAsset, @balanceAsset, @status)
     `);
-    stmt.run({
-        id: order.id, symbol: order.symbol, side: order.side, type: order.type,
-        amount: order.amount, limitPrice: order.limitPrice || null, stopPrice: order.stopPrice || null,
-        marginMode: order.marginMode || null, baseAsset: order.baseAsset, quoteAsset: order.quoteAsset,
-        balanceAsset: order.balanceAsset, status: order.status
-    });
+  stmt.run({
+    id: order.id, symbol: order.symbol, side: order.side, type: order.type,
+    amount: order.amount, limitPrice: order.limitPrice || null, stopPrice: order.stopPrice || null,
+    marginMode: order.marginMode || null, baseAsset: order.baseAsset, quoteAsset: order.quoteAsset,
+    balanceAsset: order.balanceAsset, status: order.status
+  });
 }
 
 export function updatePendingShadowOrderStatus(id: string, status: string) {
-    const order = pendingShadowOrders.find((o: any) => o.id === id);
-    if (order) order.status = status;
-    shadowDb.prepare('UPDATE shadow_pending_orders SET status = ? WHERE id = ?').run(status, id);
+  const order = pendingShadowOrders.find((o: any) => o.id === id);
+  if (order) order.status = status;
+  shadowDb.prepare('UPDATE shadow_pending_orders SET status = ? WHERE id = ?').run(status, id);
 }
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import { TradeCopier } from './tradeCopier';
-import { DeltaNeutralBot } from './src/services/deltaNeutralBot.js';
+import { analyzeTradeAction } from './aiAnalyzer.ts';
 
 async function startServer() {
   const app = express();
@@ -175,7 +176,7 @@ async function startServer() {
             pendingShadowOrders.splice(i, 1);
           }
         }
-        
+
         // If all pending orders filled, close connection naturally
         if (!pendingShadowOrders.some((o: any) => o.status === 'open')) {
           pendingWs.close();
@@ -251,6 +252,32 @@ async function startServer() {
       res.json({ status: 'ok', exchange: 'binance', sandbox: isSandbox, version: '1.0.0' });
     } catch (error) {
       res.status(500).json({ status: 'error', message: 'Internal server error' });
+    }
+  });
+
+  // ─── AI Analysis Endpoint ────────────────────────────────────────
+  app.post('/api/ai/analyze', async (req, res) => {
+    try {
+      const { symbol, side, amount, price } = req.body;
+      if (!symbol) {
+        return res.status(400).json({ error: 'symbol is required' });
+      }
+
+      // Default values if not provided (for general market analysis)
+      const tradeSide = side || 'buy';
+      const tradeAmount = amount || 1;
+      const tradePrice = price || 0;
+
+      const analysis = await analyzeTradeAction(symbol, tradeSide, tradeAmount, tradePrice);
+
+      if (!analysis) {
+        return res.status(500).json({ error: 'Failed to generate AI analysis' });
+      }
+
+      res.json({ symbol, analysis });
+    } catch (error: any) {
+      Logger.error('AI Analysis Route Error:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
     }
   });
 
@@ -379,27 +406,27 @@ async function startServer() {
   // Voltron Master Bot Endpoints
   app.post('/api/bot/start', async (req, res) => {
     try {
-      const { 
-        symbol, qty, 
+      const {
+        symbol, qty,
         entryMode, scheduleTimeStr, sessionTarget,
         usePreviousDayAvg, customAnchorPrice,
         bullishSL, bullishTP, bearishSL, bearishTP
       } = req.body;
-      
+
       if (!symbol || !qty) {
         return res.status(400).json({ error: 'Missing required parameters: symbol, qty' });
       }
-      
+
       const config = {
-        entryMode:           entryMode           || 'INSTANT',
-        scheduleTimeStr:     scheduleTimeStr     || '',
-        sessionTarget:       sessionTarget       || 'LONDON',
-        usePreviousDayAvg:   Boolean(usePreviousDayAvg),
-        customAnchorPrice:   customAnchorPrice ? Number(customAnchorPrice) : 0,
-        bullishSL:           Number(bullishSL)   || 0,
-        bullishTP:           Number(bullishTP)   || 0,
-        bearishSL:           Number(bearishSL)   || 0,
-        bearishTP:           Number(bearishTP)   || 0,
+        entryMode: entryMode || 'INSTANT',
+        scheduleTimeStr: scheduleTimeStr || '',
+        sessionTarget: sessionTarget || 'LONDON',
+        usePreviousDayAvg: Boolean(usePreviousDayAvg),
+        customAnchorPrice: customAnchorPrice ? Number(customAnchorPrice) : 0,
+        bullishSL: Number(bullishSL) || 0,
+        bullishTP: Number(bullishTP) || 0,
+        bearishSL: Number(bearishSL) || 0,
+        bearishTP: Number(bearishTP) || 0,
       };
 
       await deltaNeutralBot.start(symbol, Number(qty), config as any);
@@ -481,10 +508,10 @@ async function startServer() {
 
   const handleBinanceError = (error: any, res: express.Response, defaultMessage: string) => {
     Logger.error(`${defaultMessage}:`, error);
-    
+
     // Handle CCXT / Binance specific errors
     if (error.message?.includes('Invalid Api-Key ID') || error.code === -2008 || error.message?.includes('API-key format invalid')) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Invalid Binance API Key',
         details: 'The API key provided is rejected by Binance. Please check your .env file and ensure you are using the correct key for the selected environment (Testnet vs Live).',
         code: 'INVALID_API_KEY'
@@ -523,7 +550,7 @@ async function startServer() {
       });
     }
 
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || defaultMessage,
       details: error.toString(),
       code: 'UNKNOWN_ERROR'
@@ -537,33 +564,33 @@ async function startServer() {
       // Use public exchange for market data
       const limitVal = Number(limit) === 5 ? 1000 : Number(limit) || 1000;
       const ohlcv = await publicExchange.fetchOHLCV(ccxtSymbol, interval as string, undefined, limitVal);
-      
+
       const close = ohlcv.map((d: any[]) => Number(d[4]));
       const high = ohlcv.map((d: any[]) => Number(d[2]));
       const low = ohlcv.map((d: any[]) => Number(d[3]));
       const volume = ohlcv.map((d: any[]) => Number(d[5]));
-      
+
       // Bill Williams Alligator (Typical Price)
       const typical = ohlcv.map((d: any[]) => (Number(d[2]) + Number(d[3]) + Number(d[4])) / 3);
       const jaw = SMA.calculate({ period: 13, values: typical });
       const teeth = SMA.calculate({ period: 8, values: typical });
       const lips = SMA.calculate({ period: 5, values: typical });
-      
+
       // Alligator shift: SMA(period P) output index j maps to candle i = j + (P-1)
       // To project it S bars forward, assign it to candle i' = j + (P-1) + S
       // => j = i' - (P-1) - S, valid when i' >= (P-1) + S
       const alligator = ohlcv.map((_, i) => ({
-         jaw:   i >= (13-1) + 8 ? jaw[i - (13-1) - 8]     : null, // i >= 20
-         teeth: i >= (8-1)  + 5 ? teeth[i - (8-1)  - 5]   : null, // i >= 12
-         lips:  i >= (5-1)  + 3 ? lips[i  - (5-1)  - 3]   : null, // i >= 7
+        jaw: i >= (13 - 1) + 8 ? jaw[i - (13 - 1) - 8] : null, // i >= 20
+        teeth: i >= (8 - 1) + 5 ? teeth[i - (8 - 1) - 5] : null, // i >= 12
+        lips: i >= (5 - 1) + 3 ? lips[i - (5 - 1) - 3] : null, // i >= 7
       }));
-      
+
       const sma = SMA.calculate({ period: 20, values: close });
       const ema200 = EMA.calculate({ period: 200, values: close });
       const rsi = RSI.calculate({ period: 14, values: close });
-      const macd = MACD.calculate({ 
-        fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, 
-        SimpleMAOscillator: false, SimpleMASignal: false, values: close 
+      const macd = MACD.calculate({
+        fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
+        SimpleMAOscillator: false, SimpleMASignal: false, values: close
       });
       const boll = BollingerBands.calculate({ period: 20, stdDev: 2, values: close });
       const atr = ATR.calculate({ period: 14, high, low, close });
@@ -575,14 +602,14 @@ async function startServer() {
       const stoch = Stochastic.calculate({ period: 9, signalPeriod: 3, high, low, close });
       const kdj = stoch.map(s => ({ k: s.k, d: s.d, j: 3 * s.k - 2 * s.d }));
 
-      res.json({ 
-        klines: ohlcv, 
-        indicators: { 
+      res.json({
+        klines: ohlcv,
+        indicators: {
           sma,
-          ema200, 
-          rsi, 
-          macd, 
-          boll, 
+          ema200,
+          rsi,
+          macd,
+          boll,
           atr,
           sar,
           wr,
@@ -590,7 +617,7 @@ async function startServer() {
           stochRsi,
           kdj,
           alligator
-        } 
+        }
       });
     } catch (error: any) {
       handleBinanceError(error, res, 'Failed to fetch klines');
@@ -623,7 +650,7 @@ async function startServer() {
         const usdtBalance = await tradeCopier.getBalance(publicExchange, 'USDT', 'master');
         const btcBalance = await tradeCopier.getBalance(publicExchange, 'BTC', 'master');
         const ethBalance = await tradeCopier.getBalance(publicExchange, 'ETH', 'master');
-        
+
         return res.json({
           balances: [
             { asset: 'USDT', free: usdtBalance.toString(), locked: '0.00' },
@@ -658,30 +685,30 @@ async function startServer() {
 
   app.post('/api/binance/order', async (req, res) => {
     try {
-      const { 
-        symbol, side, type, quantity, price, stopPrice, limitPrice, 
-        marginMode, leverage, autoBorrow, autoRepay, 
+      const {
+        symbol, side, type, quantity, price, stopPrice, limitPrice,
+        marginMode, leverage, autoBorrow, autoRepay,
         takeProfit, slTrigger, slLimit, isIceberg,
-        params = {} 
+        params = {}
       } = req.body;
       const ccxtSymbol = formatSymbol(symbol);
       const isShadow = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
-      
+
       const ccxtParams: any = { ...params };
 
       // Map Advanced UI Features to Binance CCXT Parameters
       if (marginMode) {
-         ccxtParams.marginMode = marginMode.toLowerCase(); // 'cross' or 'isolated'
-         if (ccxtParams.marginMode === 'isolated') {
-            ccxtParams.isIsolated = 'TRUE'; // Force Binance isolated margin endpoint routing
-         }
-         if (autoBorrow) ccxtParams.sideEffectType = 'MARGIN_BUY';
-         if (autoRepay) ccxtParams.sideEffectType = 'AUTO_REPAY';
+        ccxtParams.marginMode = marginMode.toLowerCase(); // 'cross' or 'isolated'
+        if (ccxtParams.marginMode === 'isolated') {
+          ccxtParams.isIsolated = 'TRUE'; // Force Binance isolated margin endpoint routing
+        }
+        if (autoBorrow) ccxtParams.sideEffectType = 'MARGIN_BUY';
+        if (autoRepay) ccxtParams.sideEffectType = 'AUTO_REPAY';
       }
 
       if (isIceberg) {
-         // Binance requires icebergQty. Mocking as a fraction of order, or 0 to hide.
-         ccxtParams.icebergQty = (Number(quantity) * 0.1).toFixed(4); 
+        // Binance requires icebergQty. Mocking as a fraction of order, or 0 to hide.
+        ccxtParams.icebergQty = (Number(quantity) * 0.1).toFixed(4);
       }
 
       Logger.info(`${isShadow ? '[SHADOW] ' : ''}Placing order:`, { ccxtSymbol, side, type, quantity, price, ccxtParams });
@@ -694,115 +721,115 @@ async function startServer() {
       const amount = Number(quantity);
       const orderSide = side.toLowerCase() as 'buy' | 'sell';
       const orderType = type.toLowerCase();
-      
+
       if (isShadow) {
-         const parts = ccxtSymbol.split('/');
-         const baseAsset = parts[0];
-         const quoteAsset = parts[1] || 'USDT';
-         
-         // If Spot Sell, you must own the physical Base Asset (e.g. BTC)
-         // If Margin Sell (Short), you use Quote Asset (USDT) as collateral to auto-borrow Base Asset
-         let balanceAsset = quoteAsset;
-         if (orderSide === 'sell' && !marginMode) {
-            balanceAsset = baseAsset;
-         }
+        const parts = ccxtSymbol.split('/');
+        const baseAsset = parts[0];
+        const quoteAsset = parts[1] || 'USDT';
 
-         if (orderType !== 'market' || takeProfit || slTrigger) {
-             const pendingOrderId = `sim_pending_${Date.now()}`;
-             const computedType = (takeProfit || slTrigger) ? 'oco' : orderType;
-             
-             // Cancel old pending shadow orders for the same symbol & side (e.g., replacing old TP/SL)
-             for (let reverseIdx = pendingShadowOrders.length - 1; reverseIdx >= 0; reverseIdx--) {
-                 const o = pendingShadowOrders[reverseIdx];
-                 if (o.symbol === ccxtSymbol && o.status === 'open' && o.side === orderSide) {
-                     updatePendingShadowOrderStatus(o.id, 'canceled');
-                     pendingShadowOrders.splice(reverseIdx, 1);
-                 }
-             }
+        // If Spot Sell, you must own the physical Base Asset (e.g. BTC)
+        // If Margin Sell (Short), you use Quote Asset (USDT) as collateral to auto-borrow Base Asset
+        let balanceAsset = quoteAsset;
+        if (orderSide === 'sell' && !marginMode) {
+          balanceAsset = baseAsset;
+        }
 
-             const pendingOrder = {
-                 id: pendingOrderId, symbol: ccxtSymbol, side: orderSide, type: computedType, 
-                 amount: amount, limitPrice: Number(takeProfit || price), 
-                 stopPrice: Number(slTrigger || stopPrice),
-                 marginMode, baseAsset, quoteAsset, balanceAsset,
-                 status: 'open'
-             };
+        if (orderType !== 'market' || takeProfit || slTrigger) {
+          const pendingOrderId = `sim_pending_${Date.now()}`;
+          const computedType = (takeProfit || slTrigger) ? 'oco' : orderType;
 
-             addPendingShadowOrder(pendingOrder); // Use helper to add to DB and in-memory
-             Logger.info(`[SHADOW] Placed Pending Order: ${pendingOrder.type} ${pendingOrder.symbol} (Limit: ${pendingOrder.limitPrice}, Stop: ${pendingOrder.stopPrice})`);
-             return res.json(pendingOrder);
-         }
+          // Cancel old pending shadow orders for the same symbol & side (e.g., replacing old TP/SL)
+          for (let reverseIdx = pendingShadowOrders.length - 1; reverseIdx >= 0; reverseIdx--) {
+            const o = pendingShadowOrders[reverseIdx];
+            if (o.symbol === ccxtSymbol && o.status === 'open' && o.side === orderSide) {
+              updatePendingShadowOrderStatus(o.id, 'canceled');
+              pendingShadowOrders.splice(reverseIdx, 1);
+            }
+          }
 
-         let executePrice = Number(price);
-         if (!executePrice) {
-            const ticker = await publicExchange.fetchTicker(ccxtSymbol);
-            executePrice = ticker.last || 0;
-         }
+          const pendingOrder = {
+            id: pendingOrderId, symbol: ccxtSymbol, side: orderSide, type: computedType,
+            amount: amount, limitPrice: Number(takeProfit || price),
+            stopPrice: Number(slTrigger || stopPrice),
+            marginMode, baseAsset, quoteAsset, balanceAsset,
+            status: 'open'
+          };
 
-         // Shadow balance validation
-         if (!ccxtParams.isClosingPosition) {
-           const shadowBalance = await tradeCopier.getBalance(publicExchange, balanceAsset, 'master');
-           
-           // If requiring Base Asset (Spot Sell), we just need 'amount' coins.
-           // If requiring Quote Asset (Spot Buy or Margin Trade), we need (amount * price) value in USDT.
-           const requiredBalance = (balanceAsset === baseAsset) ? amount : (amount * executePrice);
-           const effectiveLeverage = marginMode ? (Number(leverage) || 1) : 1;
-           
-           if ((shadowBalance * effectiveLeverage) < requiredBalance) {
-             return res.status(400).json({ error: `Insufficient Virtual Shadow Balance. Required: ${requiredBalance.toFixed(4)} ${balanceAsset} (Effective Leverage ${effectiveLeverage}x) - Available: ${shadowBalance.toFixed(4)}` });
-           }
-         }
+          addPendingShadowOrder(pendingOrder); // Use helper to add to DB and in-memory
+          Logger.info(`[SHADOW] Placed Pending Order: ${pendingOrder.type} ${pendingOrder.symbol} (Limit: ${pendingOrder.limitPrice}, Stop: ${pendingOrder.stopPrice})`);
+          return res.json(pendingOrder);
+        }
 
-         // Update Master locally
-         tradeCopier.updateShadowBalance('master', baseAsset, quoteAsset, orderSide, amount, executePrice);
+        let executePrice = Number(price);
+        if (!executePrice) {
+          const ticker = await publicExchange.fetchTicker(ccxtSymbol);
+          executePrice = ticker.last || 0;
+        }
 
-         order = {
-             id: `sim_master_${Date.now()}`,
-             symbol: ccxtSymbol,
-             side: orderSide,
-             type: orderType,
-             price: executePrice,
-             amount: amount,
-             status: 'closed'
-         };
+        // Shadow balance validation
+        if (!ccxtParams.isClosingPosition) {
+          const shadowBalance = await tradeCopier.getBalance(publicExchange, balanceAsset, 'master');
 
-         const timestamp = Date.now();
-         const fakeReport = {
-            e: 'executionReport',
-            E: timestamp,
-            s: symbol.replace('/', ''),
-            c: order.id,
-            S: orderSide.toUpperCase(),
-            o: orderType.toUpperCase(),
-            f: 'GTC',
-            q: amount.toString(),
-            p: executePrice.toString(),
-            P: '0',
-            F: '0',
-            g: -1,
-            C: '',
-            x: 'TRADE',
-            X: 'FILLED',
-            r: 'NONE',
-            i: timestamp,
-            l: amount.toString(),
-            z: amount.toString(),
-            L: executePrice.toString(),
-            n: '0',
-            T: timestamp,
-            t: timestamp,
-            I: 123456,
-            w: false,
-            M: false,
-            marginType: marginMode ? marginMode.toUpperCase() : 'SPOT',
-            O: timestamp,
-            Z: (amount * executePrice).toString(),
-            Y: (amount * executePrice).toString(),
-            Q: '0'
-         };
+          // If requiring Base Asset (Spot Sell), we just need 'amount' coins.
+          // If requiring Quote Asset (Spot Buy or Margin Trade), we need (amount * price) value in USDT.
+          const requiredBalance = (balanceAsset === baseAsset) ? amount : (amount * executePrice);
+          const effectiveLeverage = marginMode ? (Number(leverage) || 1) : 1;
 
-         // Trigger copier directly without WebSockets
-         tradeCopier.processSimulatedMasterTrade(fakeReport as any).catch(err => Logger.error('TradeCopier Shadow execution failed:', err));
+          if ((shadowBalance * effectiveLeverage) < requiredBalance) {
+            return res.status(400).json({ error: `Insufficient Virtual Shadow Balance. Required: ${requiredBalance.toFixed(4)} ${balanceAsset} (Effective Leverage ${effectiveLeverage}x) - Available: ${shadowBalance.toFixed(4)}` });
+          }
+        }
+
+        // Update Master locally
+        tradeCopier.updateShadowBalance('master', baseAsset, quoteAsset, orderSide, amount, executePrice);
+
+        order = {
+          id: `sim_master_${Date.now()}`,
+          symbol: ccxtSymbol,
+          side: orderSide,
+          type: orderType,
+          price: executePrice,
+          amount: amount,
+          status: 'closed'
+        };
+
+        const timestamp = Date.now();
+        const fakeReport = {
+          e: 'executionReport',
+          E: timestamp,
+          s: symbol.replace('/', ''),
+          c: order.id,
+          S: orderSide.toUpperCase(),
+          o: orderType.toUpperCase(),
+          f: 'GTC',
+          q: amount.toString(),
+          p: executePrice.toString(),
+          P: '0',
+          F: '0',
+          g: -1,
+          C: '',
+          x: 'TRADE',
+          X: 'FILLED',
+          r: 'NONE',
+          i: timestamp,
+          l: amount.toString(),
+          z: amount.toString(),
+          L: executePrice.toString(),
+          n: '0',
+          T: timestamp,
+          t: timestamp,
+          I: 123456,
+          w: false,
+          M: false,
+          marginType: marginMode ? marginMode.toUpperCase() : 'SPOT',
+          O: timestamp,
+          Z: (amount * executePrice).toString(),
+          Y: (amount * executePrice).toString(),
+          Q: '0'
+        };
+
+        // Trigger copier directly without WebSockets
+        tradeCopier.processSimulatedMasterTrade(fakeReport as any).catch(err => Logger.error('TradeCopier Shadow execution failed:', err));
 
       } else {
         // Use authenticated exchange for real live orders
@@ -824,20 +851,20 @@ async function startServer() {
 
         // Auto-attach OCO (TP/SL) immediately after filling the main entry order
         if (takeProfit && slTrigger && (orderType === 'market' || orderType === 'limit')) {
-           const tpSlSide = orderSide === 'buy' ? 'sell' : 'buy';
-           const tpSlParams: any = {
-              stopPrice: Number(slTrigger),
-              stopLimitPrice: slLimit ? Number(slLimit) : Number(slTrigger)
-           };
-           Logger.info('Attaching TP/SL OCO to successful entry order', { ccxtSymbol, tpSlSide, amount, takeProfit, tpSlParams });
-           try {
-             // Binance CCXT OCO: createOrder(symbol, 'limit', side, amount, price, { stopPrice, stopLimitPrice })
-             // where `price` is the Take Profit limit leg, and `stopPrice` is the Stop Loss trigger leg.
-             await authenticatedExchange.createOrder(ccxtSymbol, 'limit', tpSlSide, amount, Number(takeProfit), tpSlParams);
-           } catch (tpErr: any) {
-             Logger.error('Failed to attach TP/SL OCO', tpErr);
-             // Note: Returning main order success even if trailing OCO fails, but logging error.
-           }
+          const tpSlSide = orderSide === 'buy' ? 'sell' : 'buy';
+          const tpSlParams: any = {
+            stopPrice: Number(slTrigger),
+            stopLimitPrice: slLimit ? Number(slLimit) : Number(slTrigger)
+          };
+          Logger.info('Attaching TP/SL OCO to successful entry order', { ccxtSymbol, tpSlSide, amount, takeProfit, tpSlParams });
+          try {
+            // Binance CCXT OCO: createOrder(symbol, 'limit', side, amount, price, { stopPrice, stopLimitPrice })
+            // where `price` is the Take Profit limit leg, and `stopPrice` is the Stop Loss trigger leg.
+            await authenticatedExchange.createOrder(ccxtSymbol, 'limit', tpSlSide, amount, Number(takeProfit), tpSlParams);
+          } catch (tpErr: any) {
+            Logger.error('Failed to attach TP/SL OCO', tpErr);
+            // Note: Returning main order success even if trailing OCO fails, but logging error.
+          }
         }
       }
 
@@ -851,7 +878,7 @@ async function startServer() {
   app.post('/api/webhook/tradingview', async (req, res) => {
     try {
       const { secret, symbol, side, quantity, price } = req.body;
-      
+
       if (!secret || secret !== process.env.TRADINGVIEW_WEBHOOK_SECRET) {
         return res.status(401).json({ error: 'Unauthorized webhook request.' });
       }
@@ -861,7 +888,7 @@ async function startServer() {
       }
 
       Logger.info(`Incoming Webhook Signal: ${side.toUpperCase()} ${quantity} ${symbol} @ ${price || 'MARKET'}`);
-      
+
       // Execute signal asynchronously (don't block the webhook response)
       tradeCopier.executeWebhookSignal(symbol, side, quantity, price).catch(err => {
         Logger.error('TradeCopier Webhook Error:', err);
@@ -879,16 +906,16 @@ async function startServer() {
     try {
       // Create a temporary db connection just for this query to keep it clean
       const db = new Database('trades.db', { readonly: true });
-      
+
       // Fetch all trades, sorted chronologically
       const trades = db.prepare(`
-        SELECT slave_id, master_trade_id, symbol, side, quantity, price, timestamp 
-        FROM copied_fills_v2 
+        SELECT slave_id, master_trade_id, symbol, side, quantity, price, timestamp
+        FROM copied_fills_v2
         ORDER BY timestamp ASC
       `).all();
-      
+
       db.close();
-      
+
       // Send raw chronological trades to frontend for PnL charting calculations
       res.json(trades);
     } catch (error: any) {
@@ -904,7 +931,7 @@ async function startServer() {
       db.prepare('DELETE FROM copied_fills_v2').run();
       db.prepare('DELETE FROM shadow_balances').run();
       db.close();
-      
+
       Logger.info('Backend: Database successfully wiped via UI command.');
       res.status(200).json({ message: 'Database cleared successfully' });
     } catch (error: any) {
@@ -929,8 +956,8 @@ async function startServer() {
     try {
       const db = new Database('trades.db', { readonly: true });
       const trades = db.prepare(`
-        SELECT slave_id, symbol, side, quantity, price 
-        FROM copied_fills_v2 
+        SELECT slave_id, symbol, side, quantity, price
+        FROM copied_fills_v2
         WHERE slave_id IN ('master', 'slave_1')
         ORDER BY timestamp ASC
       `).all() as any[];
@@ -939,67 +966,67 @@ async function startServer() {
       const positions: Record<string, { symbol: string, netQuantity: number, totalCost: number, averageEntryPrice: number, tpPrice?: number, slPrice?: number, isVoltron?: boolean }> = {};
 
       trades.forEach(trade => {
-         const { slave_id, symbol, side, quantity, price } = trade;
-         // Partition Voltron Hands
-         const isVoltron = slave_id === 'slave_1';
-         const internalSymbol = isVoltron ? `${symbol}-BEAR` : symbol;
+        const { slave_id, symbol, side, quantity, price } = trade;
+        // Partition Voltron Hands
+        const isVoltron = slave_id === 'slave_1';
+        const internalSymbol = isVoltron ? `${symbol}-BEAR` : symbol;
 
-         if (!positions[internalSymbol]) {
-            positions[internalSymbol] = { symbol: internalSymbol, netQuantity: 0, totalCost: 0, averageEntryPrice: 0, isVoltron };
-         }
+        if (!positions[internalSymbol]) {
+          positions[internalSymbol] = { symbol: internalSymbol, netQuantity: 0, totalCost: 0, averageEntryPrice: 0, isVoltron };
+        }
 
-         const qty = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
-         const prc = typeof price === 'string' ? parseFloat(price) : price;
+        const qty = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
+        const prc = typeof price === 'string' ? parseFloat(price) : price;
 
-         if (side.toUpperCase() === 'BUY') {
-            if (positions[internalSymbol].netQuantity < -0.000001) {
-               // Covering a short
-               const currentShortQty = Math.abs(positions[internalSymbol].netQuantity);
-               if (qty > currentShortQty) {
-                  // Covered everything AND opened a long
-                  const overCoverQty = qty - currentShortQty;
-                  positions[internalSymbol].netQuantity = overCoverQty;
-                  positions[internalSymbol].totalCost = overCoverQty * prc;
-               } else {
-                  const avgPrice = positions[internalSymbol].totalCost / currentShortQty;
-                  positions[internalSymbol].totalCost -= (qty * avgPrice);
-                  positions[internalSymbol].netQuantity += qty;
-               }
+        if (side.toUpperCase() === 'BUY') {
+          if (positions[internalSymbol].netQuantity < -0.000001) {
+            // Covering a short
+            const currentShortQty = Math.abs(positions[internalSymbol].netQuantity);
+            if (qty > currentShortQty) {
+              // Covered everything AND opened a long
+              const overCoverQty = qty - currentShortQty;
+              positions[internalSymbol].netQuantity = overCoverQty;
+              positions[internalSymbol].totalCost = overCoverQty * prc;
             } else {
-               // Opening or adding to LONG
-               positions[internalSymbol].netQuantity += qty;
-               positions[internalSymbol].totalCost += (qty * prc);
+              const avgPrice = positions[internalSymbol].totalCost / currentShortQty;
+              positions[internalSymbol].totalCost -= (qty * avgPrice);
+              positions[internalSymbol].netQuantity += qty;
             }
-         } else if (side.toUpperCase() === 'SELL') {
-            if (positions[internalSymbol].netQuantity > 0.000001) {
-               // Closing a long
-               const currentLongQty = positions[internalSymbol].netQuantity;
-               if (qty > currentLongQty) {
-                  // Closed everything AND opened a short
-                  const overSellQty = qty - currentLongQty;
-                  positions[internalSymbol].netQuantity = -overSellQty;
-                  positions[internalSymbol].totalCost = overSellQty * prc;
-               } else {
-                  const avgPrice = positions[internalSymbol].totalCost / currentLongQty;
-                  positions[internalSymbol].totalCost -= (qty * avgPrice);
-                  positions[internalSymbol].netQuantity -= qty;
-               }
+          } else {
+            // Opening or adding to LONG
+            positions[internalSymbol].netQuantity += qty;
+            positions[internalSymbol].totalCost += (qty * prc);
+          }
+        } else if (side.toUpperCase() === 'SELL') {
+          if (positions[internalSymbol].netQuantity > 0.000001) {
+            // Closing a long
+            const currentLongQty = positions[internalSymbol].netQuantity;
+            if (qty > currentLongQty) {
+              // Closed everything AND opened a short
+              const overSellQty = qty - currentLongQty;
+              positions[internalSymbol].netQuantity = -overSellQty;
+              positions[internalSymbol].totalCost = overSellQty * prc;
             } else {
-               // Opening or adding to SHORT
-               positions[internalSymbol].netQuantity -= qty;
-               positions[internalSymbol].totalCost += (qty * prc);
+              const avgPrice = positions[internalSymbol].totalCost / currentLongQty;
+              positions[internalSymbol].totalCost -= (qty * avgPrice);
+              positions[internalSymbol].netQuantity -= qty;
             }
-         }
+          } else {
+            // Opening or adding to SHORT
+            positions[internalSymbol].netQuantity -= qty;
+            positions[internalSymbol].totalCost += (qty * prc);
+          }
+        }
 
-         // Update Average Entry Price based dynamically on active cost
-         if (Math.abs(positions[internalSymbol].netQuantity) > 0.000001) { // Floating point safety
-             positions[internalSymbol].averageEntryPrice = Math.max(0, positions[internalSymbol].totalCost / Math.abs(positions[internalSymbol].netQuantity));
-         } else {
-             // Position completely closed
-             positions[internalSymbol].averageEntryPrice = 0;
-             positions[internalSymbol].totalCost = 0;
-             positions[internalSymbol].netQuantity = 0; // Prevent float artifacts like 1e-16
-         }
+        // Update Average Entry Price based dynamically on active cost
+        if (Math.abs(positions[internalSymbol].netQuantity) > 0.000001) { // Floating point safety
+          positions[internalSymbol].averageEntryPrice = Math.max(0, positions[internalSymbol].totalCost / Math.abs(positions[internalSymbol].netQuantity));
+        } else {
+          // Position completely closed
+          positions[internalSymbol].averageEntryPrice = 0;
+          positions[internalSymbol].totalCost = 0;
+          positions[internalSymbol].netQuantity = 0; // Prevent float artifacts like 1e-16
+        }
       });
 
       // Filter out zeroed positions (closed trades)
@@ -1008,30 +1035,30 @@ async function startServer() {
 
       // Attach any open pending shadow orders as TP / SL targets
       const augmentedPositions = activePositions.map(pos => {
-         const cleanPosSymbol = pos.symbol.replace('-ISOLATED', '').replace('-CROSS', '').replace('/', '');
-         const matchingOrders = pendingShadowOrders.filter((o: any) => o.status === 'open' && o.symbol.replace('/', '') === cleanPosSymbol);
-         
-         let tpPrice: number | undefined = undefined;
-         let slPrice: number | undefined = undefined;
+        const cleanPosSymbol = pos.symbol.replace('-ISOLATED', '').replace('-CROSS', '').replace('/', '');
+        const matchingOrders = pendingShadowOrders.filter((o: any) => o.status === 'open' && o.symbol.replace('/', '') === cleanPosSymbol);
 
-         for (const order of matchingOrders) {
-            if (order.type === 'limit' && order.limitPrice) {
-               tpPrice = order.limitPrice; // Crude check: Assume standalone limit pending is TP
-            } else if ((order.type === 'stop_limit' || order.type === 'stop_loss_limit') && order.stopPrice) {
-               slPrice = order.stopPrice;
-            } else if (order.type === 'oco') {
-               if (order.limitPrice) tpPrice = order.limitPrice;
-               if (order.stopPrice) slPrice = order.stopPrice;
-            }
-         }
+        let tpPrice: number | undefined = undefined;
+        let slPrice: number | undefined = undefined;
 
-         Logger.info(`[DEBUG] Augmented Position ${pos.symbol}: TP=${tpPrice}, SL=${slPrice}. Open Pending Orders matched: ${matchingOrders.length}`);
+        for (const order of matchingOrders) {
+          if (order.type === 'limit' && order.limitPrice) {
+            tpPrice = order.limitPrice; // Crude check: Assume standalone limit pending is TP
+          } else if ((order.type === 'stop_limit' || order.type === 'stop_loss_limit') && order.stopPrice) {
+            slPrice = order.stopPrice;
+          } else if (order.type === 'oco') {
+            if (order.limitPrice) tpPrice = order.limitPrice;
+            if (order.stopPrice) slPrice = order.stopPrice;
+          }
+        }
 
-         return {
-            ...pos,
-            tpPrice,
-            slPrice
-         };
+        Logger.info(`[DEBUG] Augmented Position ${pos.symbol}: TP=${tpPrice}, SL=${slPrice}. Open Pending Orders matched: ${matchingOrders.length}`);
+
+        return {
+          ...pos,
+          tpPrice,
+          slPrice
+        };
       });
 
       res.json(augmentedPositions);
@@ -1059,17 +1086,17 @@ async function startServer() {
 
   httpServer.listen(port, '0.0.0.0', () => {
     Logger.info(`Server running at http://localhost:${port} (Local)`);
-    
+
     // Find Local Network IP
     const interfaces = os.networkInterfaces();
     const addresses: string[] = [];
     for (const k in interfaces) {
-        for (const k2 in interfaces[k]!) {
-            const address = interfaces[k]![Number(k2)];
-            if (address.family === 'IPv4' && !address.internal) {
-                addresses.push(address.address);
-            }
+      for (const k2 in interfaces[k]!) {
+        const address = interfaces[k]![Number(k2)];
+        if (address.family === 'IPv4' && !address.internal) {
+          addresses.push(address.address);
         }
+      }
     }
     const lanIP = addresses.length > 0 ? addresses[0] : '0.0.0.0';
     Logger.info(`Server running at http://${lanIP}:${port} (Network)`);
