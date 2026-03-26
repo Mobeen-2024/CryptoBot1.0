@@ -21,34 +21,64 @@ import { ChartStyleModal } from './components/ChartStyleModal';
 import { ChartConfig, DEFAULT_CHART_CONFIG } from './types/chart';
 import toast, { Toaster } from 'react-hot-toast';
 
+// Utility to normalize interval strings to Binance-canonical format
+const canonicalInterval = (interval: string): string => {
+  if (!interval) return '1h';
+  const match = interval.match(/^(\d+)([a-zA-Z])$/);
+  if (!match) return interval.toLowerCase();
+  const val = match[1];
+  const unit = match[2];
+  // Binance: 'm' for minute, 'M' for month. Everything else lowercase.
+  if (unit === 'M') return val + 'M';
+  return val + unit.toLowerCase();
+};
+
 // Advanced, high-precision candle countdown with session status
-const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
+const CandleCountdown: React.FC<{ interval: string; onChange?: (val: string) => void }> = ({ interval, onChange }) => {
   const [timeLeft, setTimeLeft] = useState<string>('--:--');
   const [progress, setProgress] = useState<number>(0);
   const [session, setSession] = useState<{ name: string, color: string } | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
       const msSinceEpoch = now.getTime();
-      
-      const val = parseInt(interval) || 1;
-      const unit = interval.slice(-1);
+
+      const match = interval.match(/^(\d+)([a-zA-Z])$/);
+      const val = match ? parseInt(match[1]) : 1;
+      let unit = match ? match[2] : 'm';
+
+      if (unit.toLowerCase() === 'h') unit = 'h';
+      if (unit.toLowerCase() === 'd') unit = 'd';
+      if (unit.toLowerCase() === 'w') unit = 'w';
+
       let msPerInterval = 60000;
       let nextTick: number;
 
       if (unit === 'M') {
         // Precise month boundary: 1st of next month at 00:00:00 UTC
-        const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-        nextTick = nextMonth.getTime();
         const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + val, 1));
+        nextTick = nextMonth.getTime();
         msPerInterval = nextTick - currentMonth.getTime();
       } else {
         if (unit === 'm') msPerInterval = val * 60 * 1000;
         else if (unit === 'h') msPerInterval = val * 60 * 60 * 1000;
         else if (unit === 'd') msPerInterval = val * 24 * 60 * 60 * 1000;
         else if (unit === 'w') msPerInterval = val * 7 * 24 * 60 * 60 * 1000;
-        
+
         const offset = unit === 'w' ? 4 * 24 * 60 * 60 * 1000 : 0;
         nextTick = Math.ceil((msSinceEpoch - offset) / msPerInterval) * msPerInterval + offset;
       }
@@ -57,8 +87,8 @@ const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
       const h = Math.floor(remains / (1000 * 60 * 60));
       const m = Math.floor((remains % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((remains % (1000 * 60)) / 1000);
-      
-      setTimeLeft(h > 0 
+
+      setTimeLeft(h > 0
         ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
         : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       );
@@ -76,12 +106,16 @@ const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
   }, [interval]);
 
   return (
-    <div className="flex items-center gap-2.5 bg-[#05070a]/80 backdrop-blur-2xl border border-white/5 shadow-[0_0_20px_rgba(0,0,0,0.4)] rounded-full px-3 py-1.5 transition-all hover:border-[var(--holo-cyan)]/20 group/time">
+    <div className="relative" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2.5 bg-[#05070a]/80 backdrop-blur-2xl border border-white/5 shadow-[0_0_20px_rgba(0,0,0,0.4)] rounded-full px-3 py-1.5 transition-all hover:border-[var(--holo-cyan)]/30 cursor-pointer group/time"
+      >
       <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
         <svg className="w-full h-full -rotate-90">
           <circle cx="50%" cy="50%" r="6" className="stroke-white/5 fill-none" strokeWidth="2" />
-          <circle 
-            cx="50%" cy="50%" r="6" 
+          <circle
+            cx="50%" cy="50%" r="6"
             className="stroke-[var(--holo-cyan)] fill-none transition-all duration-1000 ease-linear"
             strokeWidth="2"
             strokeDasharray="37.7"
@@ -93,7 +127,7 @@ const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
           <div className="w-1 h-1 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]" />
         </div>
       </div>
-      
+
       <div className="flex flex-col min-w-[42px]">
         <span className="text-[11px] font-mono font-black text-white leading-none tracking-tighter group-hover:text-[var(--holo-cyan)] transition-colors">
           {timeLeft}
@@ -113,6 +147,31 @@ const CandleCountdown: React.FC<{ interval: string }> = ({ interval }) => {
           {new Date().getUTCHours().toString().padStart(2, '0')}:{new Date().getUTCMinutes().toString().padStart(2, '0')}
         </span>
       </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute top-full right-0 mt-2 w-56 bg-[#0a0f1a]/95 backdrop-blur-3xl border border-[var(--holo-cyan)]/20 shadow-[0_10px_50px_rgba(0,0,0,0.8)] rounded-xl z-[100] py-2 animate-in fade-in zoom-in-95 duration-200">
+          <div className="px-3 py-1.5 text-[9px] font-bold text-[#5e6673] uppercase tracking-widest border-b border-white/5 mb-2">Interval Target</div>
+          <div className="grid grid-cols-3 gap-1 px-2">
+            {['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M'].map(tf => (
+              <button
+                key={tf}
+                onClick={() => {
+                  onChange?.(tf);
+                  setIsOpen(false);
+                }}
+                className={`px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors uppercase ${
+                  canonicalInterval(interval) === canonicalInterval(tf)
+                    ? 'bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/30 shadow-[inset_0_0_8px_rgba(0,229,255,0.2)]'
+                    : 'text-[#848e9c] hover:text-white hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -265,7 +324,8 @@ export default function App() {
   useEffect(() => {
     const fetchHistoricalData = async () => {
       try {
-        const response = await fetch(`/api/binance/klines?symbol=${symbol}&interval=${chartInterval}&limit=1000`);
+        const interval = canonicalInterval(chartInterval);
+        const response = await fetch(`/api/binance/klines?symbol=${symbol}&interval=${interval}&limit=1000`);
         const result = await response.json();
 
         // Handle both old and new backend responses gracefully
@@ -328,8 +388,9 @@ export default function App() {
       wsRef.current.close();
     }
 
+    const interval = canonicalInterval(chartInterval);
     const streams = [
-      `${symbol.toLowerCase()}@kline_${chartInterval}`,
+      `${symbol.toLowerCase()}@kline_${interval}`,
       `${symbol.toLowerCase()}@depth20@100ms`,
       `${symbol.toLowerCase()}@trade`,
       `${symbol.toLowerCase()}@ticker`
@@ -348,10 +409,11 @@ export default function App() {
     ws.onmessage = (event) => {
       const payload = JSON.parse(event.data);
       if (!payload.stream) return;
-
+      
       const { stream, data } = payload;
-
-      if (stream.endsWith(`@kline_${chartInterval}`)) {
+      const interval = canonicalInterval(chartInterval);
+      
+      if (stream.endsWith(`@kline_${interval}`)) {
         const kline = data.k;
         const updatedCandle = {
           time: kline.t / 1000,
@@ -478,7 +540,7 @@ export default function App() {
               {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <span className="hidden sm:flex">
-              <CandleCountdown interval={chartInterval} />
+              <CandleCountdown interval={chartInterval} onChange={(val) => setChartInterval(val)} />
             </span>
           </div>
 
@@ -596,31 +658,29 @@ export default function App() {
                   {/* Sliding highlight indicator could go here, but let's keep it simple with per-button active states */}
                   <button
                     onClick={() => setChartConfig({ ...chartConfig, style: 'line' })}
-                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all duration-300 flex items-center gap-1.5 relative ${
-                      chartConfig.style === 'line' 
-                        ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[0_0_15px_rgba(252,213,53,0.1)] border border-[var(--holo-gold)]/20' 
+                    className={`px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center justify-center relative ${
+                      chartConfig.style === 'line'
+                        ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[0_0_15px_rgba(252,213,53,0.1)] border border-[var(--holo-gold)]/20'
                         : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
                     }`}
                     title="Time Series"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                    Time
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                   </button>
 
                   <div className="w-px h-3.5 bg-white/5 mx-0.5" />
 
                   {visibleTimeframes.slice(0, -1).map(tf => {
-                    const isActive = chartInterval === tf && chartConfig.style === 'candle';
+                    const isActive = canonicalInterval(chartInterval) === canonicalInterval(tf);
                     return (
                       <button
                         key={tf}
                         onClick={() => {
-                          setChartInterval(tf);
-                          if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
+                          setChartInterval(canonicalInterval(tf));
                         }}
                         className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-all duration-300 relative ${
-                          isActive 
-                            ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_20px_rgba(0,229,255,0.15)] border border-[var(--holo-cyan)]/30' 
+                          isActive
+                            ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_20px_rgba(0,229,255,0.15)] border border-[var(--holo-cyan)]/30'
                             : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
                         }`}
                       >
@@ -635,8 +695,8 @@ export default function App() {
                     <button
                       onClick={() => setIsTimeframeDropdownOpen(!isTimeframeDropdownOpen)}
                       className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-all duration-300 flex items-center gap-1 ${
-                        chartInterval === visibleTimeframes[visibleTimeframes.length-1] && chartConfig.style === 'candle' 
-                          ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_20px_rgba(0,229,255,0.1)] border border-[var(--holo-cyan)]/30' 
+                        canonicalInterval(chartInterval) === canonicalInterval(visibleTimeframes[visibleTimeframes.length-1])
+                          ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_20px_rgba(0,229,255,0.1)] border border-[var(--holo-cyan)]/30'
                           : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
                       }`}
                     >
@@ -648,15 +708,14 @@ export default function App() {
                       <div className="absolute top-full left-0 mt-2 w-36 glass-panel border border-[var(--holo-cyan)]/20 shadow-[0_10px_40px_rgba(0,0,0,0.8)] rounded-xl z-[100] py-1.5 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
                         <div className="px-3 py-1.5 text-[9px] font-bold text-[#5e6673] uppercase tracking-widest border-b border-white/5 mb-1">Extended Range</div>
                         <div className="grid grid-cols-2 gap-1 px-1.5">
-                          {['1m', '3m', '2h', '4h', '12h', '1d', '1w', '1M'].map(tf => (
+                          {['1m', '3m', '2h', '4h', '6h', '12h', '1d', '3d', '1w', '1M'].map(tf => (
                             <button
                               key={tf}
                               onClick={() => {
                                 const newTfs = [...visibleTimeframes];
                                 newTfs[newTfs.length - 1] = tf;
                                 setVisibleTimeframes(newTfs);
-                                setChartInterval(tf);
-                                if (chartConfig.style === 'line') setChartConfig({ ...chartConfig, style: 'candle' });
+                                setChartInterval(canonicalInterval(tf));
                                 setIsTimeframeDropdownOpen(false);
                               }}
                               className="text-left px-2 py-1.5 text-[11px] font-bold text-[#848e9c] hover:text-[var(--holo-cyan)] hover:bg-[var(--holo-cyan)]/10 rounded transition-colors uppercase flex items-center justify-center"
@@ -670,7 +729,7 @@ export default function App() {
                             setIsTimeframeDropdownOpen(false);
                             const customTf = window.prompt('ENTER CUSTOM SYS_TIME OVERRIDE (e.g. 45m, 3d, 1M):');
                             if (customTf && customTf.trim()) {
-                              const t = customTf.trim();
+                              const t = canonicalInterval(customTf.trim());
                               const newTfs = [...visibleTimeframes];
                               newTfs[newTfs.length - 1] = t;
                               setVisibleTimeframes(newTfs);

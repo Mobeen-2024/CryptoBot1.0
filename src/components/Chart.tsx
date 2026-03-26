@@ -4,6 +4,17 @@ import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
 import { isBullishEngulfing } from '../utils/patternDetection';
 
+// Utility to normalize interval strings to Binance-canonical format
+const canonicalInterval = (interval: string): string => {
+  if (!interval) return '1h';
+  const match = interval.match(/^(\d+)([a-zA-Z])$/);
+  if (!match) return interval.toLowerCase();
+  const val = match[1];
+  const unit = match[2];
+  if (unit === 'M') return val + 'M';
+  return val + unit.toLowerCase();
+};
+
 interface ChartProps {
   data: any[];
   symbol: string;
@@ -510,7 +521,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       }
     });
 
-    const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${chartInterval}`;
+    const interval = canonicalInterval(chartInterval);
+    const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`;
     const ws = new WebSocket(wsUrl);
 
     let animationFrameId: number;
@@ -644,6 +656,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           close: parseFloat(kline.c),
         });
 
+        if (mainLineSeriesRef.current) {
+          mainLineSeriesRef.current.update({ time: t, value: parseFloat(kline.c) });
+        }
+
         // Extend trailing indicators for the new candle
         if (data.length > 0) {
           const lastValid = data[data.length - 1];
@@ -715,6 +731,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           low: parseFloat(kline.l),
           close: parseFloat(kline.c),
         });
+
+        if (mainLineSeriesRef.current) {
+          mainLineSeriesRef.current.update({ time: t, value: parseFloat(kline.c) });
+        }
 
         // Realtime tick extension for overlays
         if (data.length > 0) {
@@ -981,6 +1001,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     try {
       if (seriesRef.current && data.length > 0) {
         seriesRef.current.setData(data);
+        if (mainLineSeriesRef.current) {
+          mainLineSeriesRef.current.setData(data.filter(d => d.close != null).map((d: any) => ({ time: d.time, value: d.close })));
+        }
 
         if (emaSeriesRef.current) {
           const emaData = data.filter(d => d.ema200 != null).map(d => ({ time: d.time, value: d.ema200 }));
