@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
-import { analyzeEngulfing } from '../utils/patternDetection';
+import { analyzeEngulfing, isDoji } from '../utils/patternDetection';
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -1340,10 +1340,49 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           }
         });
       }
+
+      // Doji Detection Logic (Indecision)
+      if (config?.showDoji !== false && isDoji(data[i])) {
+        const currMa = ma10[i];
+        const prevMa = ma10[i - 1];
+
+        let context: 'REVERSAL' | 'CONTINUATION' | 'CONSOLIDATION' = 'CONSOLIDATION';
+        let dojiLabel = "Consolidation / Indecision";
+        let strength: 'HIGH' | 'LOW' | 'STANDARD' = 'LOW';
+
+        if (currMa !== null && prevMa !== null) {
+          const maSlopingUp = currMa > prevMa;
+          const maSlopingDown = currMa < prevMa;
+          
+          // Simplified "At High/Low" logic based on MA slope
+          if (maSlopingUp && data[i].high >= Math.max(data[i-1].high, (data[i-2]?.high || 0))) {
+            context = 'REVERSAL';
+            dojiLabel = "Bearish Reversal Warning";
+            strength = 'HIGH';
+          } else if (maSlopingDown && data[i].low <= Math.min(data[i-1].low, (data[i-2]?.low || Infinity))) {
+            context = 'REVERSAL';
+            dojiLabel = "Bullish Reversal Warning";
+            strength = 'HIGH';
+          }
+        }
+
+        newPatternMarkers.push({
+          id: `${data[i].time}_DOJI`,
+          time: data[i].time,
+          type: 'DOJI',
+          context: context,
+          label: dojiLabel,
+          strength: strength,
+          low: data[i].low,
+          high: data[i].high,
+          open: data[i].open,
+          close: data[i].close
+        });
+      }
     }
     patternMarkersRef.current = newPatternMarkers;
     setPatternMarkers(newPatternMarkers);
-  }, [data, config?.patternOverlay, showEngulfing]);
+  }, [data, config?.patternOverlay, config?.showDoji, showEngulfing]);
 
   // Sync Open Orders to Price Lines
   useEffect(() => {
@@ -1612,11 +1651,21 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         <div className="absolute inset-0 z-[45] pointer-events-none overflow-hidden">
           {patternMarkers.map((m, idx) => {
             const isBullish = m.type === 'BULLISH';
+            const isBearish = m.type === 'BEARISH';
+            const isDoji = m.type === 'DOJI';
             const isReversal = m.context === 'REVERSAL';
             const isMostRecent = idx === patternMarkers.length - 1;
-            const shouldGlow = isMostRecent || m.hasHighVolume;
-            const mainColor = isBullish ? '#00FF9D' : '#FF007F';
-            const secondaryColor = isBullish ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 127, 0.4)';
+            const shouldGlow = isMostRecent || m.hasHighVolume || (isDoji && isReversal);
+            
+            let mainColor = '#FFFFFF';
+            if (isBullish) mainColor = '#00FF9D';
+            else if (isBearish) mainColor = '#FF007F';
+
+            const secondaryColor = isBullish 
+              ? 'rgba(0, 255, 157, 0.4)' 
+              : isBearish 
+                ? 'rgba(255, 0, 127, 0.4)' 
+                : 'rgba(255, 255, 255, 0.4)';
 
             return (
               <React.Fragment key={m.id}>
@@ -1638,7 +1687,17 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 >
                   <div className="relative flex flex-col items-center">
                     {/* UI Marker Logic: Primary Small Icons */}
-                    {isBullish ? (
+                    {isDoji ? (
+                      <div className="flex flex-col items-center">
+                        <div 
+                          className={`w-3 h-[2px] bg-white rounded-full relative z-10 ${shouldGlow ? 'animate-pulse' : ''}`}
+                          style={{ boxShadow: shouldGlow ? '0 0 10px rgba(255,255,255,0.8)' : 'none' }}
+                        >
+                           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] h-3 bg-white rounded-full" />
+                        </div>
+                        {shouldGlow && <div className="absolute -bottom-1 w-6 h-6 bg-white/10 blur-xl rounded-full" />}
+                      </div>
+                    ) : isBullish ? (
                       isReversal ? (
                         // BOLD GREEN UP-ARROW (Selective Glow)
                         <div className="flex flex-col items-center">
@@ -1674,7 +1733,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                           textShadow: `0 0 10px ${mainColor}`
                         }}
                       >
-                        {m.context} {m.type.toLowerCase()}
+                        {isDoji ? m.label : `${m.context} ${m.type.toLowerCase()}`}
                       </div>
                     </div>
                   </div>
@@ -1688,17 +1747,19 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                     }`}
                   >
                     <div className="relative rounded-xl border border-white/10 bg-black/95 backdrop-blur-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-2">
-                      <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
                         <span className={`text-[10px] font-black uppercase tracking-[0.2em]`} style={{ color: mainColor }}>
-                          {m.type === 'BULLISH' ? 'Bullish Engulfing' : 'Bearish Engulfing'}
+                          {m.type === 'BULLISH' ? 'Bullish Engulfing' : m.type === 'BEARISH' ? 'Bearish Engulfing' : 'Doji (Indecision)'}
                         </span>
                         {m.hasHighVolume && <span className="text-[10px] text-[var(--holo-gold)] font-bold">⭐ Volume Spike</span>}
                       </div>
 
                       <div className="text-[9px] text-white/80 font-medium leading-relaxed italic">
-                        {isBullish
-                          ? "Buyers have fully overwhelmed sellers, reclaiming the local price boundaries."
-                          : "Sellers have fully overwhelmed buyers, breaking the local support structure."
+                        {isDoji
+                          ? "Buyers and Sellers are equal. Demand and Supply have reached equilibrium."
+                          : isBullish
+                            ? "Buyers have fully overwhelmed sellers, reclaiming the local price boundaries."
+                            : "Sellers have fully overwhelmed buyers, breaking the local support structure."
                         }
                       </div>
 
@@ -1706,20 +1767,23 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                         <div className="flex justify-between items-center text-[10px] font-mono">
                           <span className="text-white/40">Market Context</span>
                           <span className={`${isReversal ? 'text-[var(--holo-gold)]' : 'text-white/60'} font-bold`}>
-                            {m.context === 'REVERSAL' ? 'Downtrend Reversal' : 'Trend Continuation'}
+                            {isDoji ? m.label : (m.context === 'REVERSAL' ? 'Downtrend Reversal' : 'Trend Continuation')}
                           </span>
                         </div>
                         <div className="flex justify-between items-center text-[10px] font-mono">
                           <span className="text-white/40">Setup Strength</span>
-                          <span className={m.strength === 'HIGH' ? 'text-[#00FF9D]' : 'text-white/60'}>
-                             {m.strength === 'HIGH' ? 'HIGH POWER' : 'STANDARD'}
+                          <span className={m.strength === 'HIGH' ? 'text-[#00FF9D]' : m.strength === 'LOW' ? 'text-white/40' : 'text-white/60'}>
+                             {m.strength === 'HIGH' ? 'HIGH POWER' : m.strength === 'LOW' ? 'LOW (NEUTRAL)' : 'STANDARD'}
                           </span>
                         </div>
                       </div>
 
                       {/* Educational Instruction */}
                       <div className="bg-white/5 rounded-md p-1.5 mt-1 text-[8px] text-white/40 leading-tight">
-                        Confirms reversal when forming at deep capitulation bottoms or trend cycle ends.
+                        {isDoji 
+                          ? "If in a profit-run, consider tightening Stop-Loss. Trend may be losing strength."
+                          : "Confirms reversal when forming at deep capitulation bottoms or trend cycle ends."
+                        }
                       </div>
                     </div>
                   </div>

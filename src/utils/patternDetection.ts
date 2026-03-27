@@ -26,13 +26,13 @@ export function analyzeEngulfing(prev: any, curr: any): EngulfingResult {
   // Rule: BT_t >= BT_t-1 AND BB_t <= BB_t-1
   const engulfsTop = currBT >= prevBT;
   const engulfsBottom = currBB <= prevBB;
-  const isExpansion = currBodySize > prevBodySize;
+  const isExpansion = currBodySize >= prevBodySize;
 
   const isEngulfing = engulfsTop && engulfsBottom && isExpansion;
 
   return {
-    isBullish: isEngulfing && curr.close > curr.open,
-    isBearish: isEngulfing && curr.close < curr.open,
+    isBullish: isEngulfing && curr.close > curr.open && prev.close < prev.open,
+    isBearish: isEngulfing && curr.close < curr.open && prev.close > prev.open,
     hasHighVolume: curr.volume > prev.volume,
     isExpansion
   };
@@ -41,4 +41,15 @@ export function analyzeEngulfing(prev: any, curr: any): EngulfingResult {
 // Legacy support (to avoid breaking current imports until refactored)
 export function isBullishEngulfing(prev: any, curr: any): boolean {
   return analyzeEngulfing(prev, curr).isBullish;
+}
+
+/**
+ * Doji Logic with a 5% threshold
+ * Body <= (Total Range * 0.05)
+ */
+export function isDoji(candle: any): boolean {
+  if (!candle || candle.high === candle.low) return false;
+  const bodySize = Math.abs(candle.open - candle.close);
+  const totalRange = candle.high - candle.low;
+  return bodySize <= (totalRange * 0.05);
 }

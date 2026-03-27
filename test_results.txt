@@ -1,0 +1,20 @@
+﻿
+ RUN  v3.2.4 D:/WorkStation/cryptobot
+
+ Γ£ô src/utils/patternDetection.test.ts > isBullishEngulfing > should identify a true bullish engulfing pattern 1ms
+ Γ£ô src/utils/patternDetection.test.ts > isBullishEngulfing > should identify an engulfing pattern with equal boundaries 0ms
+ ├ù src/utils/patternDetection.test.ts > isBullishEngulfing > should not identify if previous is bullish 6ms
+   ΓåÆ expected true to be false // Object.is equality
+ Γ£ô src/utils/patternDetection.test.ts > isBullishEngulfing > should not identify if current is bearish 0ms
+ Γ£ô src/utils/patternDetection.test.ts > isBullishEngulfing > should not identify if current does not engulf bottom 0ms
+ Γ£ô src/utils/patternDetection.test.ts > isBullishEngulfing > should not identify if current does not engulf top 0ms
+ Γ£ô src/utils/patternDetection.test.ts > isDoji > should identify a perfect Doji 0ms
+ Γ£ô src/utils/patternDetection.test.ts > isDoji > should identify a 5% threshold Doji 0ms
+ Γ£ô src/utils/patternDetection.test.ts > isDoji > should not identify a 6% body as Doji 0ms
+ Γ£ô src/utils/patternDetection.test.ts > isDoji > should handle zero range candle 0ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  06:05:42
+   Duration  386ms (transform 36ms, setup 0ms, collect 36ms, tests 9ms, environment 0ms, prepare 104ms)
+

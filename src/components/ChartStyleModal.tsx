@@ -395,14 +395,26 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                         setLocalConfig({ ...localConfig, global: { ...localConfig.global, gridLines: color } })
                       })}
                     </div>
-                    <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3 shadow-lg col-span-2">
-                      <span className="text-[9px] font-black text-[#5e6673] uppercase tracking-widest">Pattern Overlay (Bullish Engulfing)</span>
-                      <div className="w-1/2 mt-2">
-                        {cyberToggle(
-                          localConfig.patternOverlay !== false,
-                          () => setLocalConfig({ ...localConfig, patternOverlay: localConfig.patternOverlay === false }),
-                          'ON', 'OFF'
-                        )}
+                    <div className="p-5 rounded-2xl bg-black/40 border border-white/5 shadow-lg col-span-2 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">Engulfing (Reversal)</span>
+                        <div className="w-24">
+                          {cyberToggle(
+                            localConfig.patternOverlay !== false,
+                            () => setLocalConfig({ ...localConfig, patternOverlay: localConfig.patternOverlay === false }),
+                            'ON', 'OFF'
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                        <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">Doji (Indecision)</span>
+                        <div className="w-24">
+                          {cyberToggle(
+                            localConfig.showDoji !== false,
+                            () => setLocalConfig({ ...localConfig, showDoji: localConfig.showDoji === false }),
+                            'ON', 'OFF'
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

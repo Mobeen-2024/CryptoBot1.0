@@ -13,6 +13,7 @@ export interface ChartConfig {
     gridLines: string;
   };
   patternOverlay?: boolean;
+  showDoji?: boolean;
 }
 
 export const DEFAULT_CHART_CONFIG: ChartConfig = {
@@ -23,5 +24,6 @@ export const DEFAULT_CHART_CONFIG: ChartConfig = {
   },
   line: { color: '#fcd535', width: 2 },
   global: { background: '#0b1622', gridLines: '#2b3139' },
-  patternOverlay: true
+  patternOverlay: true,
+  showDoji: true
 };
