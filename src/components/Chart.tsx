@@ -59,13 +59,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const kdjDRef = useRef<any>(null);
   const kdjJRef = useRef<any>(null);
 
-  const buyLineRef = useRef<any>(null);
-  const sellLineRef = useRef<any>(null);
   const openOrderLinesRef = useRef<Map<string, any>>(new Map());
-
   const [avgPositions, setAvgPositions] = useState({ buy: -100, sell: -100, buyPrice: 0, sellPrice: 0 });
-  const [customBuy, setCustomBuy] = useState<string>('');
-  const [customSell, setCustomSell] = useState<string>('');
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
   const [showAvgLines, setShowAvgLines] = useState(false);
   const [showEngulfing, setShowEngulfing] = useState(false);
@@ -532,7 +527,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     let animationFrameId: number;
     const syncPills = () => {
       // Sync Price Average Lines
-      if (seriesRef.current && buyLineRef.current && sellLineRef.current) {
+      if (seriesRef.current) {
         const series = seriesRef.current;
         setAvgPositions(prev => {
           const buyY = series.priceToCoordinate(prev.buyPrice);
@@ -1165,72 +1160,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         setVisibleHighLow(initialHl);
       }
 
-      // 2. Initial Average Price Lines logic
-      if (avgPositions.buyPrice === 0 && data.length > 0) {
-        const currentPr = data[data.length - 1].close;
-        const mockBuyPrice = currentPr * 0.99;
-        const mockSellPrice = currentPr * 1.01;
-
-        setAvgPositions(prev => ({ ...prev, buyPrice: mockBuyPrice, sellPrice: mockSellPrice }));
-
-        // Ensure price lines are created if they don't exist
-        if (seriesRef.current) {
-           if (!buyLineRef.current) {
-              buyLineRef.current = seriesRef.current.createPriceLine({
-                price: mockBuyPrice, color: '#00E5FF', lineWidth: 1, lineStyle: 1, axisLabelVisible: false,
-              });
-           }
-           if (!sellLineRef.current) {
-              sellLineRef.current = seriesRef.current.createPriceLine({
-                price: mockSellPrice, color: '#FF007F', lineWidth: 1, lineStyle: 1, axisLabelVisible: false,
-              });
-           }
-        }
-        }
       }
     } catch (err) {
       console.error("[Chart] Error during data update:", err);
     }
   }, [data]);
 
-  // Create / remove price lines when toggle or prices change
-  useEffect(() => {
-    if (!seriesRef.current) return;
-
-    if (showAvgLines) {
-      const buyP = customBuy ? parseFloat(customBuy) : avgPositions.buyPrice;
-      const sellP = customSell ? parseFloat(customSell) : avgPositions.sellPrice;
-
-      if (!buyLineRef.current && buyP > 0) {
-        buyLineRef.current = seriesRef.current.createPriceLine({
-          price: buyP, color: '#00E5FF', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
-        });
-      } else if (buyLineRef.current && buyP > 0) {
-        buyLineRef.current.applyOptions({ price: buyP });
-      }
-
-      if (!sellLineRef.current && sellP > 0) {
-        sellLineRef.current = seriesRef.current.createPriceLine({
-          price: sellP, color: '#FF007F', lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
-        });
-      } else if (sellLineRef.current && sellP > 0) {
-        sellLineRef.current.applyOptions({ price: sellP });
-      }
-
-      if (buyP > 0) setAvgPositions(prev => ({ ...prev, buyPrice: buyP }));
-      if (sellP > 0) setAvgPositions(prev => ({ ...prev, sellPrice: sellP }));
-    } else {
-      // Remove lines when toggled off
-      if (buyLineRef.current && seriesRef.current) {
-        seriesRef.current.removePriceLine(buyLineRef.current);
-        buyLineRef.current = null;
-      }
-      if (sellLineRef.current && seriesRef.current) {
-        seriesRef.current.removePriceLine(sellLineRef.current);
-        sellLineRef.current = null;
-      }
-    }
-  }, [showAvgLines, customBuy, customSell, avgPositions.buyPrice, avgPositions.sellPrice]);
 
   // Calculate custom HTML markers
   useEffect(() => {
@@ -1358,6 +1293,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     const activeIds = new Set<string>();
 
     openOrders.forEach(order => {
+      // If AVG toggle is off, we skip creating any price lines
+      if (!showAvgLines) return;
+
       // Handle OCO orders having two targets: limitPrice and stopPrice
       if (order.type === 'oco') {
         const createLine = (price: number, label: string) => {
@@ -1417,7 +1355,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       }
     });
 
-  }, [openOrders, seriesRef.current]);
+  }, [openOrders, seriesRef.current, showAvgLines]);
 
   return (
     <div className="flex flex-col w-full h-full bg-[#07090b] rounded-2xl overflow-hidden border border-white/5 relative z-0 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl group/chart">
@@ -1441,7 +1379,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
               <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
             </div>
-            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Avg</span>
+            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">SL/TP</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer group select-none">
             <div className="relative">
@@ -1469,32 +1407,6 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             </div>
             <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Box</span>
           </label>
-          {showAvgLines && (
-            <div className="flex items-center gap-2 animate-in slide-in-from-left-2 fade-in duration-300">
-              <div className="flex items-center gap-2 bg-[#00E5FF]/5 border border-[#00E5FF]/20 shadow-[0_0_15px_rgba(0,229,255,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#00E5FF]/50 focus-within:shadow-[0_0_20px_rgba(0,229,255,0.15)_inset] transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
-                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#00E5FF]/80 flex-shrink-0">Buy</span>
-                <input
-                  type="number"
-                  placeholder="—"
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#00E5FF] font-mono font-bold placeholder:text-[#00E5FF]/30 text-right selection:bg-[#00E5FF]/30"
-                  value={customBuy}
-                  onChange={e => setCustomBuy(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2 bg-[#FF007F]/5 border border-[#FF007F]/20 shadow-[0_0_15px_rgba(255,0,127,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#FF007F]/50 focus-within:shadow-[0_0_20px_rgba(255,0,127,0.15)_inset] transition-all">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#FF007F] shadow-[0_0_8px_#FF007F]" />
-                <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#FF007F]/80 flex-shrink-0">Sell</span>
-                <input
-                  type="number"
-                  placeholder="—"
-                  className="bg-transparent w-[65px] outline-none text-[11px] text-[#FF007F] font-mono font-bold placeholder:text-[#FF007F]/30 text-right selection:bg-[#FF007F]/30"
-                  value={customSell}
-                  onChange={e => setCustomSell(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Center: Drawing Tools */}
