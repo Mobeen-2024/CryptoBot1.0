@@ -396,13 +396,56 @@ export const ChartStyleModal: React.FC<ChartStyleModalProps> = ({
                       })}
                     </div>
                     <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3 shadow-lg col-span-2">
-                      <span className="text-[9px] font-black text-[#5e6673] uppercase tracking-widest">Pattern Overlay (Bullish Engulfing)</span>
-                      <div className="w-1/2 mt-2">
-                        {cyberToggle(
-                          localConfig.patternOverlay !== false,
-                          () => setLocalConfig({ ...localConfig, patternOverlay: localConfig.patternOverlay === false }),
-                          'ON', 'OFF'
-                        )}
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-black text-[#5e6673] uppercase tracking-widest">Pattern Recognition Profile</span>
+                        <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[8px] font-mono text-[var(--holo-cyan)]">CANDLESTICK_BIBLE_V5</div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                        <div className="space-y-2">
+                          <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Main Toggle</span>
+                          {cyberToggle(
+                            localConfig.patternOverlay !== false,
+                            () => setLocalConfig({ ...localConfig, patternOverlay: localConfig.patternOverlay === false }),
+                            'ON', 'OFF'
+                          )}
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Detection Depth</span>
+                            <span className="text-[9px] font-mono text-[var(--holo-gold)] font-bold">{localConfig.patternLookback || 200} Bars</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="50" max="1000" step="50"
+                            value={localConfig.patternLookback || 200}
+                            onChange={(e) => setLocalConfig({ ...localConfig, patternLookback: parseInt(e.target.value) })}
+                            className="range-slider-holo"
+                            style={{ 
+                                accentColor: 'var(--holo-gold)',
+                                '--range-glow': 'var(--holo-gold-glow)' 
+                            } as any}
+                          />
+                        </div>
+
+                        <div className="space-y-2 mt-1 px-1">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Visual Feedback</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3">
+                            <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] border border-white/5">
+                                <span className="text-[10px] text-white/60 font-medium">Highlight Box</span>
+                                <div className="w-24">
+                                    {cyberToggle(
+                                        localConfig.showPatternBox !== false,
+                                        () => setLocalConfig({ ...localConfig, showPatternBox: localConfig.showPatternBox === false }),
+                                        'ON', 'OFF'
+                                    )}
+                                </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

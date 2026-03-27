@@ -3,6 +3,7 @@ import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, Lin
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
 import { analyzeEngulfing } from '../utils/patternDetection';
+import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlestickPatterns';
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -630,10 +631,18 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
             if (x !== null && yHigh !== null && yLow !== null) {
               const xPos = x - 10; // Center 20px wide marker
-              // Adjust Y-axis Vertical Zone: Engulfing patterns always 10px below the candle
-              const yPos = yLow + 10; 
-              el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+              // Adjust Y-axis Vertical Zone: Icons always 10px below the candle
+              const yIconPos = yLow + 10; 
+              el.style.transform = `translate(${xPos}px, ${yIconPos}px)`;
               el.style.opacity = '1';
+
+              // Position Label at the High of the candle (relative to parent)
+              const labelEl = document.getElementById(`pattern-label-${m.id}`);
+              if (labelEl) {
+                // Parent is at yIconPos. We want label bottom at yHigh (with 2px gap).
+                const relativeY = yHigh - yIconPos;
+                labelEl.style.transform = `translate(-50%, ${relativeY}px) translateY(-100%) translateY(-2px)`;
+              }
             } else {
               el.style.opacity = '0';
             }
@@ -1299,32 +1308,29 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     });
 
     const newPatternMarkers = [];
-    for (let i = 1; i < data.length; i++) {
-      const { isBullish, isBearish, hasHighVolume } = analyzeEngulfing(data[i - 1], data[i]);
+    const lookback = config?.patternLookback || 200;
+    const startIdx = Math.max(2, data.length - lookback);
+
+    for (let i = startIdx; i < data.length; i++) {
+      const patterns = detectPatterns(data, i);
       
-      if (isBullish || isBearish) {
-        const currMa = ma10[i];
-        const prevMa = ma10[i - 1];
-        
-        // Trend context logic
-        let context: 'REVERSAL' | 'CONTINUATION' = 'CONTINUATION';
-        if (currMa !== null && prevMa !== null) {
-          const maSlopingUp = currMa > prevMa;
-          if (isBullish) {
-            context = maSlopingUp ? 'CONTINUATION' : 'REVERSAL';
-          } else {
-            context = maSlopingUp ? 'REVERSAL' : 'CONTINUATION';
-          }
-        }
+      patterns.forEach((p, idx) => {
+        const isBullish = p.sentiment === 'bullish';
+        const isBearish = p.sentiment === 'bearish';
+        const isNeutral = p.sentiment === 'neutral';
 
         newPatternMarkers.push({
-          id: `${data[i].time}_${isBullish ? 'BULL' : 'BEAR'}`,
+          id: `${data[i].time}_${p.type}_${idx}`,
           time: data[i].time,
           prevTime: data[i-1].time,
-          type: isBullish ? 'BULLISH' : 'BEARISH',
-          context: context,
-          strength: context === 'REVERSAL' ? 'HIGH' : 'STANDARD',
-          hasHighVolume: hasHighVolume,
+          type: p.sentiment === 'bullish' ? 'BULLISH' : (p.sentiment === 'bearish' ? 'BEARISH' : 'NEUTRAL'),
+          patternType: p.type,
+          label: p.label,
+          color: p.color,
+          description: p.description,
+          context: isBullish ? 'BULLISH' : (isBearish ? 'BEARISH' : 'NEUTRAL'),
+          strength: (isBullish || isBearish) ? 'HIGH' : 'STANDARD',
+          hasHighVolume: data[i].volume > data[i-1].volume,
           low: data[i].low,
           high: data[i].high,
           open: data[i].open,
@@ -1336,7 +1342,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             low: data[i-1].low
           }
         });
-      }
+      });
     }
     patternMarkersRef.current = newPatternMarkers;
     setPatternMarkers(newPatternMarkers);
@@ -1584,21 +1590,24 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         <div className="absolute inset-0 z-[45] pointer-events-none overflow-hidden">
           {patternMarkers.map((m, idx) => {
             const isBullish = m.type === 'BULLISH';
-            const isReversal = m.context === 'REVERSAL';
             const isMostRecent = idx === patternMarkers.length - 1;
             const shouldGlow = isMostRecent || m.hasHighVolume;
-            const mainColor = isBullish ? '#00FF9D' : '#FF007F';
-            const secondaryColor = isBullish ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 127, 0.4)';
 
             return (
               <React.Fragment key={m.id}>
-                {/* The "Engulf" Box (Standardized subtle opacity) */}
-                <div
-                  id={`engulf-box-${m.id}`}
-                  className="absolute pointer-events-none border border-white/5 bg-white/[0.01] rounded-md transition-opacity duration-300 opacity-0"
-                />
+                {/* The "Engulf" Box (Improved visibility & Toggle) */}
+                {config?.showPatternBox !== false && (
+                  <div
+                    id={`engulf-box-${m.id}`}
+                    className="absolute pointer-events-none border rounded-md transition-opacity duration-300 opacity-0"
+                    style={{ 
+                      borderColor: `${m.color}80`, // 50% opacity border
+                      backgroundColor: `${m.color}0D` // ~5% opacity fill
+                    }}
+                  />
+                )}
 
-                {/* Primary Pattern Marker (Zoned 10px below candle) */}
+                {/* Primary Pattern Marker (Zoned 10px below/above candle) */}
                 <div
                   id={`pattern-marker-${m.id}`}
                   className="absolute w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern"
@@ -1606,24 +1615,23 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 >
                   <div className="relative flex flex-col items-center">
                     {/* UI Marker Logic: Primary Small Icons */}
-                    {isBullish ? (
-                      isReversal ? (
-                        // BOLD GREEN UP-ARROW (Selective Glow)
+                    {m.type === 'BULLISH' ? (
                         <div className="flex flex-col items-center">
                           <div
-                            className={`w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[8px] border-b-[#00FF9D] relative z-10 ${shouldGlow ? 'animate-float-glow' : ''}`}
-                            style={{ filter: shouldGlow ? 'drop-shadow(0 0 8px #00FF9D)' : 'none' }}
+                            className={`w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[8px] relative z-10 ${shouldGlow ? 'animate-float-glow' : ''}`}
+                            style={{ borderBottomColor: m.color, filter: shouldGlow ? `drop-shadow(0 0 8px ${m.color})` : 'none' }}
                           />
-                          {/* Selective Subtle Glow */}
-                          {shouldGlow && <div className="absolute -bottom-1 w-6 h-6 bg-[#00FF9D]/10 blur-xl rounded-full" />}
+                          {shouldGlow && <div className="absolute -bottom-1 w-6 h-6 bg-[currentColor]/10 blur-xl rounded-full" style={{ color: m.color }} />}
                         </div>
-                      ) : (
-                        // SMALL GREEN TRIANGLE (Scaled Down)
-                        <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-[#00FF9D]/50" />
-                      )
+                    ) : m.type === 'BEARISH' ? (
+                        <div className="flex flex-col items-center">
+                          <div
+                             className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] relative z-10"
+                             style={{ borderTopColor: m.color }}
+                          />
+                        </div>
                     ) : (
-                      // RED DOWN-ARROW (Bearish)
-                      <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] border-t-[#FF007F] relative z-10" />
+                        <div className="w-2.5 h-2.5 rounded-full border-2 border-white/20" style={{ backgroundColor: m.color }} />
                     )}
 
                     {/* Scaled Down Confluence Star ⭐ */}
@@ -1631,57 +1639,46 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                       <span className="absolute -top-2 -right-1.5 text-[7px] animate-pulse drop-shadow-[0_0_5px_#fcd535]">⭐</span>
                     )}
 
-                    {/* Vertical Growing Label: "Bullish/Bearish" */}
-                    <div className="absolute bottom-[24px] left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+                    {/* Vertical Growing Label (Moved to High via syncPills) */}
+                    <div 
+                      id={`pattern-label-${m.id}`}
+                      className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none opacity-0 group-hover/pattern:opacity-100 transition-opacity"
+                    >
                       <div 
-                        className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap opacity-0 group-hover/pattern:opacity-100 transition-opacity"
+                        className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap"
                         style={{ 
                           writingMode: 'vertical-lr', 
                           transform: 'rotate(180deg)',
-                          color: mainColor,
-                          textShadow: `0 0 10px ${mainColor}`
+                          color: m.color,
+                          textShadow: `0 0 10px ${m.color}`
                         }}
                       >
-                        {m.context} {m.type.toLowerCase()}
+                        {m.label}
                       </div>
                     </div>
                   </div>
 
                   {/* Enhanced Educational Tooltip */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-all duration-300 z-[100] w-60 translate-y-2 group-hover/pattern:translate-y-0">
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-all duration-300 z-[100] w-60 translate-y-2 group-hover/pattern:translate-y-0 text-left">
                     <div className="relative rounded-xl border border-white/10 bg-black/95 backdrop-blur-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-2">
                       <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em]`} style={{ color: mainColor }}>
-                          {m.type === 'BULLISH' ? 'Bullish Engulfing' : 'Bearish Engulfing'}
+                        <span className={`text-[10px] font-black uppercase tracking-[0.2em]`} style={{ color: m.color }}>
+                          {m.label}
                         </span>
                         {m.hasHighVolume && <span className="text-[10px] text-[var(--holo-gold)] font-bold">⭐ Volume Spike</span>}
                       </div>
 
                       <div className="text-[9px] text-white/80 font-medium leading-relaxed italic">
-                        {isBullish 
-                          ? "Buyers have fully overwhelmed sellers, reclaiming the local price boundaries."
-                          : "Sellers have fully overwhelmed buyers, breaking the local support structure."
-                        }
+                        {m.description}
                       </div>
 
                       <div className="flex flex-col gap-1.5 mt-1 border-t border-white/5 pt-2">
                         <div className="flex justify-between items-center text-[10px] font-mono">
                           <span className="text-white/40">Market Context</span>
-                          <span className={`${isReversal ? 'text-[var(--holo-gold)]' : 'text-white/60'} font-bold`}>
-                            {m.context === 'REVERSAL' ? 'Downtrend Reversal' : 'Trend Continuation'}
+                          <span className={`${m.strength === 'HIGH' ? 'text-[var(--holo-gold)]' : 'text-white/60'} font-bold`}>
+                            {m.type === 'NEUTRAL' ? 'Neutral' : (m.strength === 'HIGH' ? 'High Probability' : 'Standard')}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-[10px] font-mono">
-                          <span className="text-white/40">Setup Strength</span>
-                          <span className={m.strength === 'HIGH' ? 'text-[#00FF9D]' : 'text-white/60'}>
-                             {m.strength === 'HIGH' ? 'HIGH POWER' : 'STANDARD'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Educational Instruction */}
-                      <div className="bg-white/5 rounded-md p-1.5 mt-1 text-[8px] text-white/40 leading-tight">
-                        Confirms reversal when forming at deep capitulation bottoms or trend cycle ends.
                       </div>
                     </div>
                   </div>

@@ -13,6 +13,8 @@ export interface ChartConfig {
     gridLines: string;
   };
   patternOverlay?: boolean;
+  patternLookback?: number;
+  showPatternBox?: boolean;
 }
 
 export const DEFAULT_CHART_CONFIG: ChartConfig = {
@@ -23,5 +25,7 @@ export const DEFAULT_CHART_CONFIG: ChartConfig = {
   },
   line: { color: '#fcd535', width: 2 },
   global: { background: '#0b1622', gridLines: '#2b3139' },
-  patternOverlay: true
+  patternOverlay: true,
+  patternLookback: 200,
+  showPatternBox: true
 };
