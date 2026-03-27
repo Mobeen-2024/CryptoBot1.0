@@ -598,18 +598,6 @@ export default function App() {
           )}
 
           <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
-            <span className="hidden sm:flex">
-              <CandleCountdown
-                interval={chartInterval}
-                onChange={(val) => {
-                  if (val === 'OPEN_SELECTOR') {
-                    setIsTimeSelectorOpen(true);
-                  } else {
-                    setChartInterval(val);
-                  }
-                }}
-              />
-            </span>
 
             <div className="flex items-center gap-1.5 glass-panel rounded-lg px-2 py-1">
               <div className={`glow-dot-sm ${apiConnected ? 'bg-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan-glow)]' : 'bg-[var(--holo-magenta)] drop-shadow-[0_0_8px_var(--holo-magenta-glow)]'}`} />
