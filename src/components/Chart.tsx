@@ -637,8 +637,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 if (labelEl) {
                   // Parent is at yIconPos. We want label bottom at yHigh (with exactly 5px gap).
                   const relativeY = yHigh - yIconPos;
-                  // Center relative to parent and position above High
-                  labelEl.style.transform = `translate(-50%, ${relativeY}px) translateY(-100%) translateY(-10px)`;
+                  // Center relative to parent and position above High (5px gap)
+                  labelEl.style.transform = `translate(-50%, ${relativeY}px) translateY(-100%) translateY(-5px)`;
                 }
               } else {
                 el.style.opacity = '0';
@@ -1364,109 +1364,83 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
-      {/* ═══════════════ CHART TOOLBAR (HOLOGRAPHIC OVERLAY) ═══════════════ */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 sm:px-4 py-3 bg-gradient-to-b from-black to-transparent backdrop-blur-sm z-[100] opacity-0 hover:opacity-100 transition-all duration-300">
+      {/* ═══════════════ MODERNIZED HOLOGRAPHIC TOOLBAR ═══════════════ */}
+      <div className="absolute top-0 left-0 right-0 z-[100] h-14 opacity-10 group-hover/chart:opacity-100 transition-all duration-500 group/toolbar">
+        <div className="flex items-center justify-center px-6 pt-3 h-full">
+          {/* Intelligence Toggles (Now Centered for Symmetry) */}
+          <div className="flex items-center gap-6 px-5 py-2.5 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center gap-6">
+              {/* SL / TP Toggle */}
+              <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                <div className="relative">
+                  <input type="checkbox" checked={showAvgLines} onChange={e => setShowAvgLines(e.target.checked)} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[var(--holo-cyan)]/20 peer-checked:border-[var(--holo-cyan)]/40 transition-all" />
+                  <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[var(--holo-cyan)] peer-checked:shadow-[0_0_10px_var(--holo-cyan)]" />
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">SL / TP Cache</span>
+              </label>
 
-        {/* Avg Price Toggle + Inputs */}
-        <div className="hidden md:flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer group select-none">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={showAvgLines}
-                onChange={e => setShowAvgLines(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
-              <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
+              {/* Patterns Toggle Group */}
+              <div className="flex items-center gap-5 pl-5 border-l border-white/10">
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showEngulfing} onChange={e => setShowEngulfing(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[var(--holo-gold)]/20 peer-checked:border-[var(--holo-gold)]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[var(--holo-gold)] peer-checked:shadow-[0_0_10px_var(--holo-gold)]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">Engulfing</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showPatternBox} onChange={e => setShowPatternBox(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-white/20 peer-checked:border-white/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-white" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">Box Over</span>
+                </label>
+              </div>
             </div>
-            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">SL/TP</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer group select-none">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={showEngulfing}
-                onChange={e => setShowEngulfing(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#2962FF]/20 peer-checked:border-[#2962FF]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
-              <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#2962FF] peer-checked:shadow-[0_0_10px_rgba(41,98,255,0.8)] transition-all" />
-            </div>
-            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Engulf</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer group select-none">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={showPatternBox}
-                onChange={e => setShowPatternBox(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#fcd535]/20 peer-checked:border-[#fcd535]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
-              <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#fcd535] peer-checked:shadow-[0_0_10px_rgba(252,213,53,0.8)] transition-all" />
-            </div>
-            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Box</span>
-          </label>
+          </div>
         </div>
+      </div>
 
-        {/* Center: Drawing Tools */}
-        <div className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.2)] rounded-xl p-1 backdrop-blur-md">
+      {/* ═══════════════ VERTICAL DRAWING TOOLBAR ═══════════════ */}
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 z-[101] opacity-10 group-hover/chart:opacity-100 transition-all duration-500 flex flex-col items-center gap-2 p-1.5 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] group/tools">
+        <div className="flex flex-col gap-1 px-1">
           {([
             { id: 'none', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select', color: '#ffffff' },
             { id: 'trendline', icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4', title: 'Trendline', color: '#00E5FF' },
             { id: 'horizontal', icon: 'M5 12h14', title: 'Support/Resist', color: '#fcd535' },
-            { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#FF007F' },
           ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
             <button
               key={tool.id}
               title={tool.title}
               onClick={() => setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool)}
-              className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 relative group/btn ${activeTool === tool.id
-                  ? 'bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
-                  : 'hover:bg-white/5'
-                }`}
+              className={`p-2.5 rounded-xl transition-all relative group/tool ${activeTool === tool.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
             >
-              {activeTool === tool.id && (
-                <div className="absolute inset-0 rounded-lg shadow-[0_0_12px_currentColor] opacity-30" style={{ color: tool.color }} />
-              )}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                 stroke={activeTool === tool.id ? tool.color : '#848e9c'}
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                className="relative z-10 transition-colors group-hover/btn:drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className="relative z-10"
+              >
                 <path d={tool.icon} />
               </svg>
+              {activeTool === tool.id && <div className="absolute inset-1 rounded-lg shadow-[0_0_15px_currentColor] opacity-20" style={{ color: tool.color }} />}
             </button>
           ))}
-          <div className="w-px h-4 bg-white/10 mx-1" />
-          <button
-            title="Clear all drawings"
-            onClick={() => {
-              localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
-              setActiveTool('none');
-              window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
-            }}
-            className="p-1.5 sm:p-2 rounded-lg text-[#848e9c] hover:text-[#FF007F] hover:bg-[#FF007F]/10 transition-all duration-300 group/clear"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover/clear:drop-shadow-[0_0_8px_#FF007F]">
-              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" />
-            </svg>
-          </button>
         </div>
-
-        {/* Right: Utility Actions */}
-        <div className="flex items-center gap-1.5">
-          <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Grid Settings" onClick={(e) => e.preventDefault()}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
-            </svg>
-          </button>
-          <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Screenshot" onClick={(e) => e.preventDefault()}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
-            </svg>
-          </button>
-        </div>
+        <div className="w-6 h-px bg-white/10 my-1" />
+        <button 
+          title="Clear All Drawings"
+          className="p-2.5 rounded-xl text-white/30 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 transition-all"
+          onClick={() => {
+            localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
+            setActiveTool('none');
+            window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 6l-1 14H6L5 6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
       </div>
 
       {/* ═══════════════ CHART AREA ═══════════════ */}
