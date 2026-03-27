@@ -156,746 +156,747 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     try {
       console.log("[Chart] Initializing createChart...");
       const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: {
-          type: ColorType.Solid,
-          color: 'transparent',
+        layout: {
+          background: {
+            type: ColorType.Solid,
+            color: 'transparent',
+          },
+          textColor: 'rgba(255,255,255,0.7)',
         },
-        textColor: 'rgba(255,255,255,0.7)',
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-      grid: {
-        vertLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
-        horzLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
-      },
-      crosshair: {
-        mode: 1,
-        horzLine: {
-          color: 'rgba(0, 229, 255, 0.8)',
-          labelBackgroundColor: '#00E5FF',
-          labelVisible: true,
-          style: 3,
+        width: chartContainerRef.current.clientWidth,
+        height: chartContainerRef.current.clientHeight,
+        grid: {
+          vertLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
+          horzLines: { color: config?.global.gridLines || 'rgba(255, 255, 255, 0.03)', style: 0, visible: true },
         },
-        vertLine: {
-          color: 'rgba(0, 229, 255, 0.8)',
-          labelBackgroundColor: '#00E5FF',
-          labelVisible: true,
-          style: 3,
+        crosshair: {
+          mode: 1,
+          horzLine: {
+            color: 'rgba(0, 229, 255, 0.8)',
+            labelBackgroundColor: '#00E5FF',
+            labelVisible: true,
+            style: 3,
+          },
+          vertLine: {
+            color: 'rgba(0, 229, 255, 0.8)',
+            labelBackgroundColor: '#00E5FF',
+            labelVisible: true,
+            style: 3,
+          },
         },
-      },
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
-        borderColor: 'rgba(255, 255, 255, 0.05)', // Extremely subtle border
-        rightOffset: 10,
-      },
-      localization: {
-        timeFormatter: (businessDayOrTimestamp: any) => {
-          try {
-            if (typeof businessDayOrTimestamp === 'number') {
-              const date = new Date(businessDayOrTimestamp * 1000);
-              return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          borderColor: 'rgba(255, 255, 255, 0.05)', // Extremely subtle border
+          rightOffset: 10,
+        },
+        localization: {
+          timeFormatter: (businessDayOrTimestamp: any) => {
+            try {
+              if (typeof businessDayOrTimestamp === 'number') {
+                const date = new Date(businessDayOrTimestamp * 1000);
+                return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+              }
+              if (businessDayOrTimestamp && typeof businessDayOrTimestamp === 'object' && 'year' in businessDayOrTimestamp) {
+                const { year, month, day } = businessDayOrTimestamp;
+                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              }
+              return String(businessDayOrTimestamp);
+            } catch (e) {
+              return '';
             }
-            if (businessDayOrTimestamp && typeof businessDayOrTimestamp === 'object' && 'year' in businessDayOrTimestamp) {
-              const { year, month, day } = businessDayOrTimestamp;
-              return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            }
-            return String(businessDayOrTimestamp);
-          } catch (e) {
-            return '';
-          }
+          },
         },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.05)',
-      },
-    });
+        rightPriceScale: {
+          borderColor: 'rgba(255, 255, 255, 0.05)',
+        },
+      });
 
-    chartRef.current = chart;
+      chartRef.current = chart;
 
-    console.log("[Chart] Creating series...");
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#00E5FF',
-      downColor: '#FF007F',
-      borderVisible: true,
-      wickVisible: true,
-      borderColor: '#333',
-      borderUpColor: '#00E5FF',
-      borderDownColor: '#FF007F',
-      wickUpColor: '#00E5FF',
-      wickDownColor: '#FF007F',
-      lastValueVisible: false,
-      priceLineVisible: true,
-      visible: config?.style !== 'line',
-    });
+      console.log("[Chart] Creating series...");
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        upColor: '#00E5FF',
+        downColor: '#FF007F',
+        borderVisible: true,
+        wickVisible: true,
+        borderColor: '#333',
+        borderUpColor: '#00E5FF',
+        borderDownColor: '#FF007F',
+        wickUpColor: '#00E5FF',
+        wickDownColor: '#FF007F',
+        lastValueVisible: false,
+        priceLineVisible: true,
+        visible: config?.style !== 'line',
+      });
 
-    seriesRef.current = candlestickSeries;
-    candlestickSeries.setData(data);
+      seriesRef.current = candlestickSeries;
+      candlestickSeries.setData(data);
 
-    // Main Line Series (Price Line mode)
-    const mainLineSeries = chart.addSeries(LineSeries, {
-      color: config?.line.color || '#fcd535',
-      lineWidth: config?.line.width || 2,
-      crosshairMarkerVisible: true,
-      lastValueVisible: false,
-      priceLineVisible: true,
-      visible: config?.style === 'line',
-    });
-    mainLineSeriesRef.current = mainLineSeries;
-    mainLineSeries.setData(data.filter(d => d.close != null).map((d: any) => ({ time: d.time, value: d.close })));
+      // Main Line Series (Price Line mode)
+      const mainLineSeries = chart.addSeries(LineSeries, {
+        color: config?.line.color || '#fcd535',
+        lineWidth: config?.line.width || 2,
+        crosshairMarkerVisible: true,
+        lastValueVisible: false,
+        priceLineVisible: true,
+        visible: config?.style === 'line',
+      });
+      mainLineSeriesRef.current = mainLineSeries;
+      mainLineSeries.setData(data.filter(d => d.close != null).map((d: any) => ({ time: d.time, value: d.close })));
 
-    // Dummy markers removed. Will be set by trades useEffect.
+      // Dummy markers removed. Will be set by trades useEffect.
 
-    const supertrendSeries = chart.addSeries(AreaSeries, {
-      lineType: 2, // LineType.WithSteps
-      lineColor: '#00E5FF',
-      topColor: 'rgba(0, 229, 255, 0.4)',
-      bottomColor: 'rgba(0, 229, 255, 0.0)',
-      lineWidth: 2,
-      crosshairMarkerVisible: false,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      visible: mainIndicator === 'SUPER',
-    });
-    supertrendSeriesRef.current = supertrendSeries;
+      const supertrendSeries = chart.addSeries(AreaSeries, {
+        lineType: 2, // LineType.WithSteps
+        lineColor: '#00E5FF',
+        topColor: 'rgba(0, 229, 255, 0.4)',
+        bottomColor: 'rgba(0, 229, 255, 0.0)',
+        lineWidth: 2,
+        crosshairMarkerVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        visible: mainIndicator === 'SUPER',
+      });
+      supertrendSeriesRef.current = supertrendSeries;
 
-    const emaSeries = chart.addSeries(LineSeries, {
-      color: '#fcd535',
-      lineWidth: 2,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      visible: mainIndicator === 'EMA',
-    });
-    emaSeriesRef.current = emaSeries;
+      const emaSeries = chart.addSeries(LineSeries, {
+        color: '#fcd535',
+        lineWidth: 2,
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        visible: mainIndicator === 'EMA',
+      });
+      emaSeriesRef.current = emaSeries;
 
-    const smaSeries = chart.addSeries(LineSeries, {
-      color: '#fcd535',
-      lineWidth: 2,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      visible: mainIndicator === 'MA',
-    });
-    smaSeriesRef.current = smaSeries;
+      const smaSeries = chart.addSeries(LineSeries, {
+        color: '#fcd535',
+        lineWidth: 2,
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        visible: mainIndicator === 'MA',
+      });
+      smaSeriesRef.current = smaSeries;
 
-    const sarSeries = chart.addSeries(LineSeries, {
-      color: '#FF007F',
-      lineWidth: 2,
-      lineStyle: 3, // Dotted style for SAR
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      visible: mainIndicator === 'SAR',
-    });
-    sarSeriesRef.current = sarSeries;
+      const sarSeries = chart.addSeries(LineSeries, {
+        color: '#FF007F',
+        lineWidth: 2,
+        lineStyle: 3, // Dotted style for SAR
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        visible: mainIndicator === 'SAR',
+      });
+      sarSeriesRef.current = sarSeries;
 
-    const bollUpper = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
-    const bollMiddle = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
-    const bollLower = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
-    bollUpperRef.current = bollUpper;
-    bollMiddleRef.current = bollMiddle;
-    bollLowerRef.current = bollLower;
+      const bollUpper = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
+      const bollMiddle = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
+      const bollLower = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 1, lineStyle: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'BOLL' });
+      bollUpperRef.current = bollUpper;
+      bollMiddleRef.current = bollMiddle;
+      bollLowerRef.current = bollLower;
 
-    const alligatorJaw = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
-    const alligatorTeeth = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
-    const alligatorLips = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
-    alligatorJawRef.current = alligatorJaw;
-    alligatorTeethRef.current = alligatorTeeth;
-    alligatorLipsRef.current = alligatorLips;
+      const alligatorJaw = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
+      const alligatorTeeth = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
+      const alligatorLips = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, visible: mainIndicator === 'ALLIGATOR' });
+      alligatorJawRef.current = alligatorJaw;
+      alligatorTeethRef.current = alligatorTeeth;
+      alligatorLipsRef.current = alligatorLips;
 
-    // --- Sub-Chart Oscillators Initialization ---
-    // Note: We use dedicated price scales (rsi, macd, etc.) so they can be layered/stacked.
+      // --- Sub-Chart Oscillators Initialization ---
+      // Note: We use dedicated price scales (rsi, macd, etc.) so they can be layered/stacked.
 
-    // Volume
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: '#26a69a',
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume',
-      visible: subIndicators.includes('VOL'),
-    });
-    volumeSeriesRef.current = volumeSeries;
+      // Volume
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        color: '#26a69a',
+        priceFormat: { type: 'volume' },
+        priceScaleId: 'volume',
+        visible: subIndicators.includes('VOL'),
+      });
+      volumeSeriesRef.current = volumeSeries;
 
-    // RSI
-    const rsiSeries = chart.addSeries(LineSeries, {
-      color: '#00E5FF',
-      lineWidth: 2,
-      priceScaleId: 'rsi',
-      visible: subIndicators.includes('RSI'),
-    });
-    rsiSeriesRef.current = rsiSeries;
-    rsiSeries.createPriceLine({ price: 70, color: 'rgba(255, 82, 82, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' });
-    rsiSeries.createPriceLine({ price: 30, color: 'rgba(0, 230, 118, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
+      // RSI
+      const rsiSeries = chart.addSeries(LineSeries, {
+        color: '#00E5FF',
+        lineWidth: 2,
+        priceScaleId: 'rsi',
+        visible: subIndicators.includes('RSI'),
+      });
+      rsiSeriesRef.current = rsiSeries;
+      rsiSeries.createPriceLine({ price: 70, color: 'rgba(255, 82, 82, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' });
+      rsiSeries.createPriceLine({ price: 30, color: 'rgba(0, 230, 118, 0.5)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
 
-    // MACD
-    const mHist = chart.addSeries(HistogramSeries, { priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
-    const mLine = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
-    const mSignal = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
-    macdHistRef.current = mHist;
-    macdSeriesRef.current = mLine;
-    macdSignalRef.current = mSignal;
+      // MACD
+      const mHist = chart.addSeries(HistogramSeries, { priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
+      const mLine = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
+      const mSignal = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'macd', visible: subIndicators.includes('MACD') });
+      macdHistRef.current = mHist;
+      macdSeriesRef.current = mLine;
+      macdSignalRef.current = mSignal;
 
-    // ATR
-    const atrSeries = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, priceScaleId: 'atr', visible: subIndicators.includes('ATR') });
-    atrSeriesRef.current = atrSeries;
+      // ATR
+      const atrSeries = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, priceScaleId: 'atr', visible: subIndicators.includes('ATR') });
+      atrSeriesRef.current = atrSeries;
 
-    // WR (Williams %R)
-    const wrSeries = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'wr', visible: subIndicators.includes('WR') });
-    wrSeriesRef.current = wrSeries;
+      // WR (Williams %R)
+      const wrSeries = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'wr', visible: subIndicators.includes('WR') });
+      wrSeriesRef.current = wrSeries;
 
-    // OBV
-    const obvSeries = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'obv', visible: subIndicators.includes('OBV') });
-    obvSeriesRef.current = obvSeries;
+      // OBV
+      const obvSeries = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'obv', visible: subIndicators.includes('OBV') });
+      obvSeriesRef.current = obvSeries;
 
-    // STOCH
-    const stochK = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
-    const stochD = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
-    stochKRef.current = stochK;
-    stochDRef.current = stochD;
+      // STOCH
+      const stochK = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
+      const stochD = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'stoch', visible: subIndicators.includes('STOCH') });
+      stochKRef.current = stochK;
+      stochDRef.current = stochD;
 
-    // KDJ
-    const kdjK = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
-    const kdjD = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
-    const kdjJ = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
-    kdjKRef.current = kdjK;
-    kdjDRef.current = kdjD;
-    kdjJRef.current = kdjJ;
+      // KDJ
+      const kdjK = chart.addSeries(LineSeries, { color: '#00E5FF', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+      const kdjD = chart.addSeries(LineSeries, { color: '#FF007F', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+      const kdjJ = chart.addSeries(LineSeries, { color: '#fcd535', lineWidth: 2, priceScaleId: 'kdj', visible: subIndicators.includes('KDJ') });
+      kdjKRef.current = kdjK;
+      kdjDRef.current = kdjD;
+      kdjJRef.current = kdjJ;
 
-    console.log("[Chart] Series created successfully.");
+      console.log("[Chart] Series created successfully.");
 
-    // Generate Dummy SuperTrend Data matching the input `data` length
-    if (data.length > 0) {
-      // Map existing historical data for indicators
-      const emaData = data.filter(d => d.ema200 != null).map(d => ({ time: d.time, value: d.ema200 }));
-      if (emaData.length > 0) emaSeries.setData(emaData);
+      // Generate Dummy SuperTrend Data matching the input `data` length
+      if (data.length > 0) {
+        // Map existing historical data for indicators
+        const emaData = data.filter(d => d.ema200 != null).map(d => ({ time: d.time, value: d.ema200 }));
+        if (emaData.length > 0) emaSeries.setData(emaData);
 
-      const smaData = data.filter(d => d.sma != null).map(d => ({ time: d.time, value: d.sma }));
-      if (smaData.length > 0) smaSeries.setData(smaData);
+        const smaData = data.filter(d => d.sma != null).map(d => ({ time: d.time, value: d.sma }));
+        if (smaData.length > 0) smaSeries.setData(smaData);
 
-      const sarData = data.filter(d => d.sar != null).map(d => ({ time: d.time, value: d.sar }));
-      if (sarData.length > 0) sarSeries.setData(sarData);
+        const sarData = data.filter(d => d.sar != null).map(d => ({ time: d.time, value: d.sar }));
+        if (sarData.length > 0) sarSeries.setData(sarData);
 
-      const bollUp = data.filter(d => d.boll?.upper != null).map(d => ({ time: d.time, value: d.boll.upper }));
-      const bollMid = data.filter(d => d.boll?.middle != null).map(d => ({ time: d.time, value: d.boll.middle }));
-      const bollLow = data.filter(d => d.boll?.lower != null).map(d => ({ time: d.time, value: d.boll.lower }));
-      if (bollUp.length > 0) {
-        bollUpper.setData(bollUp);
-        bollMiddle.setData(bollMid);
-        bollLower.setData(bollLow);
-      }
-
-      const jaw = data.filter(d => d.alligator?.jaw != null).map(d => ({ time: d.time, value: d.alligator.jaw }));
-      const teeth = data.filter(d => d.alligator?.teeth != null).map(d => ({ time: d.time, value: d.alligator.teeth }));
-      const lips = data.filter(d => d.alligator?.lips != null).map(d => ({ time: d.time, value: d.alligator.lips }));
-      if (jaw.length > 0) {
-        alligatorJaw.setData(jaw);
-        alligatorTeeth.setData(teeth);
-        alligatorLips.setData(lips);
-      }
-
-      // Populate historical data for Sub-indicators
-      if (volumeSeriesRef.current) {
-        const volData = data.map(d => ({
-          time: d.time,
-          value: d.volume,
-          color: d.close >= d.open ? 'rgba(0, 229, 255, 0.4)' : 'rgba(255, 0, 127, 0.4)'
-        }));
-        volumeSeriesRef.current.setData(volData);
-      }
-
-      if (rsiSeriesRef.current) {
-        const rsiD = data.filter(d => d.rsi != null).map(d => ({ time: d.time, value: d.rsi }));
-        rsiSeriesRef.current.setData(rsiD);
-      }
-
-      if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
-        const mD = data.filter(d => d.macd?.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
-        const sD = data.filter(d => d.macd?.signal != null).map(d => ({ time: d.time, value: d.macd.signal }));
-        const hD = data.filter(d => d.macd?.histogram != null).map(d => ({
-          time: d.time,
-          value: d.macd.histogram,
-          color: d.macd.histogram >= 0 ? 'rgba(0, 229, 255, 0.5)' : 'rgba(255, 0, 127, 0.5)'
-        }));
-        macdSeriesRef.current.setData(mD);
-        macdSignalRef.current.setData(sD);
-        macdHistRef.current.setData(hD);
-      }
-
-      if (atrSeriesRef.current) {
-        const atrD = data.filter(d => d.atr != null).map(d => ({ time: d.time, value: d.atr }));
-        atrSeriesRef.current.setData(atrD);
-      }
-
-      if (wrSeriesRef.current) {
-        const wrD = data.filter(d => d.wr != null).map(d => ({ time: d.time, value: d.wr }));
-        wrSeriesRef.current.setData(wrD);
-      }
-
-      if (obvSeriesRef.current) {
-        const obvD = data.filter(d => d.obv != null).map(d => ({ time: d.time, value: d.obv }));
-        obvSeriesRef.current.setData(obvD);
-      }
-
-      if (stochKRef.current && stochDRef.current) {
-        const skD = data.filter(d => d.stochRsi?.stochRSI != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
-        // Dummy D for stochRsi if not provided (mapping stochRsi to stoch)
-        stochKRef.current.setData(skD);
-      }
-
-      if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
-        const kD = data.filter(d => d.kdj?.k != null).map(d => ({ time: d.time, value: d.kdj.k }));
-        const dD = data.filter(d => d.kdj?.d != null).map(d => ({ time: d.time, value: d.kdj.d }));
-        const jD = data.filter(d => d.kdj?.j != null).map(d => ({ time: d.time, value: d.kdj.j }));
-        kdjKRef.current.setData(kD);
-        kdjDRef.current.setData(dD);
-        kdjJRef.current.setData(jD);
-      }
-
-      // Average Price Lines and High/Low markers moved to data-dependent effect to prevent race conditions on startup
-    }
-
-    // Subscribe to visible range to calculate Recent High / Low
-    chart.timeScale().subscribeVisibleTimeRangeChange((timeRange) => {
-      if (timeRange && dataRef.current && dataRef.current.length > 0) {
-        let maxItem = null;
-        let minItem = null;
-        for (let i = 0; i < dataRef.current.length; i++) {
-          const d = dataRef.current[i];
-          if (d.time >= timeRange.from && d.time <= timeRange.to) {
-            if (!maxItem || d.high > maxItem.high) maxItem = d;
-            if (!minItem || d.low < minItem.low) minItem = d;
-          }
-          if (d.time > timeRange.to) break;
+        const bollUp = data.filter(d => d.boll?.upper != null).map(d => ({ time: d.time, value: d.boll.upper }));
+        const bollMid = data.filter(d => d.boll?.middle != null).map(d => ({ time: d.time, value: d.boll.middle }));
+        const bollLow = data.filter(d => d.boll?.lower != null).map(d => ({ time: d.time, value: d.boll.lower }));
+        if (bollUp.length > 0) {
+          bollUpper.setData(bollUp);
+          bollMiddle.setData(bollMid);
+          bollLower.setData(bollLow);
         }
-        if (maxItem && minItem) {
-          const nextState = { high: maxItem, low: minItem };
-          visibleHighLowRef.current = nextState;
-          setVisibleHighLow(prev => {
-            if (prev?.high.time !== nextState.high.time || prev?.low.time !== nextState.low.time) {
-              return nextState;
+
+        const jaw = data.filter(d => d.alligator?.jaw != null).map(d => ({ time: d.time, value: d.alligator.jaw }));
+        const teeth = data.filter(d => d.alligator?.teeth != null).map(d => ({ time: d.time, value: d.alligator.teeth }));
+        const lips = data.filter(d => d.alligator?.lips != null).map(d => ({ time: d.time, value: d.alligator.lips }));
+        if (jaw.length > 0) {
+          alligatorJaw.setData(jaw);
+          alligatorTeeth.setData(teeth);
+          alligatorLips.setData(lips);
+        }
+
+        // Populate historical data for Sub-indicators
+        if (volumeSeriesRef.current) {
+          const volData = data.map(d => ({
+            time: d.time,
+            value: d.volume,
+            color: d.close >= d.open ? 'rgba(0, 229, 255, 0.4)' : 'rgba(255, 0, 127, 0.4)'
+          }));
+          volumeSeriesRef.current.setData(volData);
+        }
+
+        if (rsiSeriesRef.current) {
+          const rsiD = data.filter(d => d.rsi != null).map(d => ({ time: d.time, value: d.rsi }));
+          rsiSeriesRef.current.setData(rsiD);
+        }
+
+        if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
+          const mD = data.filter(d => d.macd?.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
+          const sD = data.filter(d => d.macd?.signal != null).map(d => ({ time: d.time, value: d.macd.signal }));
+          const hD = data.filter(d => d.macd?.histogram != null).map(d => ({
+            time: d.time,
+            value: d.macd.histogram,
+            color: d.macd.histogram >= 0 ? 'rgba(0, 229, 255, 0.5)' : 'rgba(255, 0, 127, 0.5)'
+          }));
+          macdSeriesRef.current.setData(mD);
+          macdSignalRef.current.setData(sD);
+          macdHistRef.current.setData(hD);
+        }
+
+        if (atrSeriesRef.current) {
+          const atrD = data.filter(d => d.atr != null).map(d => ({ time: d.time, value: d.atr }));
+          atrSeriesRef.current.setData(atrD);
+        }
+
+        if (wrSeriesRef.current) {
+          const wrD = data.filter(d => d.wr != null).map(d => ({ time: d.time, value: d.wr }));
+          wrSeriesRef.current.setData(wrD);
+        }
+
+        if (obvSeriesRef.current) {
+          const obvD = data.filter(d => d.obv != null).map(d => ({ time: d.time, value: d.obv }));
+          obvSeriesRef.current.setData(obvD);
+        }
+
+        if (stochKRef.current && stochDRef.current) {
+          const skD = data.filter(d => d.stochRsi?.stochRSI != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
+          // Dummy D for stochRsi if not provided (mapping stochRsi to stoch)
+          stochKRef.current.setData(skD);
+        }
+
+        if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
+          const kD = data.filter(d => d.kdj?.k != null).map(d => ({ time: d.time, value: d.kdj.k }));
+          const dD = data.filter(d => d.kdj?.d != null).map(d => ({ time: d.time, value: d.kdj.d }));
+          const jD = data.filter(d => d.kdj?.j != null).map(d => ({ time: d.time, value: d.kdj.j }));
+          kdjKRef.current.setData(kD);
+          kdjDRef.current.setData(dD);
+          kdjJRef.current.setData(jD);
+        }
+
+        // Average Price Lines and High/Low markers moved to data-dependent effect to prevent race conditions on startup
+      }
+
+      // Subscribe to visible range to calculate Recent High / Low
+      chart.timeScale().subscribeVisibleTimeRangeChange((timeRange) => {
+        if (timeRange && dataRef.current && dataRef.current.length > 0) {
+          let maxItem = null;
+          let minItem = null;
+          for (let i = 0; i < dataRef.current.length; i++) {
+            const d = dataRef.current[i];
+            if (d.time >= timeRange.from && d.time <= timeRange.to) {
+              if (!maxItem || d.high > maxItem.high) maxItem = d;
+              if (!minItem || d.low < minItem.low) minItem = d;
+            }
+            if (d.time > timeRange.to) break;
+          }
+          if (maxItem && minItem) {
+            const nextState = { high: maxItem, low: minItem };
+            visibleHighLowRef.current = nextState;
+            setVisibleHighLow(prev => {
+              if (prev?.high.time !== nextState.high.time || prev?.low.time !== nextState.low.time) {
+                return nextState;
+              }
+              return prev;
+            });
+          }
+        }
+      });
+
+      // Subscribe to crosshair movement to update OHLC floating card
+      chart.subscribeCrosshairMove((param) => {
+        // For Crosshair Intersection Dot & Active Candle Highlight
+        if (param.point && param.time) {
+          setCrosshairPos({ x: param.point.x, y: param.point.y });
+          const xCoord = chart.timeScale().timeToCoordinate(param.time);
+          setHoveredCandleX(xCoord);
+        } else {
+          setCrosshairPos(null);
+          setHoveredCandleX(null);
+        }
+
+        if (param.time && param.seriesData.size > 0 && candlestickSeries && param.point) {
+          const hoveredData = param.seriesData.get(candlestickSeries) as any;
+          const srcData = data.find(d => d.time === hoveredData?.time);
+
+          setCrosshairData(hoveredData ? {
+            ...hoveredData,
+            x: param.point.x,
+            y: param.point.y,
+            rsi: srcData?.rsi,
+            macd: srcData?.macd,
+            boll: srcData?.boll,
+            atr: srcData?.atr,
+            volume: srcData?.volume,
+            ema200: srcData?.ema200,
+            sma: srcData?.sma,
+            sar: srcData?.sar,
+            wr: srcData?.wr,
+            obv: srcData?.obv,
+            stochRsi: srcData?.stochRsi,
+            kdj: srcData?.kdj,
+            alligator: srcData?.alligator
+          } : null);
+        } else {
+          setCrosshairData(null);
+        }
+      });
+
+      const interval = canonicalInterval(chartInterval);
+      const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`;
+      const ws = new WebSocket(wsUrl);
+
+      let animationFrameId: number;
+      const syncPills = () => {
+        // Sync Price Average Lines
+        if (seriesRef.current) {
+          const series = seriesRef.current;
+          setAvgPositions(prev => {
+            const buyY = series.priceToCoordinate(prev.buyPrice);
+            const sellY = series.priceToCoordinate(prev.sellPrice);
+
+            const newBuy = buyY !== null ? buyY : -100;
+            const newSell = sellY !== null ? sellY : -100;
+
+            if (newBuy !== prev.buy || newSell !== prev.sell) {
+              return { ...prev, buy: newBuy, sell: newSell };
             }
             return prev;
           });
         }
-      }
-    });
 
-    // Subscribe to crosshair movement to update OHLC floating card
-    chart.subscribeCrosshairMove((param) => {
-      // For Crosshair Intersection Dot & Active Candle Highlight
-      if (param.point && param.time) {
-        setCrosshairPos({ x: param.point.x, y: param.point.y });
-        const xCoord = chart.timeScale().timeToCoordinate(param.time);
-        setHoveredCandleX(xCoord);
-      } else {
-        setCrosshairPos(null);
-        setHoveredCandleX(null);
-      }
+        // Sync High/Low Markers
+        if (seriesRef.current && chartRef.current && visibleHighLowRef.current) {
+          const timeScale = chartRef.current.timeScale();
+          const { high, low } = visibleHighLowRef.current;
+          const series = seriesRef.current;
 
-      if (param.time && param.seriesData.size > 0 && candlestickSeries && param.point) {
-        const hoveredData = param.seriesData.get(candlestickSeries) as any;
-        const srcData = data.find(d => d.time === hoveredData?.time);
-
-        setCrosshairData(hoveredData ? {
-          ...hoveredData,
-          x: param.point.x,
-          y: param.point.y,
-          rsi: srcData?.rsi,
-          macd: srcData?.macd,
-          boll: srcData?.boll,
-          atr: srcData?.atr,
-          volume: srcData?.volume,
-          ema200: srcData?.ema200,
-          sma: srcData?.sma,
-          sar: srcData?.sar,
-          wr: srcData?.wr,
-          obv: srcData?.obv,
-          stochRsi: srcData?.stochRsi,
-          kdj: srcData?.kdj,
-          alligator: srcData?.alligator
-        } : null);
-      } else {
-        setCrosshairData(null);
-      }
-    });
-
-    const interval = canonicalInterval(chartInterval);
-    const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`;
-    const ws = new WebSocket(wsUrl);
-
-    let animationFrameId: number;
-    const syncPills = () => {
-      // Sync Price Average Lines
-      if (seriesRef.current) {
-        const series = seriesRef.current;
-        setAvgPositions(prev => {
-          const buyY = series.priceToCoordinate(prev.buyPrice);
-          const sellY = series.priceToCoordinate(prev.sellPrice);
-
-          const newBuy = buyY !== null ? buyY : -100;
-          const newSell = sellY !== null ? sellY : -100;
-
-          if (newBuy !== prev.buy || newSell !== prev.sell) {
-             return { ...prev, buy: newBuy, sell: newSell };
-          }
-          return prev;
-        });
-      }
-
-      // Sync High/Low Markers
-      if (seriesRef.current && chartRef.current && visibleHighLowRef.current) {
-        const timeScale = chartRef.current.timeScale();
-        const { high, low } = visibleHighLowRef.current;
-        const series = seriesRef.current;
-
-        const topEl = document.getElementById('recent-top-marker');
-        if (topEl && high) {
-           const x = timeScale.timeToCoordinate(high.time);
-           const y = series.priceToCoordinate(high.high);
-           if (x !== null && y !== null) {
+          const topEl = document.getElementById('recent-top-marker');
+          if (topEl && high) {
+            const x = timeScale.timeToCoordinate(high.time);
+            const y = series.priceToCoordinate(high.high);
+            if (x !== null && y !== null) {
               topEl.style.transform = `translate(${x}px, ${y}px)`;
               topEl.style.opacity = '1';
-           } else { topEl.style.opacity = '0'; }
-        }
+            } else { topEl.style.opacity = '0'; }
+          }
 
-        const bottomEl = document.getElementById('recent-bottom-marker');
-        if (bottomEl && low) {
-           const x = timeScale.timeToCoordinate(low.time);
-           const y = series.priceToCoordinate(low.low); // Pinned to the Low as requested
-           if (x !== null && y !== null) {
+          const bottomEl = document.getElementById('recent-bottom-marker');
+          if (bottomEl && low) {
+            const x = timeScale.timeToCoordinate(low.time);
+            const y = series.priceToCoordinate(low.low); // Pinned to the Low as requested
+            if (x !== null && y !== null) {
               bottomEl.style.transform = `translate(${x}px, ${y}px)`;
               bottomEl.style.opacity = '1';
-           } else { bottomEl.style.opacity = '0'; }
-        }
-      }
-
-      // Sync HTML Trade Markers
-      if (seriesRef.current && chartRef.current && htmlMarkersRef.current.length > 0) {
-        const timeScale = chartRef.current.timeScale();
-        const series = seriesRef.current;
-
-        htmlMarkersRef.current.forEach(m => {
-          const el = document.getElementById(`trade-marker-${m.id}`);
-          if (el) {
-            const x = timeScale.timeToCoordinate(m.time);
-            // Buy marker goes below the candle Low, Sell marker goes above the High
-            const y = series.priceToCoordinate(m.isBuy ? m.low : m.high);
-
-            if (x !== null && y !== null) {
-              const xPos = x - 10; // Center the 20px wide marker
-
-              // Anchor logic (CRITICAL for pixel perfect alignment):
-              // The main container div is `w-5 h-5` (20x20px).
-              // The `y` coordinate is the Exact Pixel of the Candle Wick (High or Low).
-
-              // BUY MARKER (Placed Below):
-              // - The top of the CSS triangle pointer is geometrically at `-5px` from the top of the container.
-              // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `+5px` DOWN away from `y`.
-              // - Therefore: yPos = y + 5
-
-              // SELL MARKER (Placed Above):
-              // - The bottom of the CSS triangle pointer is geometrically at `+25px` from the top of the container (20px body + 5px pointer).
-              // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `-25px` UP away from `y`.
-              // - Therefore: yPos = y - 25
-
-              const yPos = m.isBuy ? y + 5 : y - 25;
-
-              el.style.transform = `translate(${xPos}px, ${yPos}px)`;
-              el.style.opacity = '1';
-              // Pointer events block scroll/zoom, so we use pointer-events-none inside the container anyway
-            } else {
-              el.style.opacity = '0';
-            }
+            } else { bottomEl.style.opacity = '0'; }
           }
-        });
-      }
+        }
 
-      // Sync Pattern Markers (Intelligence Upgrade)
-      if (seriesRef.current && chartRef.current && patternMarkersRef.current.length > 0 && config?.patternOverlay !== false) {
-        const timeScale = chartRef.current.timeScale();
-        const series = seriesRef.current;
+        // Sync HTML Trade Markers
+        if (seriesRef.current && chartRef.current && htmlMarkersRef.current.length > 0) {
+          const timeScale = chartRef.current.timeScale();
+          const series = seriesRef.current;
 
-        patternMarkersRef.current.forEach(m => {
-          const el = document.getElementById(`pattern-marker-${m.id}`);
-          const boxEl = document.getElementById(`engulf-box-${m.id}`);
-          
-          if (el) {
-            const x = timeScale.timeToCoordinate(m.time);
-            const yHigh = series.priceToCoordinate(m.high);
-            const yLow = series.priceToCoordinate(m.low);
+          htmlMarkersRef.current.forEach(m => {
+            const el = document.getElementById(`trade-marker-${m.id}`);
+            if (el) {
+              const x = timeScale.timeToCoordinate(m.time);
+              // Buy marker goes below the candle Low, Sell marker goes above the High
+              const y = series.priceToCoordinate(m.isBuy ? m.low : m.high);
 
-            if (x !== null && yHigh !== null && yLow !== null) {
-              const xPos = x - 10; // Center 20px wide marker
-              // Adjust Y-axis Vertical Zone: Icons always 10px below the candle
-              const yIconPos = yLow + 10; 
-              el.style.transform = `translate(${xPos}px, ${yIconPos}px)`;
-              el.style.opacity = '1';
+              if (x !== null && y !== null) {
+                const xPos = x - 10; // Center the 20px wide marker
 
-              // Position Label at the High of the candle (relative to parent)
-              const labelEl = document.getElementById(`pattern-label-${m.id}`);
-              if (labelEl) {
-                // Parent is at yIconPos. We want label bottom at yHigh (with 2px gap).
-                const relativeY = yHigh - yIconPos;
-                labelEl.style.transform = `translate(-50%, ${relativeY}px) translateY(-100%) translateY(-2px)`;
+                // Anchor logic (CRITICAL for pixel perfect alignment):
+                // The main container div is `w-5 h-5` (20x20px).
+                // The `y` coordinate is the Exact Pixel of the Candle Wick (High or Low).
+
+                // BUY MARKER (Placed Below):
+                // - The top of the CSS triangle pointer is geometrically at `-5px` from the top of the container.
+                // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `+5px` DOWN away from `y`.
+                // - Therefore: yPos = y + 5
+
+                // SELL MARKER (Placed Above):
+                // - The bottom of the CSS triangle pointer is geometrically at `+25px` from the top of the container (20px body + 5px pointer).
+                // - To make the pointer tip exactly touch `y`, we must translate the container's top boundary `-25px` UP away from `y`.
+                // - Therefore: yPos = y - 25
+
+                const yPos = m.isBuy ? y + 5 : y - 25;
+
+                el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+                el.style.opacity = '1';
+                // Pointer events block scroll/zoom, so we use pointer-events-none inside the container anyway
+              } else {
+                el.style.opacity = '0';
               }
-            } else {
-              el.style.opacity = '0';
             }
-          }
-
-          // Sync the Encapsulating Box
-          if (boxEl) {
-            const x1 = timeScale.timeToCoordinate(m.prevTime);
-            const x2 = timeScale.timeToCoordinate(m.time);
-            
-            // Box should cover both candles' high/low range
-            const pHigh = Math.max(m.high, m.prevCandle.high);
-            const pLow = Math.min(m.low, m.prevCandle.low);
-            
-            const y1 = series.priceToCoordinate(pHigh);
-            const y2 = series.priceToCoordinate(pLow);
-
-            if (x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
-              const width = (x2 - x1) + 20; // Cover both candles plus margin
-              const height = (y2 - y1) + 10;
-              boxEl.style.transform = `translate(${x1 - 10}px, ${y1 - 5}px)`;
-              boxEl.style.width = `${width}px`;
-              boxEl.style.height = `${height}px`;
-              boxEl.style.opacity = '1';
-            } else {
-              boxEl.style.opacity = '0';
-            }
-          }
-        });
-      }
-
-      animationFrameId = requestAnimationFrame(syncPills);
-    };
-    syncPills();
-
-    let timerInterval: ReturnType<typeof setInterval>; // Declare timerInterval here
-
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      const kline = message.k;
-
-      if (kline && kline.x) { // kline.x is true if the candle is closed
-        // Update candlestick series with new closed candle
-        const t = kline.t / 1000 as UTCTimestamp;
-        seriesRef.current.update({
-          time: t,
-          open: parseFloat(kline.o),
-          high: parseFloat(kline.h),
-          low: parseFloat(kline.l),
-          close: parseFloat(kline.c),
-        });
-
-        if (mainLineSeriesRef.current) {
-          mainLineSeriesRef.current.update({ time: t, value: parseFloat(kline.c) });
-        }
-
-        // Extend trailing indicators for the new candle
-        if (data.length > 0) {
-          const lastValid = data[data.length - 1];
-          if (emaSeriesRef.current && lastValid.ema200) emaSeriesRef.current.update({ time: t, value: lastValid.ema200 });
-          if (smaSeriesRef.current && lastValid.sma) smaSeriesRef.current.update({ time: t, value: lastValid.sma });
-          if (sarSeriesRef.current && lastValid.sar) sarSeriesRef.current.update({ time: t, value: lastValid.sar });
-          if (bollUpperRef.current && lastValid.boll) {
-            bollUpperRef.current.update({ time: t, value: lastValid.boll.upper });
-            bollMiddleRef.current.update({ time: t, value: lastValid.boll.middle });
-            bollLowerRef.current.update({ time: t, value: lastValid.boll.lower });
-          }
-          if (alligatorJawRef.current && lastValid.alligator) {
-            if (lastValid.alligator.jaw !== null) alligatorJawRef.current.update({ time: t, value: lastValid.alligator.jaw });
-            if (lastValid.alligator.teeth !== null) alligatorTeethRef.current.update({ time: t, value: lastValid.alligator.teeth });
-            if (lastValid.alligator.lips !== null) alligatorLipsRef.current.update({ time: t, value: lastValid.alligator.lips });
-          }
-          // Closed candle sub-indicator updates
-          if (volumeSeriesRef.current && lastValid.volume) {
-            volumeSeriesRef.current.update({ time: t, value: lastValid.volume, color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' });
-          }
-          if (rsiSeriesRef.current && lastValid.rsi) rsiSeriesRef.current.update({ time: t, value: lastValid.rsi });
-          if (macdSeriesRef.current && lastValid.macd) {
-            macdSeriesRef.current.update({ time: t, value: lastValid.macd.macd });
-            macdSignalRef.current.update({ time: t, value: lastValid.macd.signal });
-            macdHistRef.current.update({ time: t, value: lastValid.macd.histogram, color: lastValid.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' });
-          }
-          if (atrSeriesRef.current && lastValid.atr) atrSeriesRef.current.update({ time: t, value: lastValid.atr });
-          if (wrSeriesRef.current && lastValid.wr) wrSeriesRef.current.update({ time: t, value: lastValid.wr });
-          if (obvSeriesRef.current && lastValid.obv) obvSeriesRef.current.update({ time: t, value: lastValid.obv });
-          if (stochKRef.current && lastValid.stochRsi) stochKRef.current.update({ time: t, value: lastValid.stochRsi.stochRSI });
-          if (kdjKRef.current && lastValid.kdj) {
-            kdjKRef.current.update({ time: t, value: lastValid.kdj.k });
-            kdjDRef.current.update({ time: t, value: lastValid.kdj.d });
-            kdjJRef.current.update({ time: t, value: lastValid.kdj.j });
-          }
-        }
-
-        // Update SuperTrend series (dummy logic)
-        if (supertrendSeriesRef.current) {
-          let trend = 1;
-          let st = parseFloat(kline.c); // Use current close for new ST calculation
-          // Simplified dummy logic for SuperTrend update
-          if (stDataRef.current.length > 0) {
-            const lastSt = stDataRef.current[stDataRef.current.length - 1];
-            if (parseFloat(kline.c) > lastSt.value) { trend = 1; st = parseFloat(kline.c) * 0.985; }
-            else { trend = -1; st = parseFloat(kline.c) * 1.015; }
-          }
-          const newStPoint = {
-            time: t,
-            value: st,
-            lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
-            topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
-            bottomColor: 'rgba(0, 0, 0, 0)',
-          };
-          supertrendSeriesRef.current.update(newStPoint);
-          stDataRef.current.push(newStPoint);
-        }
-
-        // Reset countdown for next candle
-        clearInterval(timerInterval);
-        setCandleCountdown(null);
-      } else if (kline) {
-        // Update candlestick series with current open candle
-        const t = kline.t / 1000 as UTCTimestamp;
-        seriesRef.current.update({
-          time: t,
-          open: parseFloat(kline.o),
-          high: parseFloat(kline.h),
-          low: parseFloat(kline.l),
-          close: parseFloat(kline.c),
-        });
-
-        if (mainLineSeriesRef.current) {
-          mainLineSeriesRef.current.update({ time: t, value: parseFloat(kline.c) });
-        }
-
-        // Realtime tick extension for overlays
-        if (data.length > 0) {
-          const lastValid = data[data.length - 1];
-          if (emaSeriesRef.current && lastValid.ema200) emaSeriesRef.current.update({ time: t, value: lastValid.ema200 });
-          if (smaSeriesRef.current && lastValid.sma) smaSeriesRef.current.update({ time: t, value: lastValid.sma });
-          if (sarSeriesRef.current && lastValid.sar) sarSeriesRef.current.update({ time: t, value: lastValid.sar });
-          if (bollUpperRef.current && lastValid.boll) {
-            bollUpperRef.current.update({ time: t, value: lastValid.boll.upper });
-            bollMiddleRef.current.update({ time: t, value: lastValid.boll.middle });
-            bollLowerRef.current.update({ time: t, value: lastValid.boll.lower });
-          }
-          // Realtime tick extension for Sub-indicators
-          if (volumeSeriesRef.current && lastValid.volume) {
-            volumeSeriesRef.current.update({
-               time: t,
-               value: lastValid.volume,
-               color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
-            });
-          }
-          if (rsiSeriesRef.current && lastValid.rsi) rsiSeriesRef.current.update({ time: t, value: lastValid.rsi });
-          if (macdSeriesRef.current && lastValid.macd) {
-            macdSeriesRef.current.update({ time: t, value: lastValid.macd.macd });
-            macdSignalRef.current.update({ time: t, value: lastValid.macd.signal });
-            macdHistRef.current.update({
-              time: t,
-              value: lastValid.macd.histogram,
-              color: lastValid.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
-            });
-          }
-          if (atrSeriesRef.current && lastValid.atr) atrSeriesRef.current.update({ time: t, value: lastValid.atr });
-          if (wrSeriesRef.current && lastValid.wr) wrSeriesRef.current.update({ time: t, value: lastValid.wr });
-          if (obvSeriesRef.current && lastValid.obv) obvSeriesRef.current.update({ time: t, value: lastValid.obv });
-          if (stochKRef.current && lastValid.stochRsi) {
-            stochKRef.current.update({ time: t, value: lastValid.stochRsi.stochRSI });
-          }
-          if (kdjKRef.current && lastValid.kdj) {
-            kdjKRef.current.update({ time: t, value: lastValid.kdj.k });
-            kdjDRef.current.update({ time: t, value: lastValid.kdj.d });
-            kdjJRef.current.update({ time: t, value: lastValid.kdj.j });
-          }
-        }
-
-        // Update SuperTrend series (dummy logic)
-        if (supertrendSeriesRef.current) {
-          let trend = 1;
-          let st = parseFloat(kline.c);
-          if (stDataRef.current.length > 0) {
-            const lastSt = stDataRef.current[stDataRef.current.length - 1];
-            if (parseFloat(kline.c) > lastSt.value) { trend = 1; st = parseFloat(kline.c) * 0.985; }
-            else { trend = -1; st = parseFloat(kline.c) * 1.015; }
-          }
-          supertrendSeriesRef.current.update({
-            time: t,
-            value: st,
-            lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
-            topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
-            bottomColor: 'rgba(0, 0, 0, 0)',
           });
         }
 
-        // Start/Update countdown for current candle
-        if (!timerInterval) {
-          const intervalMs = getIntervalMs(chartInterval);
-          const startTime = kline.t;
-          timerInterval = setInterval(() => {
-            const now = Date.now();
-            const elapsed = now - startTime;
-            const remaining = intervalMs - elapsed;
+        // Sync Pattern Markers (Intelligence Upgrade)
+        if (seriesRef.current && chartRef.current && patternMarkersRef.current.length > 0 && config?.patternOverlay !== false) {
+          const timeScale = chartRef.current.timeScale();
+          const series = seriesRef.current;
 
-            if (remaining <= 0) {
-              clearInterval(timerInterval);
-              setCandleCountdown(null);
-              return;
+          patternMarkersRef.current.forEach(m => {
+            const el = document.getElementById(`pattern-marker-${m.id}`);
+            const boxEl = document.getElementById(`engulf-box-${m.id}`);
+
+            if (el) {
+              const x = timeScale.timeToCoordinate(m.time);
+              const yHigh = series.priceToCoordinate(m.high);
+              const yLow = series.priceToCoordinate(m.low);
+
+              if (x !== null && yHigh !== null && yLow !== null) {
+                const xPos = x - 10; // Center 20px wide marker
+                // Adjust Y-axis Vertical Zone: Icons always 10px below the candle
+                const yIconPos = yLow + 10;
+                el.style.transform = `translate(${xPos}px, ${yIconPos}px)`;
+                el.style.opacity = '1';
+
+                // Position Label at the High of the candle (relative to parent)
+                const labelEl = document.getElementById(`pattern-label-${m.id}`);
+                if (labelEl) {
+                  // Parent is at yIconPos. We want label bottom at yHigh (with exactly 5px gap).
+                  const relativeY = yHigh - yIconPos;
+                  // Center relative to parent and position above High
+                  labelEl.style.transform = `translate(-50%, ${relativeY}px) translateY(-100%) translateY(-10px)`;
+                }
+              } else {
+                el.style.opacity = '0';
+              }
             }
 
-            const minutes = Math.floor(remaining / (60 * 1000));
-            const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
-            const hours = Math.floor(remaining / (60 * 60 * 1000));
-            const formattedTime = hours > 0
-              ? `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-              : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            // Sync the Encapsulating Box
+            if (boxEl) {
+              const x1 = timeScale.timeToCoordinate(m.prevTime);
+              const x2 = timeScale.timeToCoordinate(m.time);
 
-            // Compute Y position of current price on chart
-            let priceY = -100;
+              // Box should cover both candles' high/low range
+              const pHigh = Math.max(m.high, m.prevCandle.high);
+              const pLow = Math.min(m.low, m.prevCandle.low);
+
+              const y1 = series.priceToCoordinate(pHigh);
+              const y2 = series.priceToCoordinate(pLow);
+
+              if (x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
+                const width = (x2 - x1) + 20; // Cover both candles plus margin
+                const height = (y2 - y1) + 10;
+                boxEl.style.transform = `translate(${x1 - 10}px, ${y1 - 5}px)`;
+                boxEl.style.width = `${width}px`;
+                boxEl.style.height = `${height}px`;
+                boxEl.style.opacity = '1';
+              } else {
+                boxEl.style.opacity = '0';
+              }
+            }
+          });
+        }
+
+        animationFrameId = requestAnimationFrame(syncPills);
+      };
+      syncPills();
+
+      let timerInterval: ReturnType<typeof setInterval>; // Declare timerInterval here
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        const kline = message.k;
+
+        if (kline && kline.x) { // kline.x is true if the candle is closed
+          // Update candlestick series with new closed candle
+          const t = kline.t / 1000 as UTCTimestamp;
+          seriesRef.current.update({
+            time: t,
+            open: parseFloat(kline.o),
+            high: parseFloat(kline.h),
+            low: parseFloat(kline.l),
+            close: parseFloat(kline.c),
+          });
+
+          if (mainLineSeriesRef.current) {
+            mainLineSeriesRef.current.update({ time: t, value: parseFloat(kline.c) });
+          }
+
+          // Extend trailing indicators for the new candle
+          if (data.length > 0) {
+            const lastValid = data[data.length - 1];
+            if (emaSeriesRef.current && lastValid.ema200) emaSeriesRef.current.update({ time: t, value: lastValid.ema200 });
+            if (smaSeriesRef.current && lastValid.sma) smaSeriesRef.current.update({ time: t, value: lastValid.sma });
+            if (sarSeriesRef.current && lastValid.sar) sarSeriesRef.current.update({ time: t, value: lastValid.sar });
+            if (bollUpperRef.current && lastValid.boll) {
+              bollUpperRef.current.update({ time: t, value: lastValid.boll.upper });
+              bollMiddleRef.current.update({ time: t, value: lastValid.boll.middle });
+              bollLowerRef.current.update({ time: t, value: lastValid.boll.lower });
+            }
+            if (alligatorJawRef.current && lastValid.alligator) {
+              if (lastValid.alligator.jaw !== null) alligatorJawRef.current.update({ time: t, value: lastValid.alligator.jaw });
+              if (lastValid.alligator.teeth !== null) alligatorTeethRef.current.update({ time: t, value: lastValid.alligator.teeth });
+              if (lastValid.alligator.lips !== null) alligatorLipsRef.current.update({ time: t, value: lastValid.alligator.lips });
+            }
+            // Closed candle sub-indicator updates
+            if (volumeSeriesRef.current && lastValid.volume) {
+              volumeSeriesRef.current.update({ time: t, value: lastValid.volume, color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' });
+            }
+            if (rsiSeriesRef.current && lastValid.rsi) rsiSeriesRef.current.update({ time: t, value: lastValid.rsi });
+            if (macdSeriesRef.current && lastValid.macd) {
+              macdSeriesRef.current.update({ time: t, value: lastValid.macd.macd });
+              macdSignalRef.current.update({ time: t, value: lastValid.macd.signal });
+              macdHistRef.current.update({ time: t, value: lastValid.macd.histogram, color: lastValid.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)' });
+            }
+            if (atrSeriesRef.current && lastValid.atr) atrSeriesRef.current.update({ time: t, value: lastValid.atr });
+            if (wrSeriesRef.current && lastValid.wr) wrSeriesRef.current.update({ time: t, value: lastValid.wr });
+            if (obvSeriesRef.current && lastValid.obv) obvSeriesRef.current.update({ time: t, value: lastValid.obv });
+            if (stochKRef.current && lastValid.stochRsi) stochKRef.current.update({ time: t, value: lastValid.stochRsi.stochRSI });
+            if (kdjKRef.current && lastValid.kdj) {
+              kdjKRef.current.update({ time: t, value: lastValid.kdj.k });
+              kdjDRef.current.update({ time: t, value: lastValid.kdj.d });
+              kdjJRef.current.update({ time: t, value: lastValid.kdj.j });
+            }
+          }
+
+          // Update SuperTrend series (dummy logic)
+          if (supertrendSeriesRef.current) {
+            let trend = 1;
+            let st = parseFloat(kline.c); // Use current close for new ST calculation
+            // Simplified dummy logic for SuperTrend update
+            if (stDataRef.current.length > 0) {
+              const lastSt = stDataRef.current[stDataRef.current.length - 1];
+              if (parseFloat(kline.c) > lastSt.value) { trend = 1; st = parseFloat(kline.c) * 0.985; }
+              else { trend = -1; st = parseFloat(kline.c) * 1.015; }
+            }
+            const newStPoint = {
+              time: t,
+              value: st,
+              lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
+              topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
+              bottomColor: 'rgba(0, 0, 0, 0)',
+            };
+            supertrendSeriesRef.current.update(newStPoint);
+            stDataRef.current.push(newStPoint);
+          }
+
+          // Reset countdown for next candle
+          clearInterval(timerInterval);
+          setCandleCountdown(null);
+        } else if (kline) {
+          // Update candlestick series with current open candle
+          const t = kline.t / 1000 as UTCTimestamp;
+          seriesRef.current.update({
+            time: t,
+            open: parseFloat(kline.o),
+            high: parseFloat(kline.h),
+            low: parseFloat(kline.l),
+            close: parseFloat(kline.c),
+          });
+
+          if (mainLineSeriesRef.current) {
+            mainLineSeriesRef.current.update({ time: t, value: parseFloat(kline.c) });
+          }
+
+          // Realtime tick extension for overlays
+          if (data.length > 0) {
+            const lastValid = data[data.length - 1];
+            if (emaSeriesRef.current && lastValid.ema200) emaSeriesRef.current.update({ time: t, value: lastValid.ema200 });
+            if (smaSeriesRef.current && lastValid.sma) smaSeriesRef.current.update({ time: t, value: lastValid.sma });
+            if (sarSeriesRef.current && lastValid.sar) sarSeriesRef.current.update({ time: t, value: lastValid.sar });
+            if (bollUpperRef.current && lastValid.boll) {
+              bollUpperRef.current.update({ time: t, value: lastValid.boll.upper });
+              bollMiddleRef.current.update({ time: t, value: lastValid.boll.middle });
+              bollLowerRef.current.update({ time: t, value: lastValid.boll.lower });
+            }
+            // Realtime tick extension for Sub-indicators
+            if (volumeSeriesRef.current && lastValid.volume) {
+              volumeSeriesRef.current.update({
+                time: t,
+                value: lastValid.volume,
+                color: parseFloat(kline.c) >= parseFloat(kline.o) ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
+              });
+            }
+            if (rsiSeriesRef.current && lastValid.rsi) rsiSeriesRef.current.update({ time: t, value: lastValid.rsi });
+            if (macdSeriesRef.current && lastValid.macd) {
+              macdSeriesRef.current.update({ time: t, value: lastValid.macd.macd });
+              macdSignalRef.current.update({ time: t, value: lastValid.macd.signal });
+              macdHistRef.current.update({
+                time: t,
+                value: lastValid.macd.histogram,
+                color: lastValid.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
+              });
+            }
+            if (atrSeriesRef.current && lastValid.atr) atrSeriesRef.current.update({ time: t, value: lastValid.atr });
+            if (wrSeriesRef.current && lastValid.wr) wrSeriesRef.current.update({ time: t, value: lastValid.wr });
+            if (obvSeriesRef.current && lastValid.obv) obvSeriesRef.current.update({ time: t, value: lastValid.obv });
+            if (stochKRef.current && lastValid.stochRsi) {
+              stochKRef.current.update({ time: t, value: lastValid.stochRsi.stochRSI });
+            }
+            if (kdjKRef.current && lastValid.kdj) {
+              kdjKRef.current.update({ time: t, value: lastValid.kdj.k });
+              kdjDRef.current.update({ time: t, value: lastValid.kdj.d });
+              kdjJRef.current.update({ time: t, value: lastValid.kdj.j });
+            }
+          }
+
+          // Update SuperTrend series (dummy logic)
+          if (supertrendSeriesRef.current) {
+            let trend = 1;
+            let st = parseFloat(kline.c);
+            if (stDataRef.current.length > 0) {
+              const lastSt = stDataRef.current[stDataRef.current.length - 1];
+              if (parseFloat(kline.c) > lastSt.value) { trend = 1; st = parseFloat(kline.c) * 0.985; }
+              else { trend = -1; st = parseFloat(kline.c) * 1.015; }
+            }
+            supertrendSeriesRef.current.update({
+              time: t,
+              value: st,
+              lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
+              topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
+              bottomColor: 'rgba(0, 0, 0, 0)',
+            });
+          }
+
+          // Start/Update countdown for current candle
+          if (!timerInterval) {
+            const intervalMs = getIntervalMs(chartInterval);
+            const startTime = kline.t;
+            timerInterval = setInterval(() => {
+              const now = Date.now();
+              const elapsed = now - startTime;
+              const remaining = intervalMs - elapsed;
+
+              if (remaining <= 0) {
+                clearInterval(timerInterval);
+                setCandleCountdown(null);
+                return;
+              }
+
+              const minutes = Math.floor(remaining / (60 * 1000));
+              const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
+              const hours = Math.floor(remaining / (60 * 60 * 1000));
+              const formattedTime = hours > 0
+                ? `${String(hours).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+                : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+              // Compute Y position of current price on chart
+              let priceY = -100;
+              const closePrice = parseFloat(kline.c);
+              const activeSeries = seriesRef.current?.options().visible ? seriesRef.current : mainLineSeriesRef.current;
+              if (activeSeries && chartRef.current) {
+                try {
+                  const coord = activeSeries.priceToCoordinate(closePrice);
+                  if (coord !== null && coord !== undefined) priceY = coord;
+                } catch (e) { }
+              }
+
+              setCandleCountdown({
+                text: formattedTime,
+                isUp: closePrice >= parseFloat(kline.o),
+                priceY,
+                price: closePrice,
+              });
+            }, 1000);
+          } else {
+            // Update direction & position on each tick
             const closePrice = parseFloat(kline.c);
+            let priceY = -100;
             const activeSeries = seriesRef.current?.options().visible ? seriesRef.current : mainLineSeriesRef.current;
             if (activeSeries && chartRef.current) {
               try {
                 const coord = activeSeries.priceToCoordinate(closePrice);
                 if (coord !== null && coord !== undefined) priceY = coord;
-              } catch(e) {}
+              } catch (e) { }
             }
-
-            setCandleCountdown({
-              text: formattedTime,
-              isUp: closePrice >= parseFloat(kline.o),
-              priceY,
-              price: closePrice,
-            });
-          }, 1000);
-        } else {
-          // Update direction & position on each tick
-          const closePrice = parseFloat(kline.c);
-          let priceY = -100;
-          const activeSeries = seriesRef.current?.options().visible ? seriesRef.current : mainLineSeriesRef.current;
-          if (activeSeries && chartRef.current) {
-            try {
-              const coord = activeSeries.priceToCoordinate(closePrice);
-              if (coord !== null && coord !== undefined) priceY = coord;
-            } catch(e) {}
+            setCandleCountdown(prev => prev ? { ...prev, isUp: closePrice >= parseFloat(kline.o), priceY, price: closePrice } : null);
           }
-          setCandleCountdown(prev => prev ? { ...prev, isUp: closePrice >= parseFloat(kline.o), priceY, price: closePrice } : null);
         }
-      }
-    };
+      };
 
-    resizeObserver.observe(chartContainerRef.current);
+      resizeObserver.observe(chartContainerRef.current);
 
-    return () => {
-      resizeObserver.disconnect();
-      if (chart) chart.remove();
-      ws.close();
-      if (timerInterval) clearInterval(timerInterval);
-      cancelAnimationFrame(animationFrameId);
-    };
+      return () => {
+        resizeObserver.disconnect();
+        if (chart) chart.remove();
+        ws.close();
+        if (timerInterval) clearInterval(timerInterval);
+        cancelAnimationFrame(animationFrameId);
+      };
     } catch (err) {
       console.error("[Chart] Error during chart initialization:", err);
     }
@@ -927,21 +928,21 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     if (volumeSeriesRef.current) volumeSeriesRef.current.applyOptions({ visible: has('VOL') });
     if (rsiSeriesRef.current) rsiSeriesRef.current.applyOptions({ visible: has('RSI') });
     if (macdSeriesRef.current) {
-        macdSeriesRef.current.applyOptions({ visible: has('MACD') });
-        macdSignalRef.current.applyOptions({ visible: has('MACD') });
-        macdHistRef.current.applyOptions({ visible: has('MACD') });
+      macdSeriesRef.current.applyOptions({ visible: has('MACD') });
+      macdSignalRef.current.applyOptions({ visible: has('MACD') });
+      macdHistRef.current.applyOptions({ visible: has('MACD') });
     }
     if (atrSeriesRef.current) atrSeriesRef.current.applyOptions({ visible: has('ATR') });
     if (wrSeriesRef.current) wrSeriesRef.current.applyOptions({ visible: has('WR') });
     if (obvSeriesRef.current) obvSeriesRef.current.applyOptions({ visible: has('OBV') });
     if (stochKRef.current) {
-        stochKRef.current.applyOptions({ visible: has('STOCH') });
-        stochDRef.current.applyOptions({ visible: has('STOCH') });
+      stochKRef.current.applyOptions({ visible: has('STOCH') });
+      stochDRef.current.applyOptions({ visible: has('STOCH') });
     }
     if (kdjKRef.current) {
-        kdjKRef.current.applyOptions({ visible: has('KDJ') });
-        kdjDRef.current.applyOptions({ visible: has('KDJ') });
-        kdjJRef.current.applyOptions({ visible: has('KDJ') });
+      kdjKRef.current.applyOptions({ visible: has('KDJ') });
+      kdjDRef.current.applyOptions({ visible: has('KDJ') });
+      kdjJRef.current.applyOptions({ visible: has('KDJ') });
     }
 
     // 2. Dynamically allocate vertical space
@@ -973,7 +974,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       else if (id === 'KDJ') scaleId = 'kdj';
 
       const sTop = 1 - totalSubHeight + (i * subHeight) + gap;
-      const sBottom = 1 - (1 - totalSubHeight + ((i+1) * subHeight));
+      const sBottom = 1 - (1 - totalSubHeight + ((i + 1) * subHeight));
 
       try {
         chartRef.current.priceScale(scaleId).applyOptions({
@@ -981,7 +982,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           visible: true,
           borderColor: 'rgba(255, 255, 255, 0.1)',
         });
-      } catch(e) {}
+      } catch (e) { }
     });
   }, [subIndicators]);
 
@@ -1048,117 +1049,117 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         }
 
         if (smaSeriesRef.current) {
-        const smaData = data.filter(d => d.sma != null).map(d => ({ time: d.time, value: d.sma }));
-        smaSeriesRef.current.setData(smaData);
-      }
-
-      if (sarSeriesRef.current) {
-        const sarData = data.filter(d => d.sar != null).map(d => ({ time: d.time, value: d.sar }));
-        sarSeriesRef.current.setData(sarData);
-      }
-
-      if (bollUpperRef.current) {
-        const bU = data.filter(d => d.boll?.upper != null).map(d => ({ time: d.time, value: d.boll.upper }));
-        const bM = data.filter(d => d.boll?.middle != null).map(d => ({ time: d.time, value: d.boll.middle }));
-        const bL = data.filter(d => d.boll?.lower != null).map(d => ({ time: d.time, value: d.boll.lower }));
-        bollUpperRef.current.setData(bU);
-        bollMiddleRef.current.setData(bM);
-        bollLowerRef.current.setData(bL);
-      }
-
-      if (alligatorJawRef.current) {
-        const jawData = data.filter(d => d.alligator?.jaw != null).map(d => ({ time: d.time, value: d.alligator.jaw }));
-        const teethData = data.filter(d => d.alligator?.teeth != null).map(d => ({ time: d.time, value: d.alligator.teeth }));
-        const lipsData = data.filter(d => d.alligator?.lips != null).map(d => ({ time: d.time, value: d.alligator.lips }));
-        alligatorJawRef.current.setData(jawData);
-        alligatorTeethRef.current.setData(teethData);
-        alligatorLipsRef.current.setData(lipsData);
-      }
-
-      if (volumeSeriesRef.current) {
-        volumeSeriesRef.current.setData(data.filter(d => d.volume != null).map(d => ({
-          time: d.time,
-          value: d.volume,
-          color: d.close >= d.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
-        })));
-      }
-      if (rsiSeriesRef.current) {
-        const rsiD = data.filter(d => d.rsi != null).map(d => ({ time: d.time, value: d.rsi }));
-        rsiSeriesRef.current.setData(rsiD);
-      }
-      if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
-        const mD = data.filter(d => d.macd?.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
-        const sD = data.filter(d => d.macd?.signal != null).map(d => ({ time: d.time, value: d.macd.signal }));
-        const hD = data.filter(d => d.macd?.histogram != null).map(d => ({
-          time: d.time,
-          value: d.macd.histogram,
-          color: d.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
-        }));
-        macdSeriesRef.current.setData(mD);
-        macdSignalRef.current.setData(sD);
-        macdHistRef.current.setData(hD);
-      }
-      if (atrSeriesRef.current) {
-        const atrD = data.filter(d => d.atr != null).map(d => ({ time: d.time, value: d.atr }));
-        atrSeriesRef.current.setData(atrD);
-      }
-      if (wrSeriesRef.current) {
-        const wrD = data.filter(d => d.wr != null).map(d => ({ time: d.time, value: d.wr }));
-        wrSeriesRef.current.setData(wrD);
-      }
-      if (obvSeriesRef.current) {
-        const obvD = data.filter(d => d.obv != null).map(d => ({ time: d.time, value: d.obv }));
-        obvSeriesRef.current.setData(obvD);
-      }
-      if (stochKRef.current && stochDRef.current) {
-        const skD = data.filter(d => d.stochRsi?.stochRSI != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
-        stochKRef.current.setData(skD);
-      }
-      if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
-        const kD = data.filter(d => d.kdj?.k != null).map(d => ({ time: d.time, value: d.kdj.k }));
-        const dD = data.filter(d => d.kdj?.d != null).map(d => ({ time: d.time, value: d.kdj.d }));
-        const jD = data.filter(d => d.kdj?.j != null).map(d => ({ time: d.time, value: d.kdj.j }));
-        kdjKRef.current.setData(kD);
-        kdjDRef.current.setData(dD);
-        kdjJRef.current.setData(jD);
-      }
-
-      if (supertrendSeriesRef.current) {
-        let trend = 1;
-        let st = data[0]?.close || 0;
-        const stData = data.map((d: any, i: number) => {
-          if (i % 7 === 0) {
-            if (d.close > st) { trend = 1; st = d.close * 0.985; }
-            else { trend = -1; st = d.close * 1.015; }
-          }
-          return {
-            time: d.time,
-            value: st,
-            lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
-            topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
-            bottomColor: 'rgba(0, 0, 0, 0)',
-          };
-        });
-        stDataRef.current = stData;
-        supertrendSeriesRef.current.setData(stData);
-      }
-
-      // --- Initialization Fix: Ensure AVG and High/Low markers are primed ---
-
-      // 1. Initial High/Low Calculation (if not already set)
-      if (!visibleHighLowRef.current && data.length > 0) {
-        let maxItem = data[0];
-        let minItem = data[0];
-        // Scan initial data for a reasonable starting high/low
-        const scanCount = Math.min(data.length, 100);
-        for (let i = data.length - scanCount; i < data.length; i++) {
-          if (data[i].high > maxItem.high) maxItem = data[i];
-          if (data[i].low < minItem.low) minItem = data[i];
+          const smaData = data.filter(d => d.sma != null).map(d => ({ time: d.time, value: d.sma }));
+          smaSeriesRef.current.setData(smaData);
         }
-        const initialHl = { high: maxItem, low: minItem };
-        visibleHighLowRef.current = initialHl;
-        setVisibleHighLow(initialHl);
-      }
+
+        if (sarSeriesRef.current) {
+          const sarData = data.filter(d => d.sar != null).map(d => ({ time: d.time, value: d.sar }));
+          sarSeriesRef.current.setData(sarData);
+        }
+
+        if (bollUpperRef.current) {
+          const bU = data.filter(d => d.boll?.upper != null).map(d => ({ time: d.time, value: d.boll.upper }));
+          const bM = data.filter(d => d.boll?.middle != null).map(d => ({ time: d.time, value: d.boll.middle }));
+          const bL = data.filter(d => d.boll?.lower != null).map(d => ({ time: d.time, value: d.boll.lower }));
+          bollUpperRef.current.setData(bU);
+          bollMiddleRef.current.setData(bM);
+          bollLowerRef.current.setData(bL);
+        }
+
+        if (alligatorJawRef.current) {
+          const jawData = data.filter(d => d.alligator?.jaw != null).map(d => ({ time: d.time, value: d.alligator.jaw }));
+          const teethData = data.filter(d => d.alligator?.teeth != null).map(d => ({ time: d.time, value: d.alligator.teeth }));
+          const lipsData = data.filter(d => d.alligator?.lips != null).map(d => ({ time: d.time, value: d.alligator.lips }));
+          alligatorJawRef.current.setData(jawData);
+          alligatorTeethRef.current.setData(teethData);
+          alligatorLipsRef.current.setData(lipsData);
+        }
+
+        if (volumeSeriesRef.current) {
+          volumeSeriesRef.current.setData(data.filter(d => d.volume != null).map(d => ({
+            time: d.time,
+            value: d.volume,
+            color: d.close >= d.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
+          })));
+        }
+        if (rsiSeriesRef.current) {
+          const rsiD = data.filter(d => d.rsi != null).map(d => ({ time: d.time, value: d.rsi }));
+          rsiSeriesRef.current.setData(rsiD);
+        }
+        if (macdSeriesRef.current && macdSignalRef.current && macdHistRef.current) {
+          const mD = data.filter(d => d.macd?.macd != null).map(d => ({ time: d.time, value: d.macd.macd }));
+          const sD = data.filter(d => d.macd?.signal != null).map(d => ({ time: d.time, value: d.macd.signal }));
+          const hD = data.filter(d => d.macd?.histogram != null).map(d => ({
+            time: d.time,
+            value: d.macd.histogram,
+            color: d.macd.histogram >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(255, 82, 82, 0.5)'
+          }));
+          macdSeriesRef.current.setData(mD);
+          macdSignalRef.current.setData(sD);
+          macdHistRef.current.setData(hD);
+        }
+        if (atrSeriesRef.current) {
+          const atrD = data.filter(d => d.atr != null).map(d => ({ time: d.time, value: d.atr }));
+          atrSeriesRef.current.setData(atrD);
+        }
+        if (wrSeriesRef.current) {
+          const wrD = data.filter(d => d.wr != null).map(d => ({ time: d.time, value: d.wr }));
+          wrSeriesRef.current.setData(wrD);
+        }
+        if (obvSeriesRef.current) {
+          const obvD = data.filter(d => d.obv != null).map(d => ({ time: d.time, value: d.obv }));
+          obvSeriesRef.current.setData(obvD);
+        }
+        if (stochKRef.current && stochDRef.current) {
+          const skD = data.filter(d => d.stochRsi?.stochRSI != null).map(d => ({ time: d.time, value: d.stochRsi.stochRSI }));
+          stochKRef.current.setData(skD);
+        }
+        if (kdjKRef.current && kdjDRef.current && kdjJRef.current) {
+          const kD = data.filter(d => d.kdj?.k != null).map(d => ({ time: d.time, value: d.kdj.k }));
+          const dD = data.filter(d => d.kdj?.d != null).map(d => ({ time: d.time, value: d.kdj.d }));
+          const jD = data.filter(d => d.kdj?.j != null).map(d => ({ time: d.time, value: d.kdj.j }));
+          kdjKRef.current.setData(kD);
+          kdjDRef.current.setData(dD);
+          kdjJRef.current.setData(jD);
+        }
+
+        if (supertrendSeriesRef.current) {
+          let trend = 1;
+          let st = data[0]?.close || 0;
+          const stData = data.map((d: any, i: number) => {
+            if (i % 7 === 0) {
+              if (d.close > st) { trend = 1; st = d.close * 0.985; }
+              else { trend = -1; st = d.close * 1.015; }
+            }
+            return {
+              time: d.time,
+              value: st,
+              lineColor: trend === 1 ? '#00E5FF' : '#FF007F',
+              topColor: trend === 1 ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 0, 127, 0.2)',
+              bottomColor: 'rgba(0, 0, 0, 0)',
+            };
+          });
+          stDataRef.current = stData;
+          supertrendSeriesRef.current.setData(stData);
+        }
+
+        // --- Initialization Fix: Ensure AVG and High/Low markers are primed ---
+
+        // 1. Initial High/Low Calculation (if not already set)
+        if (!visibleHighLowRef.current && data.length > 0) {
+          let maxItem = data[0];
+          let minItem = data[0];
+          // Scan initial data for a reasonable starting high/low
+          const scanCount = Math.min(data.length, 100);
+          for (let i = data.length - scanCount; i < data.length; i++) {
+            if (data[i].high > maxItem.high) maxItem = data[i];
+            if (data[i].low < minItem.low) minItem = data[i];
+          }
+          const initialHl = { high: maxItem, low: minItem };
+          visibleHighLowRef.current = initialHl;
+          setVisibleHighLow(initialHl);
+        }
 
       }
     } catch (err) {
@@ -1222,7 +1223,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     // Ensure we unmount native markers if they existed
     if (seriesRef.current) {
-      try { seriesRef.current.setMarkers([]); } catch(e) {}
+      try { seriesRef.current.setMarkers([]); } catch (e) { }
     }
   }, [data, trades]);
 
@@ -1249,7 +1250,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
     for (let i = startIdx; i < data.length; i++) {
       const patterns = detectPatterns(data, i);
-      
+
       patterns.forEach((p, idx) => {
         const isBullish = p.sentiment === 'bullish';
         const isBearish = p.sentiment === 'bearish';
@@ -1258,7 +1259,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         newPatternMarkers.push({
           id: `${data[i].time}_${p.type}_${idx}`,
           time: data[i].time,
-          prevTime: data[i-1].time,
+          prevTime: data[i - 1].time,
           type: p.sentiment === 'bullish' ? 'BULLISH' : (p.sentiment === 'bearish' ? 'BEARISH' : 'NEUTRAL'),
           patternType: p.type,
           label: p.label,
@@ -1266,16 +1267,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           description: p.description,
           context: isBullish ? 'BULLISH' : (isBearish ? 'BEARISH' : 'NEUTRAL'),
           strength: (isBullish || isBearish) ? 'HIGH' : 'STANDARD',
-          hasHighVolume: data[i].volume > data[i-1].volume,
+          hasHighVolume: data[i].volume > data[i - 1].volume,
           low: data[i].low,
           high: data[i].high,
           open: data[i].open,
           close: data[i].close,
           prevCandle: {
-            open: data[i-1].open,
-            close: data[i-1].close,
-            high: data[i-1].high,
-            low: data[i-1].low
+            open: data[i - 1].open,
+            close: data[i - 1].close,
+            high: data[i - 1].high,
+            low: data[i - 1].low
           }
         });
       });
@@ -1299,23 +1300,23 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       // Handle OCO orders having two targets: limitPrice and stopPrice
       if (order.type === 'oco') {
         const createLine = (price: number, label: string) => {
-           const lineId = `${order.id}-${label}`;
-           activeIds.add(lineId);
-           if (!currentLineMap.has(lineId)) {
-             const isBuy = order.side === 'buy';
-             // For OCO: TP is limitPrice and SL is stopPrice. Direction flips based on side.
-             const styleColor = (isBuy && label.includes('Buy')) || (!isBuy && label.includes('Profit')) ? '#00E5FF' : '#FF007F';
+          const lineId = `${order.id}-${label}`;
+          activeIds.add(lineId);
+          if (!currentLineMap.has(lineId)) {
+            const isBuy = order.side === 'buy';
+            // For OCO: TP is limitPrice and SL is stopPrice. Direction flips based on side.
+            const styleColor = (isBuy && label.includes('Buy')) || (!isBuy && label.includes('Profit')) ? '#00E5FF' : '#FF007F';
 
-             const line = series.createPriceLine({
-               price: price,
-               color: styleColor,
-               lineWidth: 2,
-               lineStyle: 1, // Dotted
-               axisLabelVisible: true,
-               title: label,
-             });
-             currentLineMap.set(lineId, line);
-           }
+            const line = series.createPriceLine({
+              price: price,
+              color: styleColor,
+              lineWidth: 2,
+              lineStyle: 1, // Dotted
+              axisLabelVisible: true,
+              title: label,
+            });
+            currentLineMap.set(lineId, line);
+          }
         };
 
         if (order.limitPrice) createLine(order.limitPrice, order.side === 'buy' ? 'Limit Buy' : 'Take Profit');
@@ -1350,7 +1351,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     // Remove filled or cancelled orders
     currentLineMap.forEach((line, key) => {
       if (!activeIds.has(key)) {
-        try { series.removePriceLine(line); } catch (e) {}
+        try { series.removePriceLine(line); } catch (e) { }
         currentLineMap.delete(key);
       }
     });
@@ -1412,20 +1413,19 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         {/* Center: Drawing Tools */}
         <div className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.2)] rounded-xl p-1 backdrop-blur-md">
           {([
-            { id: 'none',       icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select',          color: '#ffffff' },
-            { id: 'trendline',  icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',      title: 'Trendline',       color: '#00E5FF' },
-            { id: 'horizontal', icon: 'M5 12h14',                             title: 'Support/Resist',  color: '#fcd535' },
+            { id: 'none', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select', color: '#ffffff' },
+            { id: 'trendline', icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4', title: 'Trendline', color: '#00E5FF' },
+            { id: 'horizontal', icon: 'M5 12h14', title: 'Support/Resist', color: '#fcd535' },
             { id: 'annotation', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', title: 'Note', color: '#FF007F' },
           ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
             <button
               key={tool.id}
               title={tool.title}
               onClick={() => setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool)}
-              className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 relative group/btn ${
-                activeTool === tool.id
+              className={`p-1.5 sm:p-2 rounded-lg transition-all duration-300 relative group/btn ${activeTool === tool.id
                   ? 'bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
                   : 'hover:bg-white/5'
-              }`}
+                }`}
             >
               {activeTool === tool.id && (
                 <div className="absolute inset-0 rounded-lg shadow-[0_0_12px_currentColor] opacity-30" style={{ color: tool.color }} />
@@ -1434,11 +1434,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 stroke={activeTool === tool.id ? tool.color : '#848e9c'}
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                 className="relative z-10 transition-colors group-hover/btn:drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-                <path d={tool.icon}/>
+                <path d={tool.icon} />
               </svg>
             </button>
           ))}
-          <div className="w-px h-4 bg-white/10 mx-1"/>
+          <div className="w-px h-4 bg-white/10 mx-1" />
           <button
             title="Clear all drawings"
             onClick={() => {
@@ -1449,7 +1449,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             className="p-1.5 sm:p-2 rounded-lg text-[#848e9c] hover:text-[#FF007F] hover:bg-[#FF007F]/10 transition-all duration-300 group/clear"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover/clear:drop-shadow-[0_0_8px_#FF007F]">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" />
             </svg>
           </button>
         </div>
@@ -1458,12 +1458,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         <div className="flex items-center gap-1.5">
           <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Grid Settings" onClick={(e) => e.preventDefault()}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
             </svg>
           </button>
           <button type="button" className="p-2 rounded-lg text-[#848e9c] hover:text-white hover:bg-white/5 transition-all duration-300" title="Screenshot" onClick={(e) => e.preventDefault()}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
             </svg>
           </button>
         </div>
@@ -1511,37 +1511,37 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           </div>
         )}
 
-      {/* Pattern Markers Overlay Layer (Intelligence Upgrade) */}
-      {config?.patternOverlay !== false && showEngulfing && (
-        <div className="absolute inset-0 z-[45] pointer-events-none overflow-hidden">
-          {patternMarkers.map((m, idx) => {
-            const isBullish = m.type === 'BULLISH';
-            const isMostRecent = idx === patternMarkers.length - 1;
-            const shouldGlow = isMostRecent || m.hasHighVolume;
+        {/* Pattern Markers Overlay Layer (Intelligence Upgrade) */}
+        {config?.patternOverlay !== false && showEngulfing && (
+          <div className="absolute inset-0 z-[45] pointer-events-none overflow-hidden">
+            {patternMarkers.map((m, idx) => {
+              const isBullish = m.type === 'BULLISH';
+              const isMostRecent = idx === patternMarkers.length - 1;
+              const shouldGlow = isMostRecent || m.hasHighVolume;
 
-            return (
-              <React.Fragment key={m.id}>
-                {/* The "Engulf" Box (Improved visibility & Toggle) */}
-                {showPatternBox && (
+              return (
+                <React.Fragment key={m.id}>
+                  {/* The "Engulf" Box (Improved visibility & Toggle) */}
+                  {showPatternBox && (
+                    <div
+                      id={`engulf-box-${m.id}`}
+                      className="absolute pointer-events-none border rounded-md transition-opacity duration-300 opacity-0"
+                      style={{
+                        borderColor: `${m.color}80`, // 50% opacity border
+                        backgroundColor: `${m.color}0D` // ~5% opacity fill
+                      }}
+                    />
+                  )}
+
+                  {/* Primary Pattern Marker (Zoned 10px below/above candle) */}
                   <div
-                    id={`engulf-box-${m.id}`}
-                    className="absolute pointer-events-none border rounded-md transition-opacity duration-300 opacity-0"
-                    style={{ 
-                      borderColor: `${m.color}80`, // 50% opacity border
-                      backgroundColor: `${m.color}0D` // ~5% opacity fill
-                    }}
-                  />
-                )}
-
-                {/* Primary Pattern Marker (Zoned 10px below/above candle) */}
-                <div
-                  id={`pattern-marker-${m.id}`}
-                  className="absolute w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern"
-                  style={{ transition: 'opacity 0.2s ease' }}
-                >
-                  <div className="relative flex flex-col items-center">
-                    {/* UI Marker Logic: Primary Small Icons */}
-                    {m.type === 'BULLISH' ? (
+                    id={`pattern-marker-${m.id}`}
+                    className="absolute w-5 h-5 flex justify-center items-start opacity-0 will-change-transform pointer-events-auto group/pattern"
+                    style={{ transition: 'opacity 0.2s ease' }}
+                  >
+                    <div className="relative flex flex-col items-center">
+                      {/* UI Marker Logic: Primary Small Icons */}
+                      {m.type === 'BULLISH' ? (
                         <div className="flex flex-col items-center">
                           <div
                             className={`w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[8px] relative z-10 ${shouldGlow ? 'animate-float-glow' : ''}`}
@@ -1549,71 +1549,71 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                           />
                           {shouldGlow && <div className="absolute -bottom-1 w-6 h-6 bg-[currentColor]/10 blur-xl rounded-full" style={{ color: m.color }} />}
                         </div>
-                    ) : m.type === 'BEARISH' ? (
+                      ) : m.type === 'BEARISH' ? (
                         <div className="flex flex-col items-center">
                           <div
-                             className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] relative z-10"
-                             style={{ borderTopColor: m.color }}
+                            className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] relative z-10"
+                            style={{ borderTopColor: m.color }}
                           />
                         </div>
-                    ) : (
+                      ) : (
                         <div className="w-2.5 h-2.5 rounded-full border-2 border-white/20" style={{ backgroundColor: m.color }} />
-                    )}
+                      )}
 
-                    {/* Scaled Down Confluence Star ⭐ */}
-                    {m.hasHighVolume && (
-                      <span className="absolute -top-2 -right-1.5 text-[7px] animate-pulse drop-shadow-[0_0_5px_#fcd535]">⭐</span>
-                    )}
+                      {/* Scaled Down Confluence Star ⭐ */}
+                      {m.hasHighVolume && (
+                        <span className="absolute -top-2 -right-1.5 text-[7px] animate-pulse drop-shadow-[0_0_5px_#fcd535]">⭐</span>
+                      )}
 
-                    {/* Vertical Growing Label (Moved to High via syncPills) */}
-                    <div 
-                      id={`pattern-label-${m.id}`}
-                      className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none opacity-0 group-hover/pattern:opacity-100 transition-opacity"
-                    >
-                      <div 
-                        className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap"
-                        style={{ 
-                          writingMode: 'vertical-lr', 
-                          transform: 'rotate(180deg)',
-                          color: m.color,
-                          textShadow: `0 0 10px ${m.color}`
-                        }}
+                      {/* Vertical Growing Label (Moved to High via syncPills) */}
+                      <div
+                        id={`pattern-label-${m.id}`}
+                        className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none opacity-0 group-hover/pattern:opacity-100 transition-opacity"
                       >
-                        {m.label}
+                        <div
+                          className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap"
+                          style={{
+                            writingMode: 'vertical-lr',
+                            transform: 'rotate(180deg)',
+                            color: m.color,
+                            textShadow: `0 0 10px ${m.color}`
+                          }}
+                        >
+                          {m.label}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Enhanced Educational Tooltip */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-all duration-300 z-[100] w-60 translate-y-2 group-hover/pattern:translate-y-0 text-left">
-                    <div className="relative rounded-xl border border-white/10 bg-black/95 backdrop-blur-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-2">
-                      <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em]`} style={{ color: m.color }}>
-                          {m.label}
-                        </span>
-                        {m.hasHighVolume && <span className="text-[10px] text-[var(--holo-gold)] font-bold">⭐ Volume Spike</span>}
-                      </div>
-
-                      <div className="text-[9px] text-white/80 font-medium leading-relaxed italic">
-                        {m.description}
-                      </div>
-
-                      <div className="flex flex-col gap-1.5 mt-1 border-t border-white/5 pt-2">
-                        <div className="flex justify-between items-center text-[10px] font-mono">
-                          <span className="text-white/40">Market Context</span>
-                          <span className={`${m.strength === 'HIGH' ? 'text-[var(--holo-gold)]' : 'text-white/60'} font-bold`}>
-                            {m.type === 'NEUTRAL' ? 'Neutral' : (m.strength === 'HIGH' ? 'High Probability' : 'Standard')}
+                    {/* Enhanced Educational Tooltip */}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/pattern:opacity-100 pointer-events-none transition-all duration-300 z-[100] w-60 translate-y-2 group-hover/pattern:translate-y-0 text-left">
+                      <div className="relative rounded-xl border border-white/10 bg-black/95 backdrop-blur-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col gap-2">
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                          <span className={`text-[10px] font-black uppercase tracking-[0.2em]`} style={{ color: m.color }}>
+                            {m.label}
                           </span>
+                          {m.hasHighVolume && <span className="text-[10px] text-[var(--holo-gold)] font-bold">⭐ Volume Spike</span>}
+                        </div>
+
+                        <div className="text-[9px] text-white/80 font-medium leading-relaxed italic">
+                          {m.description}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 mt-1 border-t border-white/5 pt-2">
+                          <div className="flex justify-between items-center text-[10px] font-mono">
+                            <span className="text-white/40">Market Context</span>
+                            <span className={`${m.strength === 'HIGH' ? 'text-[var(--holo-gold)]' : 'text-white/60'} font-bold`}>
+                              {m.type === 'NEUTRAL' ? 'Neutral' : (m.strength === 'HIGH' ? 'High Probability' : 'Standard')}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
-      )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        )}
 
         {/* HTML Markers Overlay Layer */}
         <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
@@ -1625,9 +1625,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               style={{ transition: 'opacity 0.15s ease' }}
             >
               {/* Sci-Fi Radar Ping Effect */}
-              <div className={`absolute -inset-1 rounded-full animate-ping opacity-20 ${
-                m.isBuy ? 'bg-[#00E5FF]' : 'bg-[#FF007F]'
-              }`} style={{ animationDuration: '2s' }} />
+              <div className={`absolute -inset-1 rounded-full animate-ping opacity-20 ${m.isBuy ? 'bg-[#00E5FF]' : 'bg-[#FF007F]'
+                }`} style={{ animationDuration: '2s' }} />
 
               {/* Pointer Triangles */}
               {m.isBuy ? (
@@ -1638,11 +1637,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
               {/* Main Rounded Box Backend */}
               <div
-                className={`absolute inset-0 border border-white/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)] backdrop-blur-2xl flex justify-center items-center z-10 transition-transform duration-300 group-hover:scale-110 ${
-                  m.isBuy
+                className={`absolute inset-0 border border-white/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)] backdrop-blur-2xl flex justify-center items-center z-10 transition-transform duration-300 group-hover:scale-110 ${m.isBuy
                     ? 'bg-gradient-to-br from-[#00E5FF] to-[#00aaee] rounded-md'
                     : 'bg-gradient-to-br from-[#FF007F] to-[#ee0070] rounded-md'
-                }`}
+                  }`}
               >
                 <div className="relative w-full h-full flex justify-center items-center">
                   {/* Core Letter */}
@@ -1668,7 +1666,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                       </div>
                       <div className="flex justify-between items-center text-[10px] font-mono">
                         <span className="text-white/40">Amount</span>
-                        <span className="text-white">{Number(t.quantity).toFixed(4)} <span className="text-white/40">{symbol.replace('USDT','')}</span></span>
+                        <span className="text-white">{Number(t.quantity).toFixed(4)} <span className="text-white/40">{symbol.replace('USDT', '')}</span></span>
                       </div>
                       <div className="flex justify-between items-center text-[10px] font-mono">
                         <span className="text-white/40">Total</span>
@@ -1686,168 +1684,167 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           ))}
         </div>
 
-      {/* ── OHLC Floating Hover HUD ──────────────────────────── */}
-      {crosshairData && crosshairData.x !== undefined && (
-        <div
-          className="absolute z-20 pointer-events-none select-none"
-          style={{
-            left: `clamp(4px, ${crosshairData.x > 150 ? crosshairData.x - 125 : crosshairData.x + 15}px, calc(100% - 130px))`,
-            top: `${Math.max(10, crosshairData.y - 120)}px`,
-          }}
-        >
-          {/* Cyberpunk Floating Card */}
-          <div className="flex flex-col gap-1.5 glass-panel p-2.5 w-[115px] animate-float-glow rounded-xl">
-            {/* Header / Date */}
-            <div className="text-white/60 text-[9px] font-black tracking-widest uppercase border-b border-white/10 pb-1.5 mb-0.5 text-center">
-              {(typeof crosshairData.time === 'number')
-                ? new Date(crosshairData.time * 1000).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
-                : String(crosshairData.time)}
-            </div>
-
-            {/* OHLC Values */}
-            {(['open', 'high', 'low', 'close'] as const).map((key) => {
-              const val = crosshairData[key];
-              const isUp = crosshairData.close >= crosshairData.open;
-              const colorClass = key === 'close'
-                ? (isUp ? 'neon-text-cyan' : 'neon-text-magenta')
-                : 'text-white';
-
-              return (
-                <div key={key} className="flex justify-between items-center text-[10px] font-mono leading-tight">
-                  <span className="text-[#848e9c] font-bold tracking-wider capitalize">{key}</span>
-                  <span className={`font-black ${colorClass}`}>
-                    {val.toFixed(2)}
-                  </span>
-                </div>
-              );
-            })}
-
-            {/* Volume */}
-            {crosshairData.volume !== undefined && (
-               <div className="flex justify-between items-center text-[10px] font-mono leading-tight border-t border-white/5 pt-1.5 mt-0.5">
-                 <span className="text-[#848e9c] font-bold tracking-wider capitalize">Vol</span>
-                 <span className="font-bold text-[var(--holo-gold)]">{crosshairData.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-               </div>
-            )}
-
-            {/* Optional Sub-Indicators (if active and data exists) */}
-            {subIndicators.includes('MACD') && crosshairData.macd && (
-              <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
-                <span className="text-[#848e9c] font-bold tracking-wider">MACD</span>
-                <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
-              </div>
-            )}
-            {subIndicators.includes('RSI') && crosshairData.rsi && (
-              <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
-                <span className="text-[#848e9c] font-bold tracking-wider">RSI</span>
-                <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[var(--holo-magenta)]' : crosshairData.rsi <= 30 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-gold)]'}`}>{crosshairData.rsi.toFixed(1)}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Brand Watermark 2050 ─────────────────────────────── */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
-        <div className="flex flex-col items-center gap-2 max-w-full px-4">
-          <span
-            className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.05] whitespace-nowrap"
-            style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
+        {/* ── OHLC Floating Hover HUD ──────────────────────────── */}
+        {crosshairData && crosshairData.x !== undefined && (
+          <div
+            className="absolute z-20 pointer-events-none select-none"
+            style={{
+              left: `clamp(4px, ${crosshairData.x > 150 ? crosshairData.x - 125 : crosshairData.x + 15}px, calc(100% - 130px))`,
+              top: `${Math.max(10, crosshairData.y - 120)}px`,
+            }}
           >
-            MOBEEN
-          </span>
-          <div className="flex items-center gap-3">
-            <div className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--holo-cyan)]" />
-            <span className="text-[10px] md:text-[12px] font-bold text-[var(--holo-cyan)] opacity-40 tracking-[0.8em] uppercase">CryptoBot Terminal</span>
-            <div className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--holo-magenta)]" />
-          </div>
-        </div>
-      </div>
+            {/* Cyberpunk Floating Card */}
+            <div className="flex flex-col gap-1.5 glass-panel p-2.5 w-[115px] animate-float-glow rounded-xl">
+              {/* Header / Date */}
+              <div className="text-white/60 text-[9px] font-black tracking-widest uppercase border-b border-white/10 pb-1.5 mb-0.5 text-center">
+                {(typeof crosshairData.time === 'number')
+                  ? new Date(crosshairData.time * 1000).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
+                  : String(crosshairData.time)}
+              </div>
 
-      {/* ── Recent Top & Bottom Price Tags handled by Overlay Layer above ── */}
+              {/* OHLC Values */}
+              {(['open', 'high', 'low', 'close'] as const).map((key) => {
+                const val = crosshairData[key];
+                const isUp = crosshairData.close >= crosshairData.open;
+                const colorClass = key === 'close'
+                  ? (isUp ? 'neon-text-cyan' : 'neon-text-magenta')
+                  : 'text-white';
 
-      {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
-      {showAvgLines && avgPositions.buyPrice > 0 && (
-        <div
-          className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-cyan)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(0,229,255,0.2)] pointer-events-none transition-all duration-100"
-          style={{ top: avgPositions.buyPrice, transform: 'translateY(-50%)' }}
-        >
-          <div className="flex items-center gap-1.5 text-[var(--holo-cyan)] pr-2 border-r border-white/10">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10"/></svg>
-            <span className="tracking-[0.2em]">BUY</span>
+                return (
+                  <div key={key} className="flex justify-between items-center text-[10px] font-mono leading-tight">
+                    <span className="text-[#848e9c] font-bold tracking-wider capitalize">{key}</span>
+                    <span className={`font-black ${colorClass}`}>
+                      {val.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })}
+
+              {/* Volume */}
+              {crosshairData.volume !== undefined && (
+                <div className="flex justify-between items-center text-[10px] font-mono leading-tight border-t border-white/5 pt-1.5 mt-0.5">
+                  <span className="text-[#848e9c] font-bold tracking-wider capitalize">Vol</span>
+                  <span className="font-bold text-[var(--holo-gold)]">{crosshairData.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                </div>
+              )}
+
+              {/* Optional Sub-Indicators (if active and data exists) */}
+              {subIndicators.includes('MACD') && crosshairData.macd && (
+                <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
+                  <span className="text-[#848e9c] font-bold tracking-wider">MACD</span>
+                  <span className={`font-bold ${crosshairData.macd.MACD >= 0 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-magenta)]'}`}>{crosshairData.macd.MACD.toFixed(2)}</span>
+                </div>
+              )}
+              {subIndicators.includes('RSI') && crosshairData.rsi && (
+                <div className="flex justify-between items-center text-[10px] font-mono leading-tight pt-0.5">
+                  <span className="text-[#848e9c] font-bold tracking-wider">RSI</span>
+                  <span className={`font-bold ${crosshairData.rsi >= 70 ? 'text-[var(--holo-magenta)]' : crosshairData.rsi <= 30 ? 'text-[var(--holo-cyan)]' : 'text-[var(--holo-gold)]'}`}>{crosshairData.rsi.toFixed(1)}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <span className="text-[10px]">{avgPositions.buyPrice.toFixed(2)}</span>
-          {data.length > 0 && (
-            <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] ${data[data.length-1].close > avgPositions.buyPrice ? 'bg-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#FF007F]/20 text-[#FF007F]'}`}>
-              {(( (data[data.length-1].close - avgPositions.buyPrice) / avgPositions.buyPrice) * 100).toFixed(2)}%
+        )}
+
+        {/* ── Brand Watermark 2050 ─────────────────────────────── */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden w-full h-full">
+          <div className="flex flex-col items-center gap-2 max-w-full px-4">
+            <span
+              className="text-[12vw] sm:text-[10vw] md:text-[110px] font-black tracking-[0.4em] uppercase text-transparent bg-clip-text animate-pulse opacity-[0.05] whitespace-nowrap"
+              style={{ backgroundImage: 'linear-gradient(45deg, var(--holo-cyan), var(--holo-magenta))' }}
+            >
+              MOBEEN
             </span>
-          )}
-        </div>
-      )}
-      {showAvgLines && avgPositions.sellPrice > 0 && (
-        <div
-          className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-magenta)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(255,0,127,0.2)] pointer-events-none transition-all duration-100"
-          style={{ top: avgPositions.sellPrice, transform: 'translateY(-50%)' }}
-        >
-          <div className="flex items-center gap-1.5 text-[var(--holo-magenta)] pr-2 border-r border-white/10">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7"/></svg>
-            <span className="tracking-[0.2em]">SELL</span>
+            <div className="flex items-center gap-3">
+              <div className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--holo-cyan)]" />
+              <span className="text-[10px] md:text-[12px] font-bold text-[var(--holo-cyan)] opacity-40 tracking-[0.8em] uppercase">CryptoBot Terminal</span>
+              <div className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--holo-magenta)]" />
+            </div>
           </div>
-          <span className="text-[10px]">{avgPositions.sellPrice.toFixed(2)}</span>
-          {data.length > 0 && (
-            <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] ${avgPositions.sellPrice > data[data.length-1].close ? 'bg-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#FF007F]/20 text-[#FF007F]'}`}>
-              {(( (avgPositions.sellPrice - data[data.length-1].close) / avgPositions.sellPrice) * 100).toFixed(2)}%
-            </span>
-          )}
         </div>
-      )}
 
-      {/* Drawing Layer */}
-      <ChartDrawingLayer
-        chartApi={chartRef.current}
-        candleSeries={seriesRef.current}
-        symbol={symbol}
-        activeTool={activeTool}
-        onToolChange={setActiveTool}
-      />
+        {/* ── Recent Top & Bottom Price Tags handled by Overlay Layer above ── */}
 
-      {/* ── Active Candle Highlight Aura ── */}
-      {hoveredCandleX !== null && (
-        <div
-          className="absolute top-0 bottom-0 z-[5] pointer-events-none bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/10 to-transparent w-[12px]"
-          style={{ left: hoveredCandleX - 6 }}
+        {/* ── Average Price Lines (Left Side Labels) — only when toggled on ── */}
+        {showAvgLines && avgPositions.buyPrice > 0 && (
+          <div
+            className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-cyan)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(0,229,255,0.2)] pointer-events-none transition-all duration-100"
+            style={{ top: avgPositions.buyPrice, transform: 'translateY(-50%)' }}
+          >
+            <div className="flex items-center gap-1.5 text-[var(--holo-cyan)] pr-2 border-r border-white/10">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17l9.2-9.2M7 7h10v10" /></svg>
+              <span className="tracking-[0.2em]">BUY</span>
+            </div>
+            <span className="text-[10px]">{avgPositions.buyPrice.toFixed(2)}</span>
+            {data.length > 0 && (
+              <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] ${data[data.length - 1].close > avgPositions.buyPrice ? 'bg-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#FF007F]/20 text-[#FF007F]'}`}>
+                {(((data[data.length - 1].close - avgPositions.buyPrice) / avgPositions.buyPrice) * 100).toFixed(2)}%
+              </span>
+            )}
+          </div>
+        )}
+        {showAvgLines && avgPositions.sellPrice > 0 && (
+          <div
+            className="absolute z-10 left-0 flex items-center gap-2 bg-black/60 backdrop-blur-xl border-y border-r border-[var(--holo-magenta)]/40 text-white text-[9px] font-bold font-mono px-3 py-1.5 rounded-r-xl shadow-[4px_0_20px_rgba(255,0,127,0.2)] pointer-events-none transition-all duration-100"
+            style={{ top: avgPositions.sellPrice, transform: 'translateY(-50%)' }}
+          >
+            <div className="flex items-center gap-1.5 text-[var(--holo-magenta)] pr-2 border-r border-white/10">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-9.2 9.2M17 17H7V7" /></svg>
+              <span className="tracking-[0.2em]">SELL</span>
+            </div>
+            <span className="text-[10px]">{avgPositions.sellPrice.toFixed(2)}</span>
+            {data.length > 0 && (
+              <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] ${avgPositions.sellPrice > data[data.length - 1].close ? 'bg-[#00E5FF]/20 text-[#00E5FF]' : 'bg-[#FF007F]/20 text-[#FF007F]'}`}>
+                {(((avgPositions.sellPrice - data[data.length - 1].close) / avgPositions.sellPrice) * 100).toFixed(2)}%
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Drawing Layer */}
+        <ChartDrawingLayer
+          chartApi={chartRef.current}
+          candleSeries={seriesRef.current}
+          symbol={symbol}
+          activeTool={activeTool}
+          onToolChange={setActiveTool}
         />
-      )}
 
-      {/* ── Holographic Crosshair Intersection ── */}
-      {crosshairPos !== null && (
-        <div
-          className="absolute z-[21] pointer-events-none w-3 h-3 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_15px_var(--holo-cyan),inset_0_0_4px_white] -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
-          style={{ left: crosshairPos.x, top: crosshairPos.y }}
-        >
-          <div className="absolute inset-0 rounded-full animate-ping bg-[var(--holo-cyan)] opacity-20" />
-        </div>
-      )}
+        {/* ── Active Candle Highlight Aura ── */}
+        {hoveredCandleX !== null && (
+          <div
+            className="absolute top-0 bottom-0 z-[5] pointer-events-none bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/10 to-transparent w-[12px]"
+            style={{ left: hoveredCandleX - 6 }}
+          />
+        )}
 
-      {/* ── Floating Candle Countdown HUD (Pinned to Price) ── */}
-      {candleCountdown && candleCountdown.priceY > 0 && (
-        <div
-          className="absolute z-30 right-0 pointer-events-none pr-1 transition-all duration-100 ease-linear"
-          style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
-        >
-          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-l-lg border-y border-l backdrop-blur-md shadow-lg ${
-            candleCountdown.isUp
-              ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
-              : 'bg-[var(--holo-magenta)]/10 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
-          }`}>
-            <div className={`w-1 h-1 rounded-full animate-pulse ${candleCountdown.isUp ? 'bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]' : 'bg-[var(--holo-magenta)] shadow-[0_0_8px_var(--holo-magenta)]'}`} />
-            <span className="text-[10px] font-mono font-black tracking-widest">{candleCountdown.text}</span>
+        {/* ── Holographic Crosshair Intersection ── */}
+        {crosshairPos !== null && (
+          <div
+            className="absolute z-[21] pointer-events-none w-3 h-3 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_15px_var(--holo-cyan),inset_0_0_4px_white] -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
+            style={{ left: crosshairPos.x, top: crosshairPos.y }}
+          >
+            <div className="absolute inset-0 rounded-full animate-ping bg-[var(--holo-cyan)] opacity-20" />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Chart Canvas */}
-      <div ref={chartContainerRef} className="w-full h-full relative z-0" />
+        {/* ── Floating Candle Countdown HUD (Pinned to Price) ── */}
+        {candleCountdown && candleCountdown.priceY > 0 && (
+          <div
+            className="absolute z-30 right-0 pointer-events-none pr-1 transition-all duration-100 ease-linear"
+            style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
+          >
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-l-lg border-y border-l backdrop-blur-md shadow-lg ${candleCountdown.isUp
+                ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
+                : 'bg-[var(--holo-magenta)]/10 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
+              }`}>
+              <div className={`w-1 h-1 rounded-full animate-pulse ${candleCountdown.isUp ? 'bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]' : 'bg-[var(--holo-magenta)] shadow-[0_0_8px_var(--holo-magenta)]'}`} />
+              <span className="text-[10px] font-mono font-black tracking-widest">{candleCountdown.text}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Chart Canvas */}
+        <div ref={chartContainerRef} className="w-full h-full relative z-0" />
       </div>
     </div>
   );
