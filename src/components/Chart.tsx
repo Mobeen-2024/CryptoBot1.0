@@ -69,6 +69,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
   const [showAvgLines, setShowAvgLines] = useState(false);
   const [showEngulfing, setShowEngulfing] = useState(false);
+  const [showPatternBox, setShowPatternBox] = useState(true);
   const [crosshairData, setCrosshairData] = useState<{
     time: string | number;
     open: number;
@@ -1455,6 +1456,19 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             </div>
             <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Engulf</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer group select-none">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={showPatternBox}
+                onChange={e => setShowPatternBox(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-8 h-4 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#fcd535]/20 peer-checked:border-[#fcd535]/50 transition-colors shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]" />
+              <div className="absolute top-[3px] left-[3px] w-[10px] h-[10px] bg-[#848e9c] rounded-full peer-checked:translate-x-4 peer-checked:bg-[#fcd535] peer-checked:shadow-[0_0_10px_rgba(252,213,53,0.8)] transition-all" />
+            </div>
+            <span className="text-[10px] uppercase font-mono tracking-widest font-bold text-[#848e9c] group-hover:text-white transition-colors">Box</span>
+          </label>
           {showAvgLines && (
             <div className="flex items-center gap-2 animate-in slide-in-from-left-2 fade-in duration-300">
               <div className="flex items-center gap-2 bg-[#00E5FF]/5 border border-[#00E5FF]/20 shadow-[0_0_15px_rgba(0,229,255,0.05)_inset] rounded-lg px-2.5 py-1.5 focus-within:border-[#00E5FF]/50 focus-within:shadow-[0_0_20px_rgba(0,229,255,0.15)_inset] transition-all">
@@ -1596,7 +1610,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             return (
               <React.Fragment key={m.id}>
                 {/* The "Engulf" Box (Improved visibility & Toggle) */}
-                {config?.showPatternBox !== false && (
+                {showPatternBox && (
                   <div
                     id={`engulf-box-${m.id}`}
                     className="absolute pointer-events-none border rounded-md transition-opacity duration-300 opacity-0"
