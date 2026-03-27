@@ -415,11 +415,23 @@ export function CurrentPositions() {
                      )}
                      {tpWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)] tracking-widest animate-pulse">{tpWarning}</span>}
                    </div>
-                   <input 
-                     type="number" value={tpPrice} onChange={e => setTpPrice(e.target.value)}
-                     className="w-full bg-transparent text-white font-black text-lg outline-none border-b border-white/20 pb-2 focus:border-[var(--holo-cyan)] transition-colors placeholder:text-gray-700"
-                     placeholder="0.0000"
-                   />
+                    <input 
+                      type="text" 
+                      value={tpPrice} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val.endsWith('%')) {
+                          const pct = parseFloat(val.slice(0, -1));
+                          if (!isNaN(pct)) {
+                            setTargetByRoi('TP', pct);
+                            return;
+                          }
+                        }
+                        setTpPrice(val);
+                      }}
+                      className="w-full bg-transparent text-white font-black text-lg outline-none border-b border-white/20 pb-2 focus:border-[var(--holo-cyan)] transition-colors placeholder:text-gray-700"
+                      placeholder="Price or % (e.g. 5%)"
+                    />
                    <div className="flex gap-1 mt-3">
                      {[5, 15, 25, 50].map(pct => (
                        <button key={pct} onClick={() => setTargetByRoi('TP', pct)} className="flex-1 py-1 rounded bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] text-[9px] font-black tracking-widest border border-transparent hover:border-[var(--holo-cyan)]/50 transition-all">+{pct}%</button>
@@ -437,11 +449,23 @@ export function CurrentPositions() {
                      )}
                      {slWarning && <span className="text-[10px] font-bold text-[var(--holo-magenta)] tracking-widest animate-pulse">{slWarning}</span>}
                    </div>
-                   <input 
-                     type="number" value={slPrice} onChange={e => setSlPrice(e.target.value)}
-                     className="w-full bg-transparent text-white font-black text-lg outline-none border-b border-white/20 pb-2 focus:border-[var(--holo-magenta)] transition-colors placeholder:text-gray-700"
-                     placeholder="0.0000"
-                   />
+                    <input 
+                      type="text" 
+                      value={slPrice} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val.endsWith('%')) {
+                          const pct = parseFloat(val.slice(0, -1));
+                          if (!isNaN(pct)) {
+                            setTargetByRoi('SL', pct);
+                            return;
+                          }
+                        }
+                        setSlPrice(val);
+                      }}
+                      className="w-full bg-transparent text-white font-black text-lg outline-none border-b border-white/20 pb-2 focus:border-[var(--holo-magenta)] transition-colors placeholder:text-gray-700"
+                      placeholder="Price or % (e.g. 2%)"
+                    />
                    <div className="flex gap-1 mt-3">
                      {[5, 10, 20].map(pct => (
                        <button key={pct} onClick={() => setTargetByRoi('SL', pct)} className="flex-1 py-1 rounded bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] text-[9px] font-black tracking-widest border border-transparent hover:border-[var(--holo-magenta)]/50 transition-all">-{pct}%</button>
