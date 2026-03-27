@@ -1363,8 +1363,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
-      {/* ═══════════════ CHART TOOLBAR ═══════════════ */}
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent relative z-10 opacity-0 group-hover/chart:opacity-100 transition-opacity duration-500">
+      {/* ═══════════════ CHART TOOLBAR (HOLOGRAPHIC OVERLAY) ═══════════════ */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 sm:px-4 py-3 bg-gradient-to-b from-black to-transparent backdrop-blur-sm z-[100] opacity-0 hover:opacity-100 transition-all duration-300">
 
         {/* Avg Price Toggle + Inputs */}
         <div className="hidden md:flex items-center gap-3">
