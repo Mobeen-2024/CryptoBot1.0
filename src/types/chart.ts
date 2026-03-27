@@ -27,5 +27,5 @@ export const DEFAULT_CHART_CONFIG: ChartConfig = {
   global: { background: '#0b1622', gridLines: '#2b3139' },
   patternOverlay: true,
   patternLookback: 200,
-  showPatternBox: true
+  showPatternBox: false
 };

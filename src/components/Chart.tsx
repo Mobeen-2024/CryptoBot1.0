@@ -69,7 +69,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
   const [showAvgLines, setShowAvgLines] = useState(false);
   const [showEngulfing, setShowEngulfing] = useState(false);
-  const [showPatternBox, setShowPatternBox] = useState(true);
+  const [showPatternBox, setShowPatternBox] = useState(false);
   const [crosshairData, setCrosshairData] = useState<{
     time: string | number;
     open: number;
