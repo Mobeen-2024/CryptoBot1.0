@@ -83,6 +83,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingPart, setDraggingPart] = useState<'entry' | 'tp' | 'sl' | 'p1' | 'p2' | null>(null);
+  const [isHoveringShape, setIsHoveringShape] = useState(false);
   const [annotationDraft, setAnnotationDraft] = useState<{ price: number; time: number } | null>(null);
   const [annotationText, setAnnotationText] = useState('');
   const animRef = useRef<number>(0);
@@ -604,13 +605,33 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       setDraggingId(null);
       setDraggingPart(null);
     };
+
+    // --- Global Hit Discovery (Unlocks Chart Interaction) ---
+    const moveHandler = (e: MouseEvent) => {
+      if (activeTool !== 'none' || draggingId) {
+        setIsHoveringShape(true);
+        return;
+      }
+      
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Hit Discovery: Is the mouse over any drawing?
+      const hit = hitTest(x, y);
+      setIsHoveringShape(!!hit);
+    };
+
     window.addEventListener('keydown', keyHandler);
     window.addEventListener('mouseup', upHandler);
+    window.addEventListener('mousemove', moveHandler);
     return () => {
       window.removeEventListener('keydown', keyHandler);
       window.removeEventListener('mouseup', upHandler);
+      window.removeEventListener('mousemove', moveHandler);
     };
-  }, [selectedId, deleteSelected, onToolChange]);
+  }, [selectedId, deleteSelected, onToolChange, activeTool, draggingId, hitTest]);
 
   const confirmAnnotation = () => {
     if (!annotationDraft || !annotationText.trim()) { setAnnotationDraft(null); return; }
@@ -668,8 +689,11 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       {/* Drawing Canvas Overlay */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 z-30 pointer-events-auto touch-none"
-        style={{ cursor, display: activeTool === 'none' && drawings.length === 0 ? 'none' : 'block' }}
+        className="absolute inset-0 z-30 touch-none"
+        style={{ 
+          cursor, 
+          pointerEvents: (activeTool !== 'none' || draggingId || isHoveringShape) ? 'auto' : 'none'
+        }}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onContextMenu={handleRightClick}
