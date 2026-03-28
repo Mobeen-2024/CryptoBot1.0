@@ -1411,6 +1411,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             { id: 'none', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select', color: '#ffffff' },
             { id: 'trendline', icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4', title: 'Trendline', color: '#00E5FF' },
             { id: 'horizontal', icon: 'M5 12h14', title: 'Support/Resist', color: '#fcd535' },
+            { id: 'long_position', icon: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7 M12 18v-6 M9 15h6', title: 'Long Position', color: '#00FF9D' },
+            { id: 'short_position', icon: 'M13 18v-6 M9 15h6 M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7', title: 'Short Position', color: '#FF007F' },
           ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
             <button
               key={tool.id}
@@ -1781,6 +1783,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           symbol={symbol}
           activeTool={activeTool}
           onToolChange={setActiveTool}
+          data={data}
         />
 
         {/* ── Active Candle Highlight Aura ── */}

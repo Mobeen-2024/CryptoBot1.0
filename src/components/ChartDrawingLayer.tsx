@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type DrawingTool = 'none' | 'trendline' | 'horizontal' | 'annotation';
+export type DrawingTool = 'none' | 'trendline' | 'horizontal' | 'annotation' | 'long_position' | 'short_position';
 
 interface Point { price: number; time: number; }
 
@@ -25,15 +25,25 @@ export interface AnnotationDrawing {
   text: string; color: string;
 }
 
-export type Drawing = TrendLineDrawing | HorizontalDrawing | AnnotationDrawing;
+export interface PositionDrawing {
+  id: string; type: 'long_position' | 'short_position';
+  entryPrice: number; entryTime: number;
+  tpPrice: number;
+  slPrice: number;
+  riskAmount: number; // Mocked risk in USD
+}
+
+export type Drawing = TrendLineDrawing | HorizontalDrawing | AnnotationDrawing | PositionDrawing;
 
 // ─── Color palette for new drawings ──────────────────────────────────────────
 
 const TOOL_COLORS: Record<DrawingTool, string> = {
-  none:       '#ffffff',
-  trendline:  '#00E5FF', // Holo-Cyan
-  horizontal: '#fcd535', // Gold
-  annotation: '#FF007F', // Deep Magenta
+  none:           '#ffffff',
+  trendline:      '#00E5FF', // Holo-Cyan
+  horizontal:     '#fcd535', // Gold
+  annotation:     '#FF007F', // Deep Magenta
+  long_position:  '#00FF9D', // Bullish Green
+  short_position: '#FF007F', // Bearish Pink
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,18 +68,21 @@ interface Props {
   symbol: string;
   activeTool: DrawingTool;
   onToolChange: (t: DrawingTool) => void;
+  data: any[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ChartDrawingLayer: React.FC<Props> = ({
-  chartApi, candleSeries, symbol, activeTool, onToolChange,
+  chartApi, candleSeries, symbol, activeTool, onToolChange, data,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [draftStart, setDraftStart] = useState<{ px: number; py: number; price: number; time: number } | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [draggingPart, setDraggingPart] = useState<'entry' | 'tp' | 'sl' | 'p1' | 'p2' | null>(null);
   const [annotationDraft, setAnnotationDraft] = useState<{ price: number; time: number } | null>(null);
   const [annotationText, setAnnotationText] = useState('');
   const animRef = useRef<number>(0);
@@ -249,6 +262,72 @@ export const ChartDrawingLayer: React.FC<Props> = ({
         }
       }
 
+      if (d.type === 'long_position' || d.type === 'short_position') {
+        const x = timeToX(d.entryTime);
+        const yE = priceToY(d.entryPrice);
+        const yTP = priceToY(d.tpPrice);
+        const ySL = priceToY(d.slPrice);
+
+        if (x != null && yE != null && yTP != null && ySL != null) {
+          const isLong = d.type === 'long_position';
+          const boxWidth = 140; // Modern wide plate
+          
+          // --- TP Box (Green Zone) ---
+          ctx.fillStyle = isLong ? 'rgba(0, 255, 157, 0.15)' : 'rgba(255, 0, 127, 0.15)';
+          const tpRectY = Math.min(yE, yTP);
+          const tpRectH = Math.abs(yE - yTP);
+          ctx.fillRect(x, tpRectY, boxWidth, tpRectH);
+          ctx.strokeStyle = isLong ? '#00FF9D' : '#FF007F';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, tpRectY, boxWidth, tpRectH);
+
+          // --- SL Box (Red Zone) ---
+          ctx.fillStyle = isLong ? 'rgba(255, 0, 127, 0.15)' : 'rgba(0, 255, 157, 0.15)';
+          const slRectY = Math.min(yE, ySL);
+          const slRectH = Math.abs(yE - ySL);
+          ctx.fillRect(x, slRectY, boxWidth, slRectH);
+          ctx.strokeStyle = isLong ? '#FF007F' : '#00FF9D';
+          ctx.strokeRect(x, slRectY, boxWidth, slRectH);
+
+          // --- Metrics calculation ---
+          const risk = Math.abs(d.entryPrice - d.slPrice);
+          const reward = Math.abs(d.tpPrice - d.entryPrice);
+          const ratio = risk > 0 ? (reward / risk).toFixed(2) : '0';
+          const riskPct = ((risk / d.entryPrice) * 100).toFixed(2);
+          const posSize = risk > 0 ? (d.riskAmount / risk).toFixed(4) : '0';
+
+          // --- Glass HUD Overlay ---
+          const hudY = yE - 25;
+          ctx.fillStyle = 'rgba(5, 11, 20, 0.95)';
+          ctx.beginPath();
+          ctx.roundRect(x + 10, hudY - 50, 120, 45, 8);
+          ctx.fill();
+          ctx.strokeStyle = isLong ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 127, 0.4)';
+          ctx.stroke();
+
+          ctx.font = 'bold 10px monospace';
+          ctx.fillStyle = '#fff';
+          ctx.fillText(`Ratio: ${ratio}`, x + 20, hudY - 35);
+          ctx.font = '8px monospace';
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.fillText(`Size: ${posSize} Units`, x + 20, hudY - 22);
+          ctx.fillStyle = isLong ? '#00FF9D' : '#FF007F';
+          ctx.font = 'bold 9px monospace';
+          ctx.fillText(`Risk: -${riskPct}%`, x + 20, hudY - 10);
+
+          // --- Drag Handles (Targeting Nodes) ---
+          if (isSelected) {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#fff';
+            ctx.fillStyle = '#fff';
+            [yE, yTP, ySL].forEach((y) => {
+              ctx.beginPath(); ctx.arc(x + boxWidth, y, 4, 0, Math.PI * 2); ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+          }
+        }
+      }
+
       ctx.restore();
     }
 
@@ -326,28 +405,57 @@ export const ChartDrawingLayer: React.FC<Props> = ({
 
   // ── Hit test for clicking existing drawings ───────────────────────────────
 
-  const hitTest = useCallback((x: number, y: number): string | null => {
+  const hitTest = useCallback((x: number, y: number) => {
     for (let i = drawings.length - 1; i >= 0; i--) {
       const d = drawings[i];
+      
+      // --- Position Drawing Hit Test ---
+      if (d.type === 'long_position' || d.type === 'short_position') {
+        const dx = timeToX(d.entryTime);
+        const yE = priceToY(d.entryPrice);
+        const yTP = priceToY(d.tpPrice);
+        const ySL = priceToY(d.slPrice);
+        const boxWidth = 140;
+
+        if (dx != null && yE != null && yTP != null && ySL != null) {
+          // Check handles at the right edge of the box
+          const hX = dx + boxWidth;
+          if (Math.hypot(x - hX, y - yTP) < 10) return { id: d.id, part: 'tp' as const };
+          if (Math.hypot(x - hX, y - ySL) < 10) return { id: d.id, part: 'sl' as const };
+          if (Math.hypot(x - hX, y - yE) < 10) return { id: d.id, part: 'entry' as const };
+          
+          // Check if clicking anywhere inside the box zones
+          if (x >= dx && x <= dx + boxWidth) {
+            const minY = Math.min(yTP, ySL, yE);
+            const maxY = Math.max(yTP, ySL, yE);
+            if (y >= minY && y <= maxY) return { id: d.id, part: 'entry' as const }; // Drag whole box via entry
+          }
+        }
+      }
+
       if (d.type === 'horizontal') {
         const dy = priceToY(d.price);
-        if (dy != null && Math.abs(dy - y) < 6) return d.id;
+        if (dy != null && Math.abs(dy - y) < 6) return { id: d.id, part: null };
       }
       if (d.type === 'trendline') {
         const x1 = timeToX(d.p1.time); const y1 = priceToY(d.p1.price);
         const x2 = timeToX(d.p2.time); const y2 = priceToY(d.p2.price);
         if (x1 != null && y1 != null && x2 != null && y2 != null) {
+          if (Math.hypot(x - x1, y - y1) < 8) return { id: d.id, part: 'p1' as const };
+          if (Math.hypot(x - x2, y - y2) < 8) return { id: d.id, part: 'p2' as const };
+
           const dx1 = x2 - x1; const dy1 = y2 - y1;
           const len2 = dx1 * dx1 + dy1 * dy1;
-          if (len2 < 1) continue;
-          const t = Math.max(0, Math.min(1, ((x - x1) * dx1 + (y - y1) * dy1) / len2));
-          const dist = Math.hypot(x - (x1 + t * dx1), y - (y1 + t * dy1));
-          if (dist < 6) return d.id;
+          if (len2 > 0) {
+            const t = Math.max(0, Math.min(1, ((x - x1) * dx1 + (y - y1) * dy1) / len2));
+            const dist = Math.hypot(x - (x1 + t * dx1), y - (y1 + t * dy1));
+            if (dist < 6) return { id: d.id, part: null };
+          }
         }
       }
       if (d.type === 'annotation') {
         const ax = timeToX(d.time); const ay = priceToY(d.price);
-        if (ax != null && ay != null && Math.hypot(x - ax, y - ay) < 12) return d.id;
+        if (ax != null && ay != null && Math.hypot(x - ax, y - ay) < 12) return { id: d.id, part: null };
       }
     }
     return null;
@@ -358,8 +466,30 @@ export const ChartDrawingLayer: React.FC<Props> = ({
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }, []);
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setMousePos({ x, y });
+
+    if (draggingId && draggingPart) {
+      const price = xyToPrice(y);
+      const time = xyToTime(x);
+      if (price == null) return;
+
+      setDrawings(prev => prev.map(d => {
+        if (d.id !== draggingId) return d;
+        if (d.type === 'trendline') {
+          if (draggingPart === 'p1') return { ...d, p1: { price, time: time ?? d.p1.time } };
+          if (draggingPart === 'p2') return { ...d, p2: { price, time: time ?? d.p2.time } };
+        }
+        if (d.type === 'long_position' || d.type === 'short_position') {
+          if (draggingPart === 'entry') return { ...d, entryPrice: price };
+          if (draggingPart === 'tp') return { ...d, tpPrice: price };
+          if (draggingPart === 'sl') return { ...d, slPrice: price };
+        }
+        return d;
+      }));
+    }
+  }, [draggingId, draggingPart, xyToPrice, xyToTime]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -372,7 +502,11 @@ export const ChartDrawingLayer: React.FC<Props> = ({
 
     if (activeTool === 'none') {
       const hit = hitTest(px, py);
-      setSelectedId(hit);
+      setSelectedId(hit?.id ?? null);
+      if (hit?.id && hit?.part) {
+        setDraggingId(hit.id);
+        setDraggingPart(hit.part);
+      }
       return;
     }
 
@@ -405,12 +539,40 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       return;
     }
 
+    if ((activeTool === 'long_position' || activeTool === 'short_position') && price != null && time != null) {
+      // Intelligent ATR-Based Defaults
+      let activeAtr = 0;
+      const targetCandle = data.find(d => d.time === time) || data[data.length - 1]; // Fallback to last
+      if (targetCandle?.atr) activeAtr = targetCandle.atr;
+      else {
+        // Fallback: estimate ATR as 1% of price
+        activeAtr = price * 0.01;
+      }
+
+      const isLong = activeTool === 'long_position';
+      const slDist = activeAtr * 1.5;
+      const tpDist = activeAtr * 3.0; // 1:2 default R:R
+
+      const p: PositionDrawing = {
+        id: uid(),
+        type: activeTool,
+        entryPrice: price,
+        entryTime: time,
+        slPrice: isLong ? price - slDist : price + slDist,
+        tpPrice: isLong ? price + tpDist : price - tpDist,
+        riskAmount: 100, // Mock $100 risk
+      };
+      setDrawings(prev => [...prev, p]);
+      onToolChange('none');
+      return;
+    }
+
     if (activeTool === 'annotation' && price != null && time != null) {
       setAnnotationDraft({ price, time });
       setAnnotationText('');
       return;
     }
-  }, [activeTool, draftStart, hitTest, xyToPrice, xyToTime, onToolChange]);
+  }, [activeTool, draftStart, hitTest, xyToPrice, xyToTime, onToolChange, data]);
 
   const handleRightClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -427,7 +589,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
   }, [selectedId]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const keyHandler = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         e.preventDefault();
         deleteSelected();
@@ -438,8 +600,16 @@ export const ChartDrawingLayer: React.FC<Props> = ({
         onToolChange('none');
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    const upHandler = () => {
+      setDraggingId(null);
+      setDraggingPart(null);
+    };
+    window.addEventListener('keydown', keyHandler);
+    window.addEventListener('mouseup', upHandler);
+    return () => {
+      window.removeEventListener('keydown', keyHandler);
+      window.removeEventListener('mouseup', upHandler);
+    };
   }, [selectedId, deleteSelected, onToolChange]);
 
   const confirmAnnotation = () => {
@@ -486,9 +656,11 @@ export const ChartDrawingLayer: React.FC<Props> = ({
   // ── Cursor ────────────────────────────────────────────────────────────────
 
   const cursor =
-    activeTool === 'none' ? 'default' :
+    draggingId ? 'grabbing' :
+    activeTool === 'none' ? (hitTest(mousePos?.x ?? 0, mousePos?.y ?? 0) ? 'pointer' : 'default') :
     activeTool === 'horizontal' ? 'row-resize' :
     activeTool === 'trendline' ? 'crosshair' :
+    activeTool === 'long_position' || activeTool === 'short_position' ? 'crosshair' :
     activeTool === 'annotation' ? 'cell' : 'default';
 
   return (
