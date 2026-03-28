@@ -273,21 +273,21 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           const isLong = d.type === 'long_position';
           const boxWidth = 140; // Modern wide plate
           
-          // --- TP Box (Green Zone) ---
-          ctx.fillStyle = isLong ? 'rgba(0, 255, 157, 0.15)' : 'rgba(255, 0, 127, 0.15)';
+          // --- TP Box (Success Zone) ---
+          ctx.fillStyle = 'rgba(0, 255, 157, 0.15)';
           const tpRectY = Math.min(yE, yTP);
           const tpRectH = Math.abs(yE - yTP);
           ctx.fillRect(x, tpRectY, boxWidth, tpRectH);
-          ctx.strokeStyle = isLong ? '#00FF9D' : '#FF007F';
+          ctx.strokeStyle = '#00FF9D';
           ctx.lineWidth = 1;
           ctx.strokeRect(x, tpRectY, boxWidth, tpRectH);
 
-          // --- SL Box (Red Zone) ---
-          ctx.fillStyle = isLong ? 'rgba(255, 0, 127, 0.15)' : 'rgba(0, 255, 157, 0.15)';
+          // --- SL Box (Risk Zone) ---
+          ctx.fillStyle = 'rgba(255, 0, 127, 0.15)';
           const slRectY = Math.min(yE, ySL);
           const slRectH = Math.abs(yE - ySL);
           ctx.fillRect(x, slRectY, boxWidth, slRectH);
-          ctx.strokeStyle = isLong ? '#FF007F' : '#00FF9D';
+          ctx.strokeStyle = '#FF007F';
           ctx.strokeRect(x, slRectY, boxWidth, slRectH);
 
           // --- Metrics calculation ---
@@ -298,10 +298,11 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           const posSize = risk > 0 ? (d.riskAmount / risk).toFixed(4) : '0';
 
           // --- Glass HUD Overlay ---
+          // Position HUD centered over entry to avoid handle occlusion
           const hudY = yE - 25;
           ctx.fillStyle = 'rgba(5, 11, 20, 0.95)';
           ctx.beginPath();
-          ctx.roundRect(x + 10, hudY - 50, 120, 45, 8);
+          ctx.roundRect(x + 10, hudY - 50, 120, 52, 8); // Extra height for padding
           ctx.fill();
           ctx.strokeStyle = isLong ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 127, 0.4)';
           ctx.stroke();
@@ -312,7 +313,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           ctx.font = '8px monospace';
           ctx.fillStyle = 'rgba(255,255,255,0.6)';
           ctx.fillText(`Size: ${posSize} Units`, x + 20, hudY - 22);
-          ctx.fillStyle = isLong ? '#00FF9D' : '#FF007F';
+          ctx.fillStyle = '#FF007F'; // Risk is always red
           ctx.font = 'bold 9px monospace';
           ctx.fillText(`Risk: -${riskPct}%`, x + 20, hudY - 10);
 

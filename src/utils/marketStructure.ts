@@ -4,16 +4,21 @@ export interface MarketNode {
   type: 'HH' | 'HL' | 'LH' | 'LL';
   isBreakOfStructure: boolean;
   isRoleReversal: boolean;
+  isExternal: boolean; 
   index: number;
 }
 
 export interface StructuralLevel {
   id: string;
-  price: number;
+  priceWick: number;
+  priceBody: number;
+  pricePOC: number; // Point of Control (where max volume occurred)
   startTime: number | string;
   type: 'support' | 'resistance';
   isBroken: boolean;
-  isFlipped: boolean; // Role Reversal indicator
+  brokenAtIdx?: number;
+  intent: 'Stop Run / Sweep' | 'Aggressive Accumulation' | 'Standard Rejection';
+  strengthScore: number; // 0-100
 }
 
 export interface Trendline {
@@ -21,36 +26,58 @@ export interface Trendline {
   start: { time: number | string; price: number };
   end: { time: number | string; price: number };
   type: 'bullish' | 'bearish';
-  isProven: boolean; // 3+ touches
+  isProven: boolean; 
+}
+
+export interface LiquidityGrab {
+  time: number | string;
+  price: number;
+  type: 'sweep_high' | 'sweep_low';
+  description: string;
 }
 
 export interface MarketStructureAnalysis {
   nodes: MarketNode[];
   levels: StructuralLevel[];
   trendlines: Trendline[];
+  grabs: LiquidityGrab[];
+}
+
+function getSessionWeight(time: number | string): number {
+  const date = new Date(typeof time === 'string' ? time : (time * 1000));
+  const hour = date.getUTCHours();
+  
+  // London: 08:00 - 16:00 UTC
+  // NY: 13:00 - 21:00 UTC
+  // Overlap: 13:00 - 16:00 UTC
+  if (hour >= 13 && hour <= 16) return 2.0; // Mega Weight
+  if (hour >= 8 && hour < 13) return 1.5;   // London Heavy
+  if (hour > 16 && hour <= 21) return 1.5;  // NY Heavy
+  return 0.8; // Asian / Quiet hours
 }
 
 export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
-  if (!data || data.length < lb * 2 + 1) return { nodes: [], levels: [], trendlines: [] };
+  if (!data || data.length < lb * 2 + 1) return { nodes: [], levels: [], trendlines: [], grabs: [] };
 
   const nodes: MarketNode[] = [];
+  const grabs: LiquidityGrab[] = [];
   let currentTrend: 'BULLISH' | 'BEARISH' = 'BULLISH';
   
   let lastHigh: number | null = null;
   let lastLow: number | null = null;
-  
-  // Track Resistance = Peak, Support = Valley
-  let lastResistance: number | null = null;
-  let lastSupport: number | null = null;
 
   const rawLevels: StructuralLevel[] = [];
-  
-  // Track if a BOS occurred on the current leg
   let pendingBullishBOS = false;
   let pendingBearishBOS = false;
+
+  // Track the rolling mean volume for relative strength calculation
+  const volBuffer = data.slice(-20).map(d => d.volume);
+  const avgVol = (volBuffer.reduce((a, b) => a + b, 0) / (volBuffer.length || 1)) || 1;
   
   for (let i = lb; i < data.length - lb; i++) {
     const currentClose = data[i].close;
+    const currentHigh = data[i].high;
+    const currentLow = data[i].low;
 
     // --- Break of Structure (BOS) Live Check ---
     if (currentTrend === 'BULLISH' && lastLow !== null && currentClose < lastLow) {
@@ -62,144 +89,152 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       pendingBullishBOS = true;
     }
 
-    // --- Pivot High Detection ---
-    let isPH = true;
-    for (let j = 1; j <= lb; j++) {
-      if (data[i - j].high > data[i].high || data[i + j].high > data[i].high) {
-        isPH = false;
-        break;
-      }
+    // --- Liquidity Grab (Sweep) Detection ---
+    if (lastHigh !== null && currentHigh > lastHigh && currentClose < lastHigh) {
+       grabs.push({ time: data[i].time, price: currentHigh, type: 'sweep_high', description: 'Liquidity Grab (Buy Stop Run)' });
+    }
+    if (lastLow !== null && currentLow < lastLow && currentClose > lastLow) {
+       grabs.push({ time: data[i].time, price: currentLow, type: 'sweep_low', description: 'Liquidity Grab (Sell Stop Run)' });
     }
 
-    if (isPH) {
+    const checkPH = (idx: number, look: number) => {
+      if (idx - look < 0 || idx + look >= data.length) return false;
+      for (let j = 1; j <= look; j++) if (data[idx-j].high > data[idx].high || data[idx+j].high > data[idx].high) return false;
+      return true;
+    };
+    const checkPL = (idx: number, look: number) => {
+      if (idx - look < 0 || idx + look >= data.length) return false;
+      for (let j = 1; j <= look; j++) if (data[idx-j].low < data[idx].low || data[idx+j].low < data[idx].low) return false;
+      return true;
+    };
+
+    const isPH_Ext = checkPH(i, lb * 3);
+    const isPH_Int = checkPH(i, lb);
+    const isPL_Ext = checkPL(i, lb * 3);
+    const isPL_Int = checkPL(i, lb);
+
+    if (isPH_Int) {
       const price = data[i].high;
-      let type: 'HH' | 'LH' = lastHigh === null ? (currentTrend === 'BULLISH' ? 'HH' : 'LH') : (price > lastHigh ? 'HH' : 'LH');
+      const body = Math.max(data[i].open, data[i].close);
+      const sessionWeight = getSessionWeight(data[i].time);
+      const rvol = (data[i].volume / avgVol) * sessionWeight;
+      const strengthScore = Math.min(Math.round(rvol * 50), 100);
 
-      // Role Reversal Logic
-      let isRoleReversal = false;
-      if (type === 'LH' && lastSupport !== null) {
-         if (Math.abs(price - lastSupport) / lastSupport < 0.002) isRoleReversal = true;
-      }
+      // POC Alignment Logic
+      const wickHeight = price - body;
+      const bodyHeight = body - Math.min(data[i].open, data[i].close);
+      const isWickPOC = wickHeight > bodyHeight; 
 
-      nodes.push({
-        time: data[i].time,
-        price,
-        type,
-        isBreakOfStructure: pendingBullishBOS,
-        isRoleReversal,
-        index: i
-      });
-
-      // Register level
       rawLevels.push({
         id: `lvl_h_${data[i].time}`,
-        price,
+        priceWick: price,
+        priceBody: body,
+        pricePOC: isWickPOC ? price - (wickHeight * 0.3) : body + (wickHeight * 0.3),
         startTime: data[i].time,
         type: 'resistance',
         isBroken: false,
-        isFlipped: isRoleReversal
+        intent: isWickPOC ? 'Stop Run / Sweep' : 'Aggressive Accumulation',
+        strengthScore
       });
-      
-      if (pendingBullishBOS) pendingBullishBOS = false;
-      lastResistance = price;
-      lastHigh = price;
-    }
-
-    // --- Pivot Low Detection ---
-    let isPL = true;
-    for (let j = 1; j <= lb; j++) {
-      if (data[i - j].low < data[i].low || data[i + j].low < data[i].low) {
-        isPL = false;
-        break;
-      }
-    }
-
-    if (isPL) {
-      const price = data[i].low;
-      let type: 'LL' | 'HL' = lastLow === null ? (currentTrend === 'BEARISH' ? 'LL' : 'HL') : (price < lastLow ? 'LL' : 'HL');
-
-      let isRoleReversal = false;
-      if (type === 'HL' && lastResistance !== null) {
-         if (Math.abs(price - lastResistance) / lastResistance < 0.002) isRoleReversal = true;
-      }
 
       nodes.push({
         time: data[i].time,
         price,
-        type,
-        isBreakOfStructure: pendingBearishBOS,
-        isRoleReversal,
+        type: lastHigh === null || price > lastHigh ? 'HH' : 'LH',
+        isBreakOfStructure: pendingBullishBOS,
+        isRoleReversal: false,
+        isExternal: isPH_Ext,
         index: i
       });
+      lastHigh = price;
+      if (pendingBullishBOS) pendingBullishBOS = false;
+    }
 
-      // Register level
+    if (isPL_Int) {
+      const price = data[i].low;
+      const body = Math.min(data[i].open, data[i].close);
+      const sessionWeight = getSessionWeight(data[i].time);
+      const rvol = (data[i].volume / avgVol) * sessionWeight;
+      const strengthScore = Math.min(Math.round(rvol * 50), 100);
+
+      const wickHeight = body - price;
+      const bodyHeight = Math.max(data[i].open, data[i].close) - body;
+      const isWickPOC = wickHeight > bodyHeight;
+
       rawLevels.push({
         id: `lvl_l_${data[i].time}`,
-        price,
+        priceWick: price,
+        priceBody: body,
+        pricePOC: isWickPOC ? price + (wickHeight * 0.3) : body - (wickHeight * 0.3),
         startTime: data[i].time,
         type: 'support',
         isBroken: false,
-        isFlipped: isRoleReversal
+        intent: isWickPOC ? 'Stop Run / Sweep' : 'Aggressive Accumulation',
+        strengthScore
       });
-      
-      if (pendingBearishBOS) pendingBearishBOS = false;
+
+      nodes.push({
+        time: data[i].time,
+        price,
+        type: lastLow === null || price < lastLow ? 'LL' : 'HL',
+        isBreakOfStructure: pendingBearishBOS,
+        isRoleReversal: false,
+        isExternal: isPL_Ext,
+        index: i
+      });
       lastLow = price;
-      lastSupport = price;
+      if (pendingBearishBOS) pendingBearishBOS = false;
     }
 
-    // Dynamic Level Maintenance: Check for Breaches
-    const lastPrice = data[i].close;
+    // Dynamic Breaches with Ghost State Tracking
     rawLevels.forEach(lvl => {
       if (!lvl.isBroken) {
-        if (lvl.type === 'resistance' && lastPrice > lvl.price) {
-          lvl.isBroken = true;
-          // When Resistance breaks, it becomes Support (Potential Role Reversal)
-          lvl.type = 'support';
-          lvl.isFlipped = true;
-        } else if (lvl.type === 'support' && lastPrice < lvl.price) {
-          lvl.isBroken = true;
-          // When Support breaks, it becomes Resistance
-          lvl.type = 'resistance';
-          lvl.isFlipped = true;
+        if (lvl.type === 'resistance' && currentClose > lvl.priceWick) {
+           lvl.isBroken = true;
+           lvl.brokenAtIdx = i;
+        }
+        if (lvl.type === 'support' && currentClose < lvl.priceWick) {
+           lvl.isBroken = true;
+           lvl.brokenAtIdx = i;
         }
       }
     });
   }
 
-  // Final Filtering: Only return the most significant levels
-  const activeLevels = rawLevels.filter(l => !l.isBroken).slice(-10); // Last 10 unbroken
-  const brokenLevels = rawLevels.filter(l => l.isBroken).slice(-5);   // Last 5 recently broken
+  const activeDataRangeStart = data.length - 100;
+  const filteredLevels = rawLevels.filter(l => {
+    if (!l.isBroken) return true;
+    // Ghost Zones (Keep for 10 candles after break)
+    return (data.length - 1 - (l.brokenAtIdx || 0)) <= 10;
+  });
 
-  // Trendline Logic (Simple 3-touch bridge)
   const trendlines: Trendline[] = [];
-  const hls = nodes.filter(n => n.type === 'HL');
-  const lhs = nodes.filter(n => n.type === 'LH');
+  const hls = nodes.filter(n => n.type === 'HL' && n.isExternal);
+  const lhs = nodes.filter(n => n.type === 'LH' && n.isExternal);
 
   const generateLine = (points: MarketNode[], type: 'bullish' | 'bearish') => {
     if (points.length < 2) return;
-    for (let startIdx = 0; startIdx < points.length - 1; startIdx++) {
-      const p1 = points[startIdx];
-      const p2 = points[points.length - 1]; // Connect to the most recent HL/LH
-      
-      trendlines.push({
-        id: `trnd_${type}_${p1.time}`,
-        start: { time: p1.time, price: p1.price },
-        end: { time: p2.time, price: p2.price },
-        type,
-        isProven: points.length >= 3
-      });
-    }
+    const p1 = points[points.length - 2];
+    const p2 = points[points.length - 1];
+    trendlines.push({
+      id: `trnd_${type}_${p1.time}`,
+      start: { time: p1.time, price: p1.price },
+      end: { time: p2.time, price: p2.price },
+      type,
+      isProven: points.length >= 3
+    });
   };
 
-  generateLine(hls.slice(-3), 'bullish');
-  generateLine(lhs.slice(-3), 'bearish');
-
-  nodes.sort((a, b) => a.index - b.index);
+  generateLine(hls, 'bullish');
+  generateLine(lhs, 'bearish');
 
   return {
-    nodes,
-    levels: [...activeLevels, ...brokenLevels],
-    trendlines: trendlines.slice(-4)
+    nodes: nodes.sort((a, b) => a.index - b.index),
+    levels: filteredLevels.slice(-15),
+    trendlines: trendlines.slice(-4),
+    grabs: grabs.slice(-10)
   };
 }
+
+
 
