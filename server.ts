@@ -738,10 +738,12 @@ async function startServer() {
           const pendingOrderId = `sim_pending_${Date.now()}`;
           const computedType = (takeProfit || slTrigger) ? 'oco' : orderType;
 
-          // Cancel old pending shadow orders for the same symbol & side (e.g., replacing old TP/SL)
+          // Cancel old pending shadow orders for the same symbol, side & marginMode (e.g., replacing old TP/SL)
+          const expectedMarginMode = marginMode ? marginMode.toLowerCase() : undefined;
           for (let reverseIdx = pendingShadowOrders.length - 1; reverseIdx >= 0; reverseIdx--) {
             const o = pendingShadowOrders[reverseIdx];
-            if (o.symbol === ccxtSymbol && o.status === 'open' && o.side === orderSide) {
+            const currentOrderMarginMode = o.marginMode ? o.marginMode.toLowerCase() : undefined;
+            if (o.symbol === ccxtSymbol && o.status === 'open' && o.side === orderSide && currentOrderMarginMode === expectedMarginMode) {
               updatePendingShadowOrderStatus(o.id, 'canceled');
               pendingShadowOrders.splice(reverseIdx, 1);
             }
@@ -751,7 +753,7 @@ async function startServer() {
             id: pendingOrderId, symbol: ccxtSymbol, side: orderSide, type: computedType,
             amount: amount, limitPrice: Number(takeProfit || price),
             stopPrice: Number(slTrigger || stopPrice),
-            marginMode, baseAsset, quoteAsset, balanceAsset,
+            marginMode: expectedMarginMode, baseAsset, quoteAsset, balanceAsset,
             status: 'open'
           };
 
@@ -1036,7 +1038,13 @@ async function startServer() {
       // Attach any open pending shadow orders as TP / SL targets
       const augmentedPositions = activePositions.map(pos => {
         const cleanPosSymbol = pos.symbol.replace('-ISOLATED', '').replace('-CROSS', '').replace('/', '');
-        const matchingOrders = pendingShadowOrders.filter((o: any) => o.status === 'open' && o.symbol.replace('/', '') === cleanPosSymbol);
+        const expectedMarginMode = pos.symbol.includes('-ISOLATED') ? 'isolated' : (pos.symbol.includes('-CROSS') ? 'cross' : undefined);
+        const matchingOrders = pendingShadowOrders.filter((o: any) => {
+          const currentOrderMarginMode = o.marginMode ? o.marginMode.toLowerCase() : undefined;
+          return o.status === 'open' && 
+                 o.symbol.replace('/', '') === cleanPosSymbol &&
+                 currentOrderMarginMode === expectedMarginMode;
+        });
 
         let tpPrice: number | undefined = undefined;
         let slPrice: number | undefined = undefined;
