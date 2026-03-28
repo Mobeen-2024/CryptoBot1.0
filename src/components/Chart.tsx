@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
+import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
 import { analyzeEngulfing } from '../utils/patternDetection';
 import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlestickPatterns';
+import { analyzeMarketStructure } from '../utils/marketStructure';
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -31,6 +32,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<any>(null);
+  const markersPluginRef = useRef<any>(null);
   const mainLineSeriesRef = useRef<any>(null);
   const supertrendSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
@@ -65,6 +67,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [showAvgLines, setShowAvgLines] = useState(false);
   const [showEngulfing, setShowEngulfing] = useState(false);
   const [showPatternBox, setShowPatternBox] = useState(false);
+  const [showStructure, setShowStructure] = useState(false);
   const [crosshairData, setCrosshairData] = useState<{
     time: string | number;
     open: number;
@@ -245,7 +248,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       mainLineSeriesRef.current = mainLineSeries;
       mainLineSeries.setData(data.filter(d => d.close != null).map((d: any) => ({ time: d.time, value: d.close })));
 
-      // Dummy markers removed. Will be set by trades useEffect.
+      // Initialize v5 Markers Plugin
+      const msPlugin = createSeriesMarkers(candlestickSeries);
+      markersPluginRef.current = msPlugin;
 
       const supertrendSeries = chart.addSeries(AreaSeries, {
         lineType: 2, // LineType.WithSteps
@@ -1285,6 +1290,48 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     setPatternMarkers(newPatternMarkers);
   }, [data, config?.patternOverlay, showEngulfing]);
 
+  // Execute Market Structure Kernel (Injects Natively via setMarkers)
+  useEffect(() => {
+    try {
+      const markersPlugin = markersPluginRef.current;
+      if (!markersPlugin) return;
+
+      if (showStructure && data && data.length > 0) {
+        const nodes = analyzeMarketStructure(data, 5); // 5-candle default lookback matching user constraints
+        
+        const chartMarkers: any[] = [];
+        nodes.forEach(node => {
+          const isBullish = node.type === 'HH' || node.type === 'HL';
+          const isPeak = node.type === 'HH' || node.type === 'LH';
+          
+          let structuralLabel = node.type;
+          if (node.isBreakOfStructure) structuralLabel += ' [BOS]';
+          if (node.isRoleReversal) structuralLabel += ' ⟳';
+          
+          chartMarkers.push({
+            time: node.time,
+            position: isPeak ? 'aboveBar' : 'belowBar',
+            color: isBullish ? '#34d399' : '#f43f5e',
+            shape: isPeak ? 'arrowDown' : 'arrowUp',
+            text: structuralLabel
+          });
+        });
+
+        const deduplicated = chartMarkers.filter((m, i, arr) => {
+           if (i === 0) return true;
+           return m.time !== arr[i-1].time;
+        });
+        
+        markersPlugin.setMarkers(deduplicated);
+      } else {
+        // Safe clear
+        markersPlugin.setMarkers([]);
+      }
+    } catch (err) {
+      console.error("[Chart] Fatal error running Market Structure:", err);
+    }
+  }, [data, showStructure]);
+
   // Sync Open Orders to Price Lines
   useEffect(() => {
     const series = seriesRef.current;
@@ -1397,6 +1444,14 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                     <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-white" />
                   </div>
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">Box Over</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showStructure} onChange={e => setShowStructure(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#00f0ff]/20 peer-checked:border-[#00f0ff]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#00f0ff] peer-checked:shadow-[0_0_10px_#00f0ff]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#00f0ff]/40 group-hover/toggle:text-[#00f0ff] transition-colors font-mono">Structure Nodes</span>
                 </label>
               </div>
             </div>
