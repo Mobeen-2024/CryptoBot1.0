@@ -7,8 +7,31 @@ export interface MarketNode {
   index: number;
 }
 
-export function analyzeMarketStructure(data: any[], lb: number = 5): MarketNode[] {
-  if (!data || data.length < lb * 2 + 1) return [];
+export interface StructuralLevel {
+  id: string;
+  price: number;
+  startTime: number | string;
+  type: 'support' | 'resistance';
+  isBroken: boolean;
+  isFlipped: boolean; // Role Reversal indicator
+}
+
+export interface Trendline {
+  id: string;
+  start: { time: number | string; price: number };
+  end: { time: number | string; price: number };
+  type: 'bullish' | 'bearish';
+  isProven: boolean; // 3+ touches
+}
+
+export interface MarketStructureAnalysis {
+  nodes: MarketNode[];
+  levels: StructuralLevel[];
+  trendlines: Trendline[];
+}
+
+export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
+  if (!data || data.length < lb * 2 + 1) return { nodes: [], levels: [], trendlines: [] };
 
   const nodes: MarketNode[] = [];
   let currentTrend: 'BULLISH' | 'BEARISH' = 'BULLISH';
@@ -16,11 +39,13 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketNode[
   let lastHigh: number | null = null;
   let lastLow: number | null = null;
   
-  // Resistance = Peak, Support = Valley
+  // Track Resistance = Peak, Support = Valley
   let lastResistance: number | null = null;
   let lastSupport: number | null = null;
 
-  // Track if a BOS occurred on the current leg so we can tag the next valid pivot
+  const rawLevels: StructuralLevel[] = [];
+  
+  // Track if a BOS occurred on the current leg
   let pendingBullishBOS = false;
   let pendingBearishBOS = false;
   
@@ -28,7 +53,6 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketNode[
     const currentClose = data[i].close;
 
     // --- Break of Structure (BOS) Live Check ---
-    // A single candle closing significantly past the last structural point flips the trend.
     if (currentTrend === 'BULLISH' && lastLow !== null && currentClose < lastLow) {
       currentTrend = 'BEARISH';
       pendingBearishBOS = true;
@@ -49,19 +73,12 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketNode[
 
     if (isPH) {
       const price = data[i].high;
-      
-      let type: 'HH' | 'LH' = 'HH';
-      if (lastHigh === null) {
-        type = currentTrend === 'BULLISH' ? 'HH' : 'LH';
-      } else {
-        type = price > lastHigh ? 'HH' : 'LH';
-      }
+      let type: 'HH' | 'LH' = lastHigh === null ? (currentTrend === 'BULLISH' ? 'HH' : 'LH') : (price > lastHigh ? 'HH' : 'LH');
 
-      // Role Reversal: Does this LH bounce exactly on the last Support (old LL)?
+      // Role Reversal Logic
       let isRoleReversal = false;
       if (type === 'LH' && lastSupport !== null) {
-         const diff = Math.abs(price - lastSupport) / lastSupport;
-         if (diff < 0.002) isRoleReversal = true; // 0.2% tolerance zone
+         if (Math.abs(price - lastSupport) / lastSupport < 0.002) isRoleReversal = true;
       }
 
       nodes.push({
@@ -72,10 +89,18 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketNode[
         isRoleReversal,
         index: i
       });
+
+      // Register level
+      rawLevels.push({
+        id: `lvl_h_${data[i].time}`,
+        price,
+        startTime: data[i].time,
+        type: 'resistance',
+        isBroken: false,
+        isFlipped: isRoleReversal
+      });
       
-      // Reset BOS flag because we applied it to this peak
       if (pendingBullishBOS) pendingBullishBOS = false;
-      
       lastResistance = price;
       lastHigh = price;
     }
@@ -91,19 +116,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketNode[
 
     if (isPL) {
       const price = data[i].low;
-      
-      let type: 'LL' | 'HL' = 'LL';
-      if (lastLow === null) {
-        type = currentTrend === 'BEARISH' ? 'LL' : 'HL';
-      } else {
-        type = price < lastLow ? 'LL' : 'HL';
-      }
+      let type: 'LL' | 'HL' = lastLow === null ? (currentTrend === 'BEARISH' ? 'LL' : 'HL') : (price < lastLow ? 'LL' : 'HL');
 
-      // Role Reversal: Does this HL bounce exactly on the last Resistance (old HH)?
       let isRoleReversal = false;
       if (type === 'HL' && lastResistance !== null) {
-         const diff = Math.abs(price - lastResistance) / lastResistance;
-         if (diff < 0.002) isRoleReversal = true;
+         if (Math.abs(price - lastResistance) / lastResistance < 0.002) isRoleReversal = true;
       }
 
       nodes.push({
@@ -114,14 +131,75 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketNode[
         isRoleReversal,
         index: i
       });
+
+      // Register level
+      rawLevels.push({
+        id: `lvl_l_${data[i].time}`,
+        price,
+        startTime: data[i].time,
+        type: 'support',
+        isBroken: false,
+        isFlipped: isRoleReversal
+      });
       
       if (pendingBearishBOS) pendingBearishBOS = false;
-
-      lastSupport = price;
       lastLow = price;
+      lastSupport = price;
     }
+
+    // Dynamic Level Maintenance: Check for Breaches
+    const lastPrice = data[i].close;
+    rawLevels.forEach(lvl => {
+      if (!lvl.isBroken) {
+        if (lvl.type === 'resistance' && lastPrice > lvl.price) {
+          lvl.isBroken = true;
+          // When Resistance breaks, it becomes Support (Potential Role Reversal)
+          lvl.type = 'support';
+          lvl.isFlipped = true;
+        } else if (lvl.type === 'support' && lastPrice < lvl.price) {
+          lvl.isBroken = true;
+          // When Support breaks, it becomes Resistance
+          lvl.type = 'resistance';
+          lvl.isFlipped = true;
+        }
+      }
+    });
   }
 
+  // Final Filtering: Only return the most significant levels
+  const activeLevels = rawLevels.filter(l => !l.isBroken).slice(-10); // Last 10 unbroken
+  const brokenLevels = rawLevels.filter(l => l.isBroken).slice(-5);   // Last 5 recently broken
+
+  // Trendline Logic (Simple 3-touch bridge)
+  const trendlines: Trendline[] = [];
+  const hls = nodes.filter(n => n.type === 'HL');
+  const lhs = nodes.filter(n => n.type === 'LH');
+
+  const generateLine = (points: MarketNode[], type: 'bullish' | 'bearish') => {
+    if (points.length < 2) return;
+    for (let startIdx = 0; startIdx < points.length - 1; startIdx++) {
+      const p1 = points[startIdx];
+      const p2 = points[points.length - 1]; // Connect to the most recent HL/LH
+      
+      trendlines.push({
+        id: `trnd_${type}_${p1.time}`,
+        start: { time: p1.time, price: p1.price },
+        end: { time: p2.time, price: p2.price },
+        type,
+        isProven: points.length >= 3
+      });
+    }
+  };
+
+  generateLine(hls.slice(-3), 'bullish');
+  generateLine(lhs.slice(-3), 'bearish');
+
   nodes.sort((a, b) => a.index - b.index);
-  return nodes;
+
+  return {
+    nodes,
+    levels: [...activeLevels, ...brokenLevels],
+    trendlines: trendlines.slice(-4)
+  };
 }
+

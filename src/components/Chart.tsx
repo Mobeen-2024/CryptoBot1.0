@@ -62,12 +62,17 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const kdjJRef = useRef<any>(null);
 
   const openOrderLinesRef = useRef<Map<string, any>>(new Map());
+  const structuralLevelsRef = useRef<Map<string, any>>(new Map());
+  const trendlineSeriesRef = useRef<any[]>([]);
   const [avgPositions, setAvgPositions] = useState({ buy: -100, sell: -100, buyPrice: 0, sellPrice: 0 });
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
   const [showAvgLines, setShowAvgLines] = useState(false);
   const [showEngulfing, setShowEngulfing] = useState(false);
   const [showPatternBox, setShowPatternBox] = useState(false);
   const [showStructure, setShowStructure] = useState(false);
+  const [showStructuralLevels, setShowStructuralLevels] = useState(false);
+  const [showTrendlines, setShowTrendlines] = useState(false);
+  const [showGoldenZone, setShowGoldenZone] = useState(false);
   const [crosshairData, setCrosshairData] = useState<{
     time: string | number;
     open: number;
@@ -1293,44 +1298,121 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   // Execute Market Structure Kernel (Injects Natively via setMarkers)
   useEffect(() => {
     try {
+      const series = seriesRef.current;
       const markersPlugin = markersPluginRef.current;
-      if (!markersPlugin) return;
+      const chart = chartRef.current;
+      if (!series || !markersPlugin || !chart) return;
 
-      if (showStructure && data && data.length > 0) {
-        const nodes = analyzeMarketStructure(data, 5); // 5-candle default lookback matching user constraints
+      // Clean old structural artifacts
+      structuralLevelsRef.current.forEach(line => series.removePriceLine(line));
+      structuralLevelsRef.current.clear();
+      trendlineSeriesRef.current.forEach(s => chart.removeSeries(s));
+      trendlineSeriesRef.current = [];
+
+      if ((showStructure || showStructuralLevels || showTrendlines) && data && data.length > 0) {
+        const analysis = analyzeMarketStructure(data, 5); 
+        const { nodes, levels, trendlines: tlData } = analysis;
         
         const chartMarkers: any[] = [];
-        nodes.forEach(node => {
-          const isBullish = node.type === 'HH' || node.type === 'HL';
-          const isPeak = node.type === 'HH' || node.type === 'LH';
-          
-          let structuralLabel = node.type;
-          if (node.isBreakOfStructure) structuralLabel += ' [BOS]';
-          if (node.isRoleReversal) structuralLabel += ' ⟳';
-          
-          chartMarkers.push({
-            time: node.time,
-            position: isPeak ? 'aboveBar' : 'belowBar',
-            color: isBullish ? '#34d399' : '#f43f5e',
-            shape: isPeak ? 'arrowDown' : 'arrowUp',
-            text: structuralLabel
-          });
-        });
-
-        const deduplicated = chartMarkers.filter((m, i, arr) => {
-           if (i === 0) return true;
-           return m.time !== arr[i-1].time;
-        });
         
+        // 1. Render Basic Nodes (HH/LL/BOS)
+        if (showStructure) {
+          nodes.forEach(node => {
+            const isBullish = node.type === 'HH' || node.type === 'HL';
+            const isPeak = node.type === 'HH' || node.type === 'LH';
+            let structuralLabel: string | undefined = undefined;
+            if (node.isBreakOfStructure) structuralLabel = `${node.type} [BOS]`;
+            else if (node.isRoleReversal) structuralLabel = `${node.type} ⟳`;
+            
+            chartMarkers.push({
+              time: node.time,
+              position: isPeak ? 'aboveBar' : 'belowBar',
+              color: isBullish ? '#34d399' : '#f43f5e',
+              shape: isPeak ? 'arrowDown' : 'arrowUp',
+              text: structuralLabel
+            });
+          });
+        }
+
+        // 2. Identify Golden Zones (Confluence of Pattern + Level)
+        if (showGoldenZone) {
+          const patterns = patternMarkersRef.current || [];
+          patterns.forEach(pm => {
+            const isBullishSignal = pm.type === 'BULLISH';
+            const isBearishSignal = pm.type === 'BEARISH';
+            if (!isBullishSignal && !isBearishSignal) return;
+
+            // Find an active structural level near this pattern
+            const price = isBullishSignal ? pm.low : pm.high;
+            const level = levels.find(l => {
+              const diff = Math.abs(price - l.price) / l.price;
+              return diff < 0.002; // 0.2% tolerance for confluence
+            });
+
+            if (level) {
+              // T.L.S. Match! (Trend - implicit in level type, Level - found, Signal - pm)
+              chartMarkers.push({
+                time: pm.time,
+                position: isBullishSignal ? 'belowBar' : 'aboveBar',
+                color: '#fcd535', // Gold for Golden Zone
+                shape: isBullishSignal ? 'arrowUp' : 'arrowDown',
+                text: '★ GOLDEN ZONE',
+                size: 2
+              });
+            }
+          });
+        }
+
+        const deduplicated = chartMarkers.filter((m, i, arr) => i === 0 || m.time !== arr[i-1].time);
         markersPlugin.setMarkers(deduplicated);
-      } else {
-        // Safe clear
+
+        // 2. Render Horizontal Rays (Structural Levels)
+        if (showStructuralLevels) {
+          levels.forEach(lvl => {
+            const line = series.createPriceLine({
+              price: lvl.price,
+              color: lvl.type === 'support' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(244, 63, 94, 0.4)',
+              lineWidth: lvl.isBroken ? 1 : 2,
+              lineStyle: lvl.isBroken ? 1 : 0, // Dotted if broken
+              axisLabelVisible: !lvl.isBroken,
+              title: `${lvl.type.toUpperCase()}${lvl.isFlipped ? ' (FLIP)' : ''}`,
+            });
+            structuralLevelsRef.current.set(lvl.id, line);
+          });
+        }
+
+        // 3. Render Diagonal Trendlines
+        if (showTrendlines) {
+          tlData.forEach(tl => {
+            const tlSeries = chart.addSeries(LineSeries, {
+              color: tl.type === 'bullish' ? '#34d399' : '#f43f5e',
+              lineWidth: tl.isProven ? 2 : 1,
+              lineStyle: tl.isProven ? 0 : 2, // Large Dashed if not proven
+              crosshairMarkerVisible: false,
+              lastValueVisible: false,
+              priceLineVisible: false,
+            });
+            tlSeries.setData([
+              { time: tl.start.time, value: tl.start.price },
+              { time: tl.end.time, value: tl.end.price }
+            ]);
+            trendlineSeriesRef.current.push(tlSeries);
+          });
+        }
+
+        // 4. Golden Zone / T.L.S. Confluence Notification
+        const latestPrice = data[data.length - 1].close;
+        const nearestLevel = levels.find(l => !l.isBroken && Math.abs(latestPrice - l.price) / l.price < 0.0015);
+        if (nearestLevel) {
+          console.log(`[ALGO] Price approaching ${nearestLevel.type} Level: ${nearestLevel.price}`);
+        }
+      } else if (markersPlugin) {
         markersPlugin.setMarkers([]);
       }
     } catch (err) {
       console.error("[Chart] Fatal error running Market Structure:", err);
     }
-  }, [data, showStructure]);
+  }, [data, showStructure, showStructuralLevels, showTrendlines, showGoldenZone]);
 
   // Sync Open Orders to Price Lines
   useEffect(() => {
@@ -1447,11 +1529,35 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer group/toggle">
                   <div className="relative">
+                    <input type="checkbox" checked={showStructuralLevels} onChange={e => setShowStructuralLevels(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#eab308]/20 peer-checked:border-[#eab308]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#eab308] peer-checked:shadow-[0_0_10px_#eab308]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#eab308]/40 group-hover/toggle:text-[#eab308] transition-colors font-mono">Structural Levels</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showTrendlines} onChange={e => setShowTrendlines(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#8b5cf6]/20 peer-checked:border-[#8b5cf6]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#8b5cf6] peer-checked:shadow-[0_0_10px_#8b5cf6]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8b5cf6]/40 group-hover/toggle:text-[#8b5cf6] transition-colors font-mono">Trendlines</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showGoldenZone} onChange={e => setShowGoldenZone(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[var(--holo-gold)]/20 peer-checked:border-[var(--holo-gold)]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[var(--holo-gold)] peer-checked:shadow-[0_0_10px_var(--holo-gold)]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--holo-gold)]/40 group-hover/toggle:text-[var(--holo-gold)] transition-colors font-mono">Golden Zone</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
                     <input type="checkbox" checked={showStructure} onChange={e => setShowStructure(e.target.checked)} className="sr-only peer" />
                     <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#00f0ff]/20 peer-checked:border-[#00f0ff]/40 transition-all" />
                     <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#00f0ff] peer-checked:shadow-[0_0_10px_#00f0ff]" />
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#00f0ff]/40 group-hover/toggle:text-[#00f0ff] transition-colors font-mono">Structure Nodes</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#00f0ff]/40 group-hover/toggle:text-[#00f0ff] transition-colors font-mono">Nodes</span>
                 </label>
               </div>
             </div>
