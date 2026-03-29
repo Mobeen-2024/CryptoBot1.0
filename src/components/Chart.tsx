@@ -4,6 +4,7 @@ import { ChartDrawingLayer, DrawingTool, Drawing, PositionDrawing } from './Char
 import { ChartConfig } from '../types/chart';
 import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlestickPatterns';
 import { analyzeMarketStructure } from '../utils/marketStructure';
+import { ChartHUD } from './ChartHUD';
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -111,6 +112,21 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   // Phase 2: Ultra 2050 Enhancements State
   const [crosshairPos, setCrosshairPos] = useState<{ x: number, y: number } | null>(null);
   const [hoveredCandleX, setHoveredCandleX] = useState<number | null>(null);
+
+  // Phase 1: Tactical HUD State
+  const [hudData, setHudData] = useState<{
+    trend: 'BULLISH' | 'BEARISH';
+    lastAction: 'CHoCH' | 'BOS' | 'NONE';
+    nearestShield: { type: string, price: number } | null;
+    nearestMagnet: { type: string, price: number } | null;
+    isConfluence: boolean;
+  }>({
+    trend: 'BULLISH',
+    lastAction: 'NONE',
+    nearestShield: null,
+    nearestMagnet: null,
+    isConfluence: false,
+  });
 
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
@@ -1375,10 +1391,46 @@ const getIntervalMs = (interval: string) => {
 
       if ((showStructure || showStructuralLevels || showTrendlines || showGoldenZone) && data && data.length > 0) {
         const analysis = analyzeMarketStructure(data, 5); 
-        const { nodes, levels, trendlines: tlData, grabs } = analysis;
+        const { nodes, levels, trendlines: tlData, grabs, currentTrend, lastActionType } = analysis;
         
-        const chartMarkers: any[] = [];
+        // --- HUD Data Extraction ---
         const latestPrice = data[data.length - 1].close;
+        
+        // Find Nearest Strong/Weak Nodes
+        const externalNodes = nodes.filter(n => n.isExternal);
+        let nearestShield: any = null;
+        let nearestMagnet: any = null;
+        let minShieldDist = Infinity;
+        let minMagnetDist = Infinity;
+
+        externalNodes.forEach(node => {
+          const dist = Math.abs(node.price - latestPrice);
+          if (node.strength === 'STRONG' && dist < minShieldDist) {
+            minShieldDist = dist;
+            nearestShield = { type: node.type, price: node.price };
+          } else if (node.strength === 'WEAK' && dist < minMagnetDist) {
+            minMagnetDist = dist;
+            nearestMagnet = { type: node.type, price: node.price };
+          }
+        });
+
+        // Determine if price is near any "Golden Zones" (within 1%)
+        const isNearZone = levels.some(l => {
+          const upper = Math.max(l.priceWick, l.priceBody);
+          const lower = Math.min(l.priceWick, l.priceBody);
+          const mid = (upper + lower) / 2;
+          return Math.abs(latestPrice - mid) / latestPrice < 0.01;
+        });
+
+        setHudData({
+          trend: currentTrend,
+          lastAction: lastActionType,
+          nearestShield,
+          nearestMagnet,
+          isConfluence: isNearZone,
+        });
+
+        const chartMarkers: any[] = [];
 
         // ... (Nodes and Golden Zone logic remains the same)
         if (showStructure) {
@@ -1947,6 +1999,15 @@ const getIntervalMs = (interval: string) => {
 
       {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
+        {/* 💎 AI-ALPHA TACTICAL HUD 💎 */}
+        <ChartHUD 
+          symbol={symbol}
+          trend={hudData.trend}
+          lastAction={hudData.lastAction}
+          nearestShield={hudData.nearestShield}
+          nearestMagnet={hudData.nearestMagnet}
+          isConfluence={hudData.isConfluence}
+        />
 
         {/* Recent High/Low Markers Overlay Layer */}
         {visibleHighLow && (

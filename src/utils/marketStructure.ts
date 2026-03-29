@@ -41,10 +41,12 @@ export interface LiquidityGrab {
 
 export interface MarketStructureAnalysis {
   nodes: MarketNode[];
-  internalNodes: MarketNode[]; // Phase 3: Trace Line Data
+  internalNodes: MarketNode[];
   levels: StructuralLevel[];
   trendlines: Trendline[];
   grabs: LiquidityGrab[];
+  currentTrend: 'BULLISH' | 'BEARISH'; // Phase 1: HUD Sync
+  lastActionType: 'CHoCH' | 'BOS' | 'NONE';
 }
 
 function getSessionWeight(time: number | string): number {
@@ -61,12 +63,16 @@ function getSessionWeight(time: number | string): number {
 }
 
 export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
-  if (!data || data.length < lb * 2 + 1) return { nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [] };
+  if (!data || data.length < lb * 2 + 1) return { 
+    nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [], 
+    currentTrend: 'BULLISH', lastActionType: 'NONE' 
+  };
 
   const nodes: MarketNode[] = [];
   const internalNodes: MarketNode[] = [];
   const grabs: LiquidityGrab[] = [];
   let currentTrend: 'BULLISH' | 'BEARISH' = 'BULLISH';
+  let lastActionType: 'CHoCH' | 'BOS' | 'NONE' = 'NONE';
   
   // Phase 3: Separate Macro from Internal
   let macroLastHigh: number | null = null;
@@ -91,14 +97,14 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     // --- Phase 1: SMC Sequencing (CHoCH vs BOS) ---
     if (currentTrend === 'BULLISH' && macroLastLow !== null && currentClose < macroLastLow) {
       currentTrend = 'BEARISH';
-      if (lastBreakDirection === 'BULLISH') pendingCHoCH = true;
-      else pendingBOS = true;
+      if (lastBreakDirection === 'BULLISH') { pendingCHoCH = true; lastActionType = 'CHoCH'; }
+      else { pendingBOS = true; lastActionType = 'BOS'; }
       lastBreakDirection = 'BEARISH';
     } 
     else if (currentTrend === 'BEARISH' && macroLastHigh !== null && currentClose > macroLastHigh) {
       currentTrend = 'BULLISH';
-      if (lastBreakDirection === 'BEARISH') pendingCHoCH = true;
-      else pendingBOS = true;
+      if (lastBreakDirection === 'BEARISH') { pendingCHoCH = true; lastActionType = 'CHoCH'; }
+      else { pendingBOS = true; lastActionType = 'BOS'; }
       lastBreakDirection = 'BULLISH';
     }
 
@@ -369,7 +375,9 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     internalNodes: internalNodes.sort((a, b) => a.index - b.index),
     levels: filteredLevels.slice(-15),
     trendlines: trendlines.slice(-4),
-    grabs: grabs.slice(-10)
+    grabs: grabs.slice(-10),
+    currentTrend,
+    lastActionType
   };
 }
 
