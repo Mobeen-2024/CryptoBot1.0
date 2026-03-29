@@ -1843,9 +1843,16 @@ const getIntervalMs = (interval: string) => {
       {/* ═══════════════ MODERNIZED HOLOGRAPHIC TOOLBAR ═══════════════ */}
       <div className="absolute top-0 left-0 right-0 z-[100] h-14 opacity-10 group-hover/chart:opacity-100 transition-all duration-500 group/toolbar">
         <div className="flex items-center justify-center px-6 pt-3 h-full">
-          {/* Intelligence Toggles (Now Centered for Symmetry) */}
-          <div className="flex items-center gap-6 px-5 py-2.5 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-            <div className="flex items-center gap-6">
+          {/* TACTICAL MATRIX CONTROLLER */}
+          <div className="flex items-center gap-5 px-5 py-2.5 bg-black/50 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative group/tmc overflow-visible hover:border-emerald-500/30 transition-all duration-500 ring-1 ring-white/5">
+            {/* Branded Identity - Integrated Header */}
+            <div className="flex items-center gap-2 pr-4 border-r border-white/10 select-none">
+               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+               <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/50 group-hover/tmc:text-white transition-colors">
+                 Tactical Matrix Controller
+               </span>
+            </div>
+            <div className="flex items-center gap-5">
               {/* SL / TP Toggle */}
               <label className="flex items-center gap-2 cursor-pointer group/toggle">
                 <div className="relative">
