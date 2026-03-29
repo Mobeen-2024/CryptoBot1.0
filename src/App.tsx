@@ -16,10 +16,17 @@ import { BotPanel } from './components/BotPanel';
 import { MarketWatchlist } from './components/MarketWatchlist';
 import { OpenOrdersPanel } from './components/OpenOrdersPanel';
 import { Menu, X, Bell, User, Search, LayoutGrid, ChevronDown, ChevronRight, Globe, Settings, Wallet, LineChart, CandlestickChart, Layout, Play, History, Shield, TrendingUp, TrendingDown, Clock, Maximize2, Palette, Eye, EyeOff, Trash2, SlidersHorizontal, RefreshCw, Briefcase, Bot, Database } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
 import { ChartStyleModal } from './components/ChartStyleModal';
 import { ChartConfig, DEFAULT_CHART_CONFIG } from './types/chart';
 import toast, { Toaster } from 'react-hot-toast';
+
+/** Utility for Tailwind class merging */
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -649,93 +656,107 @@ export default function App() {
             id="crypto-terminal-chart-wrapper"
             className="h-[450px] sm:h-[550px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300 bg-black/90"
           >
-            {/* Chart Toolbar: Command Center */}
-            <div
-              className="px-2 py-1.5 border-b border-white/5 flex items-center justify-between shrink-0 transition-colors duration-300 relative z-20"
-            >
-              <div className="flex items-center gap-1 sm:gap-4 overflow-hidden">
-                {/* Resolution Strip */}
-                <div className="flex items-center bg-[#0b0e11]/60 backdrop-blur-xl border border-white/5 shadow-[inset_0_1px_10px_rgba(0,0,0,0.5)] rounded-xl p-1 gap-1 relative group/res">
-                  <button
-                    onClick={() => setChartConfig({ ...chartConfig, style: 'line' })}
-                    className={`px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center justify-center relative ${chartConfig.style === 'line'
-                        ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[0_0_15px_rgba(252,213,53,0.1)] border border-[var(--holo-gold)]/20'
-                        : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
-                      }`}
-                    title="Time Series"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
-                  </button>
+            {/* Chart Toolbar: Command Center Strip */}
+            <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between shrink-0 glass-panel z-20">
+              <div className="flex items-center gap-2 sm:gap-4 overflow-hidden min-w-0">
+                {/* ─── Resolution & Type Command Strip (Horizontal Scrollable) ─── */}
+                <div className="flex items-center bg-black/40 backdrop-blur-2xl border border-white/5 rounded-full p-1 gap-1 relative overflow-hidden shadow-2xl">
+                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar scroll-smooth px-1">
+                    <button
+                      onClick={() => setChartConfig({ ...chartConfig, style: 'line' })}
+                      className={cn(
+                        "p-2 rounded-full transition-all duration-300 flex items-center justify-center shrink-0 border border-transparent",
+                        chartConfig.style === 'line' ? "text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[inset_0_0_10px_rgba(252,213,53,0.1)] border-[var(--holo-gold)]/20" : "text-white/40 hover:text-white hover:bg-white/5"
+                      )}
+                      title="Linear Analysis"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+                    </button>
 
-                  <div className="w-px h-3.5 bg-white/5 mx-0.5" />
+                    <div className="w-px h-4 bg-white/5 mx-1 shrink-0" />
 
-                  {visibleTimeframes.slice(0, -1).map(tf => {
-                    const isActive = canonicalInterval(chartInterval) === canonicalInterval(tf);
-                    return (
-                      <button
-                        key={tf}
-                        onClick={() => {
-                          setChartInterval(canonicalInterval(tf));
-                          setChartConfig({ ...chartConfig, style: 'candle' });
-                        }}
-                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-all duration-300 relative ${isActive
-                            ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_20px_rgba(0,229,255,0.15)] border border-[var(--holo-cyan)]/30'
-                            : 'text-[#5e6673] border border-transparent hover:text-white hover:bg-white/5'
-                          }`}
-                      >
-                        {tf}
-                        {isActive && <div className="absolute -bottom-0.5 left-1 right-1 h-0.5 bg-[var(--holo-cyan)] rounded-full blur-[2px] opacity-60" />}
-                      </button>
-                    );
-                  })}
+                    {visibleTimeframes.slice(0, -1).map(tf => {
+                      const isActive = canonicalInterval(chartInterval) === canonicalInterval(tf);
+                      return (
+                        <button
+                          key={tf}
+                          onClick={() => {
+                            setChartInterval(canonicalInterval(tf));
+                            setChartConfig({ ...chartConfig, style: 'candle' });
+                          }}
+                          className={cn(
+                            "px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em] rounded-full transition-all duration-300 shrink-0 border border-transparent whitespace-nowrap",
+                            isActive ? "text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/20 shadow-[0_0_15px_rgba(0,229,255,0.1)]" : "text-white/30 hover:text-white hover:bg-white/5"
+                          )}
+                        >
+                          {tf}
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                  {/* "More" Trigger for Central Selector */}
+                  {/* "More" Trigger (Internalized) */}
                   <button
                     onClick={() => setIsTimeSelectorOpen(true)}
-                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg transition-all duration-300 flex items-center gap-1 ${isTimeSelectorOpen ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[#5e6673] hover:text-white hover:bg-white/5'
-                      }`}
+                    className="p-2 text-white/40 hover:text-white bg-white/5 sm:bg-transparent rounded-full transition-all duration-300 shrink-0 ml-1"
                   >
-                    More
-                    <LayoutGrid className="w-3 h-3" />
+                    <LayoutGrid className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="h-4 w-px bg-[#2b3139] shrink-0" />
+                <div className="h-5 w-px bg-white/5 shrink-0 hidden sm:block" />
 
-                {/* Depth Toggle */}
-                <button
-                  onClick={() => setChartView(chartView === 'price' ? 'depth' : 'price')}
-                  className={`px-3 py-1 text-[11px] font-bold uppercase tracking-widest rounded transition-all ${chartView === 'depth' ? 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 shadow-[inset_0_0_10px_rgba(252,213,53,0.1)]' : 'text-[#848e9c] hover:text-white'}`}
-                >
-                  Depth
-                </button>
+                {/* View Toggles Pair */}
+                <div className="hidden sm:flex items-center bg-black/40 backdrop-blur-2xl border border-white/5 rounded-full p-1 gap-1">
+                  <button
+                    onClick={() => setChartView('price')}
+                    className={cn(
+                      "px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full transition-all",
+                      chartView === 'price' ? "text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10" : "text-white/30 hover:text-white"
+                    )}
+                  >
+                    Price
+                  </button>
+                  <button
+                    onClick={() => setChartView('depth')}
+                    className={cn(
+                      "px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full transition-all",
+                      chartView === 'depth' ? "text-[var(--holo-gold)] bg-[var(--holo-gold)]/10" : "text-white/30 hover:text-white"
+                    )}
+                  >
+                    Depth
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1 sm:gap-2">
-                <button
-                  onClick={() => setIsStyleModalOpen(true)}
-                  className="p-1.5 text-[#848e9c] hover:text-[var(--holo-gold)] hover:bg-white/5 rounded transition-all"
-                  title="Chart Settings & Indicators"
-                >
-                  <SlidersHorizontal className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => toast('Advanced Tactical Tools Module requires Pro License authorization.', { icon: '🔒', style: { background: 'var(--surface-modal)', color: 'var(--holo-gold)', border: '1px solid var(--holo-gold)' } })}
-                  className="p-1.5 text-[#848e9c] hover:text-[var(--holo-gold)] hover:bg-white/5 rounded transition-all shadow-[0_0_10px_var(--holo-gold-glow)]" title="Advanced Tools">
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    const chartEl = document.getElementById('crypto-terminal-chart-wrapper');
-                    if (!document.fullscreenElement && chartEl) {
-                      chartEl.requestFullscreen().catch(err => console.error(err));
-                    } else if (document.fullscreenElement) {
-                      if (document.exitFullscreen) document.exitFullscreen();
-                    }
-                  }}
-                  className="p-1.5 text-[#848e9c] hover:text-[var(--holo-cyan)] hover:bg-white/5 rounded transition-all shadow-[0_0_10px_var(--holo-cyan-glow)]" title="Toggle Fullscreen">
-                  <Maximize2 className="w-4 h-4" />
-                </button>
+              {/* Utility Tools */}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center bg-white/[0.02] border border-white/5 rounded-full p-1 shadow-inner">
+                  <button
+                    onClick={() => setIsStyleModalOpen(true)}
+                    className="p-1.5 text-white/40 hover:text-[var(--holo-gold)] hover:bg-white/5 rounded-full transition-all"
+                    title="Chart Settings & Indicators"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toast('Advanced Tactical Tools Module requires Pro License authorization.', { icon: '🔒', style: { background: '#0b0f1a', color: 'var(--holo-gold)', border: '1px solid var(--holo-gold)' } })}
+                    className="p-1.5 text-white/40 hover:text-[var(--holo-gold)] hover:bg-white/5 rounded-full transition-all" title="Advanced Tools">
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const chartEl = document.getElementById('crypto-terminal-chart-wrapper');
+                      if (!document.fullscreenElement && chartEl) {
+                        chartEl.requestFullscreen().catch(err => console.error(err));
+                      } else if (document.fullscreenElement) {
+                        if (document.exitFullscreen) document.exitFullscreen();
+                      }
+                    }}
+                    className="p-1.5 text-white/40 hover:text-[var(--holo-cyan)] hover:bg-white/5 rounded-full transition-all" title="Toggle Fullscreen">
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
 
