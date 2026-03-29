@@ -1447,37 +1447,57 @@ const getIntervalMs = (interval: string) => {
 
             const shell = backgroundPoolRef.current[poolIdx];
             const core = backgroundPoolRef.current[poolIdx + 1];
-            const isSup = lvl.type === 'support';
-            const baseColor = lvl.isBroken ? '128, 128, 128' : (isSup ? '52, 211, 153' : '244, 63, 94');
             
-            // Reduced opacities
-            const shellOpacity = lvl.isBroken ? 0.03 : 0.08;
-            const coreOpacity = lvl.isBroken ? 0.05 : 0.2;
+            // Logic: Support becomes Resistance if broken, and vice-versa (Breaker Blocks)
+            const isFlipped = lvl.isBroken;
+            const effectiveType = isFlipped ? (lvl.type === 'support' ? 'resistance' : 'support') : lvl.type;
+            const isSup = effectiveType === 'support';
+            
+            const baseColor = isSup ? '52, 211, 153' : '244, 63, 94';
+            
+            const shellOpacity = lvl.isBroken ? 0.04 : 0.08;
+            const coreOpacity = lvl.isBroken ? 0.06 : 0.2;
 
             shell.applyOptions({
               visible: true,
               topColor: `rgba(${baseColor}, ${shellOpacity})`,
-              bottomColor: `rgba(${baseColor}, 0.02)`,
+              bottomColor: `rgba(${baseColor}, 0.01)`,
             });
+            
             const pHigh = Math.max(lvl.priceWick, lvl.priceBody);
-            shell.setData(data.slice(-100).map(d => ({ time: d.time, value: pHigh })));
+            // PROJECTION: Only draw from the start time forward
+            const historicalPoints = data.filter(d => d.time >= lvl.startTime).map(d => ({ time: d.time, value: pHigh }));
+            if (historicalPoints.length > 0) {
+               // Append 1 synthetic point far in the future
+               const lastPoint = historicalPoints[historicalPoints.length - 1];
+               const futureTime = (lastPoint.time + 31536000) as UTCTimestamp; // +1 year
+               historicalPoints.push({ time: futureTime, value: pHigh });
+               shell.setData(historicalPoints);
+            }
 
             core.applyOptions({
               visible: true,
               topColor: `rgba(${baseColor}, ${coreOpacity})`,
-              bottomColor: `rgba(${baseColor}, ${coreOpacity * 0.5})`,
+              bottomColor: `rgba(${baseColor}, ${coreOpacity * 0.4})`,
             });
             const coreHeight = Math.abs(lvl.priceWick - lvl.priceBody) * 0.4;
-            core.setData(data.slice(-100).map(d => ({ time: d.time, value: lvl.pricePOC + coreHeight / 2 })));
+            const corePoints = data.filter(d => d.time >= lvl.startTime).map(d => ({ time: d.time, value: lvl.pricePOC + coreHeight / 2 }));
+            if (corePoints.length > 0) {
+               const lastPoint = corePoints[corePoints.length - 1];
+               const futureTime = (lastPoint.time + 31536000) as UTCTimestamp;
+               corePoints.push({ time: futureTime, value: lvl.pricePOC + coreHeight / 2 });
+               core.setData(corePoints);
+            }
 
-            // Wick Line (Boundary)
+            // Wick Line (Boundary) with Role Reversal labeling
+            const labelPrefix = lvl.isBroken ? `BREAKER ${lvl.type === 'support' ? 'RES' : 'SUP'}` : lvl.type.toUpperCase();
             const wickLine = series.createPriceLine({
                price: lvl.priceWick,
-               color: `rgba(${baseColor}, ${lvl.isBroken ? 0.2 : 0.8})`,
+               color: `rgba(${baseColor}, ${lvl.isBroken ? 0.3 : 0.8})`,
                lineWidth: 1,
-               lineStyle: lvl.isBroken ? 1 : 0,
-               axisLabelVisible: !lvl.isBroken,
-               title: `${lvl.type.toUpperCase()} [STR: ${lvl.strengthScore}%]${lvl.isBroken ? ' (GHOST)' : ''}`,
+               lineStyle: lvl.isBroken ? 2 : 0,
+               axisLabelVisible: true,
+               title: `${labelPrefix} [STR: ${lvl.strengthScore}%]`,
             });
 
             structuralLevelsRef.current.set(lvl.id, [shell, core, wickLine, lvl]);

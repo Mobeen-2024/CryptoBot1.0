@@ -124,12 +124,15 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       const wickHeight = price - body;
       const bodyHeight = body - Math.min(data[i].open, data[i].close);
       const isWickPOC = wickHeight > bodyHeight; 
+      
+      // Phase 4: POC as Center of Mass (HLC3 approximation)
+      const pricePOC = (data[i].high + data[i].low + data[i].close) / 3;
 
       rawLevels.push({
         id: `lvl_h_${data[i].time}`,
         priceWick: price,
         priceBody: body,
-        pricePOC: isWickPOC ? price - (wickHeight * 0.3) : body + (wickHeight * 0.3),
+        pricePOC: pricePOC,
         startTime: data[i].time,
         type: 'resistance',
         isBroken: false,
@@ -161,11 +164,14 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       const bodyHeight = Math.max(data[i].open, data[i].close) - body;
       const isWickPOC = wickHeight > bodyHeight;
 
+      // Phase 4: POC as Center of Mass (HLC3 approximation)
+      const pricePOC = (data[i].high + data[i].low + data[i].close) / 3;
+
       rawLevels.push({
         id: `lvl_l_${data[i].time}`,
         priceWick: price,
         priceBody: body,
-        pricePOC: isWickPOC ? price + (wickHeight * 0.3) : body - (wickHeight * 0.3),
+        pricePOC: pricePOC,
         startTime: data[i].time,
         type: 'support',
         isBroken: false,
@@ -186,14 +192,17 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       if (pendingBearishBOS) pendingBearishBOS = false;
     }
 
-    // Dynamic Breaches with Ghost State Tracking
+    // 3. Dynamic Breaches with Institutional Hardening (BOS Logic)
     rawLevels.forEach(lvl => {
       if (!lvl.isBroken) {
-        if (lvl.type === 'resistance' && currentClose > lvl.priceWick) {
+        // High Probability: Requires 2 consecutive closes beyond the level OR 1 strong ATR-size break
+        // For simplicity here: we check current and previous close
+        const prevClose = data[i - 1]?.close || currentClose;
+        if (lvl.type === 'resistance' && currentClose > lvl.priceWick && prevClose > lvl.priceWick) {
            lvl.isBroken = true;
            lvl.brokenAtIdx = i;
         }
-        if (lvl.type === 'support' && currentClose < lvl.priceWick) {
+        if (lvl.type === 'support' && currentClose < lvl.priceWick && prevClose < lvl.priceWick) {
            lvl.isBroken = true;
            lvl.brokenAtIdx = i;
         }
@@ -201,11 +210,37 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     });
   }
 
+  // --- Phase 3: Level Clustering (Institutional Confluence Zones) ---
+  const clusteredLevels: StructuralLevel[] = [];
+  const sortedRaw = [...rawLevels].sort((a, b) => a.priceWick - b.priceWick);
+  
+  for (let i = 0; i < sortedRaw.length; i++) {
+    const current = sortedRaw[i];
+    let merged = false;
+    
+    for (let j = 0; j < clusteredLevels.length; j++) {
+      const existing = clusteredLevels[j];
+      // Compare proximity (0.5% threshold)
+      const priceDiff = Math.abs(current.priceWick - existing.priceWick) / existing.priceWick;
+      if (priceDiff < 0.005 && current.type === existing.type) {
+        // Merge! Average the prices, but take the highest strength
+        existing.priceWick = (existing.priceWick + current.priceWick) / 2;
+        existing.priceBody = (existing.priceBody + current.priceBody) / 2;
+        existing.pricePOC = (existing.pricePOC + current.pricePOC) / 2;
+        existing.strengthScore = Math.min(100, existing.strengthScore + current.strengthScore * 0.3);
+        existing.startTime = Math.min(Number(existing.startTime), Number(current.startTime));
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) clusteredLevels.push(current);
+  }
+
   const activeDataRangeStart = data.length - 100;
-  const filteredLevels = rawLevels.filter(l => {
+  const filteredLevels = clusteredLevels.filter(l => {
     if (!l.isBroken) return true;
-    // Ghost Zones (Keep for 10 candles after break)
-    return (data.length - 1 - (l.brokenAtIdx || 0)) <= 10;
+    // Ghost Zones (Keep for 15 candles after break to allow for Breaker Block trade)
+    return (data.length - 1 - (l.brokenAtIdx || 0)) <= 15;
   });
 
   const trendlines: Trendline[] = [];
