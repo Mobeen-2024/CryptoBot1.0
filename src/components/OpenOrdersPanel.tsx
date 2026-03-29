@@ -36,10 +36,21 @@ export const OpenOrdersPanel: React.FC<{ symbol?: string }> = ({ symbol }) => {
 
   const cancelOrder = async (id: string) => {
     try {
-      await fetch(`/api/backend/cancelOrder`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      await fetch(`/api/binance/order?orderId=${id}`, { method: 'DELETE' });
       setOrders(prev => prev.filter(o => o.id !== id));
     } catch (e) {
       console.error('Failed to cancel order', e);
+    }
+  };
+
+  const cancelAllOrders = async () => {
+    if (!confirm('Are you sure you want to cancel all open orders?')) return;
+    try {
+      const url = symbol ? `/api/binance/orders/all?symbol=${symbol}` : '/api/binance/orders/all';
+      await fetch(url, { method: 'DELETE' });
+      setOrders([]);
+    } catch (e) {
+      console.error('Failed to cancel all orders', e);
     }
   };
 
@@ -60,9 +71,19 @@ export const OpenOrdersPanel: React.FC<{ symbol?: string }> = ({ symbol }) => {
             <span className="px-1.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-[9px] font-bold text-purple-400">{filtered.length}</span>
           )}
         </div>
-        <button onClick={fetchOrders} className="p-1.5 rounded-lg bg-[#1a1d24] border border-white/5 text-gray-500 hover:text-purple-400 hover:border-purple-500/30 transition-all">
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        </button>
+        <div className="flex items-center gap-2">
+          {filtered.length > 0 && (
+            <button 
+              onClick={cancelAllOrders}
+              className="px-2 py-1 rounded bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/30 text-[9px] font-bold text-[var(--holo-magenta)] uppercase hover:bg-[var(--holo-magenta)]/20 transition-all shadow-[0_0_10px_rgba(255,0,127,0.2)]"
+            >
+              Cancel All
+            </button>
+          )}
+          <button onClick={fetchOrders} className="p-1.5 rounded-lg bg-[#1a1d24] border border-white/5 text-gray-500 hover:text-purple-400 hover:border-purple-500/30 transition-all">
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* Column headers */}
