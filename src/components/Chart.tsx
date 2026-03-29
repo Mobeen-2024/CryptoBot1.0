@@ -1374,19 +1374,32 @@ const getIntervalMs = (interval: string) => {
       const { nodes, levels, currentTrend, lastActionType } = analysis;
       const latestPrice = data[data.length - 1].close;
 
-      // HUD Extraction Logic (Constant Stream)
-      const externalNodes = nodes.filter(n => n.isExternal);
+      // --- UPDATED Phase 1: Institutional Radar (Fixed SCANNING Bug) ---
+      
+      // 1. Find Nearest Shield (Supply/Demand Levels > 40 Strength)
       let nearestShield: any = null;
-      let nearestMagnet: any = null;
       let minShieldDist = Infinity;
-      let minMagnetDist = Infinity;
-
-      externalNodes.forEach(node => {
-        const dist = Math.abs(node.price - latestPrice);
-        if (node.strength === 'STRONG' && dist < minShieldDist) {
+      
+      levels.forEach(l => {
+        if (l.strengthScore < 40) return;
+        const price = (l.priceWick + l.priceBody) / 2;
+        const dist = Math.abs(price - latestPrice);
+        
+        // Logical Alignment: Support below price, Resistance above
+        const isSupport = price < latestPrice;
+        if (dist < minShieldDist) {
           minShieldDist = dist;
-          nearestShield = { type: node.type, price: node.price };
-        } else if (node.strength === 'WEAK' && dist < minMagnetDist) {
+          nearestShield = { type: l.type === 'support' ? 'SUP' : 'RES', price };
+        }
+      });
+
+      // 2. Find Nearest Magnet (Weak/Unmitigated Nodes)
+      let nearestMagnet: any = null;
+      let minMagnetDist = Infinity;
+      nodes.forEach(node => {
+        if (node.strength !== 'WEAK') return;
+        const dist = Math.abs(node.price - latestPrice);
+        if (dist < minMagnetDist) {
           minMagnetDist = dist;
           nearestMagnet = { type: node.type, price: node.price };
         }
