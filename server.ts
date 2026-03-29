@@ -35,6 +35,9 @@ shadowDb.exec(`
   )
 `);
 
+// Clear any open shadow orders on startup to prevent "stale" orders from auto-executing on refresh
+shadowDb.prepare("DELETE FROM shadow_pending_orders WHERE status = 'open'").run();
+
 export const pendingShadowOrders: any[] = shadowDb.prepare('SELECT * FROM shadow_pending_orders WHERE status = ?').all('open');
 
 export function addPendingShadowOrder(order: any) {
