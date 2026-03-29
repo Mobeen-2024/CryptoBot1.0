@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool, Drawing, PositionDrawing } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
-import { analyzeEngulfing } from '../utils/patternDetection';
 import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlestickPatterns';
 import { analyzeMarketStructure } from '../utils/marketStructure';
 
@@ -1308,6 +1307,10 @@ const getIntervalMs = (interval: string) => {
         const isBearish = p.sentiment === 'bearish';
         const isNeutral = p.sentiment === 'neutral';
 
+        // Volume Imbalance calculation (Pro-level Confirmation)
+        const avgVol3 = (data[i - 1].volume + (data[i - 2]?.volume || data[i-1].volume) + (data[i - 3]?.volume || data[i-1].volume)) / 3;
+        const hasHighVolume = data[i].volume > (avgVol3 * 1.3);
+
         newPatternMarkers.push({
           id: `${data[i].time}_${p.type}_${idx}`,
           time: data[i].time,
@@ -1318,8 +1321,8 @@ const getIntervalMs = (interval: string) => {
           color: p.color,
           description: p.description,
           context: isBullish ? 'BULLISH' : (isBearish ? 'BEARISH' : 'NEUTRAL'),
-          strength: (isBullish || isBearish) ? 'HIGH' : 'STANDARD',
-          hasHighVolume: data[i].volume > data[i - 1].volume,
+          strength: (isBullish || isBearish) && hasHighVolume ? 'HIGH' : 'STANDARD',
+          hasHighVolume: hasHighVolume,
           low: data[i].low,
           high: data[i].high,
           open: data[i].open,

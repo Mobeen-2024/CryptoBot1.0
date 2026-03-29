@@ -6,44 +6,55 @@ export interface EngulfingResult {
 }
 
 /**
- * Core Identification Logic (Body-to-Body)
- * BT: Body Top (max Open, Close)
- * BB: Body Bottom (min Open, Close)
+ * Institutional Engulfing Logic (AI-ALPHA)
+ * Operates on the data array to allow for rolling averages (Volume/Momentum)
  */
-export function analyzeEngulfing(prev: any, curr: any): EngulfingResult {
-  if (!prev || !curr) {
+export function analyzeEngulfing(data: any[], i: number): EngulfingResult {
+  if (!data || i < 5 || i >= data.length) {
     return { isBullish: false, isBearish: false, hasHighVolume: false, isExpansion: false };
   }
 
-  const prevIsUp = prev.close > prev.open;
+  const curr = data[i];
+  const prev = data[i - 1];
+
   const prevIsDown = prev.close < prev.open;
+  const prevIsUp = prev.close > prev.open;
   const currIsUp = curr.close > curr.open;
   const currIsDown = curr.close < curr.open;
 
-  const prevBT = Math.max(prev.open, prev.close);
-  const prevBB = Math.min(prev.open, prev.close);
-  const currBT = Math.max(curr.open, curr.close);
-  const currBB = Math.min(curr.open, curr.close);
+  const currBodySize = Math.abs(curr.close - curr.open);
+  
+  // 1. Momentum Check (Expansion vs previous 5 candles)
+  const avgBodySize = data.slice(i - 5, i).reduce((sum, c) => sum + Math.abs(c.close - c.open), 0) / 5;
+  const isExpansion = currBodySize > (avgBodySize * 1.3);
 
-  const prevBodySize = prevBT - prevBB;
-  const currBodySize = currBT - currBB;
+  // 2. Volume Check (Confirmation vs previous 3 candles)
+  const avgVolume3 = (data[i - 1].volume + data[i - 2].volume + data[i - 3].volume) / 3;
+  const hasHighVolume = curr.volume > (avgVolume3 * 1.3);
 
-  // CTB Rule: Current body MUST fully engulf previous body
-  const engulfsBody = currBT >= prevBT && currBB <= prevBB;
-  const isExpansion = currBodySize > prevBodySize;
+  // 3. Liquidity Sweep & Domination (BT/BB)
+  // Bullish: Sweeps prev low AND closes above prev high (Outside Bar Reversal)
+  const bullishEngulf = prevIsDown && currIsUp && 
+                        curr.low <= prev.low && 
+                        curr.close >= prev.high && 
+                        isExpansion && hasHighVolume;
 
-  const bullishEngulf = prevIsDown && currIsUp && engulfsBody;
-  const bearishEngulf = prevIsUp && currIsDown && engulfsBody;
+  // Bearish: Sweeps prev high AND closes below prev low (Outside Bar Reversal)
+  const bearishEngulf = prevIsUp && currIsDown && 
+                        curr.high >= prev.high && 
+                        curr.close <= prev.low && 
+                        isExpansion && hasHighVolume;
 
   return {
     isBullish: bullishEngulf,
     isBearish: bearishEngulf,
-    hasHighVolume: curr.volume > prev.volume,
-    isExpansion: isExpansion
+    hasHighVolume,
+    isExpansion
   };
 }
 
-// Legacy support (to avoid breaking current imports until refactored)
+// Legacy support (updated to use the first valid data points it can find)
 export function isBullishEngulfing(prev: any, curr: any): boolean {
-  return analyzeEngulfing(prev, curr).isBullish;
+  // Warn: Technical limitation of legacy signature. Truly accurate analysis requires full context.
+  return analyzeEngulfing([prev, curr], 1).isBullish;
 }

@@ -1,3 +1,5 @@
+import { analyzeEngulfing } from './patternDetection';
+
 export interface Candle {
   time: number;
   open: number;
@@ -16,22 +18,28 @@ export interface Pattern {
 }
 
 // --- Context Helpers ---
-const isUptrend = (data: Candle[], i: number, lookback = 3) => {
+const isUptrend = (data: Candle[], i: number, lookback = 7) => {
   if (i < lookback || i >= data.length) return false;
-  let higherCloses = 0;
+  // A professional uptrend: higher-highs and higher-lows over the lookback
+  let higherHighs = 0;
+  let higherLows = 0;
   for (let j = i - lookback + 1; j <= i; j++) {
-    if (data[j].close > data[j - 1].close) higherCloses++;
+    if (data[j].high > data[j - 1].high) higherHighs++;
+    if (data[j].low > data[j - 1].low) higherLows++;
   }
-  return higherCloses >= 2;
+  return higherHighs >= 4 && higherLows >= 4;
 };
 
-const isDowntrend = (data: Candle[], i: number, lookback = 3) => {
+const isDowntrend = (data: Candle[], i: number, lookback = 7) => {
   if (i < lookback || i >= data.length) return false;
-  let lowerCloses = 0;
+  // A professional downtrend: lower-highs and lower-lows over the lookback
+  let lowerHighs = 0;
+  let lowerLows = 0;
   for (let j = i - lookback + 1; j <= i; j++) {
-    if (data[j].close < data[j - 1].close) lowerCloses++;
+    if (data[j].high < data[j - 1].high) lowerHighs++;
+    if (data[j].low < data[j - 1].low) lowerLows++;
   }
-  return lowerCloses >= 2;
+  return lowerHighs >= 4 && lowerLows >= 4;
 };
 
 export function detectPatterns(data: Candle[], i: number): Pattern[] {
@@ -104,14 +112,32 @@ export function detectPatterns(data: Candle[], i: number): Pattern[] {
     patterns.push({ type: 'DOJI', label: 'Doji', color: '#848e9c', sentiment: 'neutral', description: 'Doji: Market indecision.' });
   }
 
-  // --- 4. Engulfing Bars (Trend-Aware) ---
-  const isBullEngulf = isDowntrend(data, i) && prevIsDown && isUp && curr.open <= prev.close && curr.close >= prev.open && bodySize > prevBodySize;
-  const isBearEngulf = isUptrend(data, i) && prevIsUp && isDown && curr.open >= prev.close && curr.close <= prev.open && bodySize > prevBodySize;
+  // --- 4. Institutional Engulfing Bars (AI-ALPHA) ---
+  // A true engulfing requires more than just body coverage; it needs Displacement.
+  const engulfResult = analyzeEngulfing(data, i);
+  
+  // Rule: Bullish Engulfing must be in a Downtrend and meet our strict criteria
+  const isBullEngulf = isDowntrend(data, i) && engulfResult.isBullish;
+
+  // Rule: Bearish Engulfing must be in an Uptrend and meet our strict criteria
+  const isBearEngulf = isUptrend(data, i) && engulfResult.isBearish;
 
   if (isBullEngulf) {
-    patterns.push({ type: 'BULLISH_ENGULFING', label: 'Engulfing', color: '#00FF9D', sentiment: 'bullish', description: 'Bullish Engulfing: Buyers completely overwhelmed sellers.' });
+    patterns.push({ 
+      type: 'BULLISH_ENGULFING', 
+      label: 'Engulfing', 
+      color: '#00FF9D', 
+      sentiment: 'bullish', 
+      description: 'Institutional Bullish Engulfing: Buyers swept liquidity and overwhelmed sellers with high volume.' 
+    });
   } else if (isBearEngulf) {
-    patterns.push({ type: 'BEARISH_ENGULFING', label: 'Engulfing', color: '#FF007F', sentiment: 'bearish', description: 'Bearish Engulfing: Sellers completely overwhelmed buyers.' });
+    patterns.push({ 
+      type: 'BEARISH_ENGULFING', 
+      label: 'Engulfing', 
+      color: '#FF007F', 
+      sentiment: 'bearish', 
+      description: 'Institutional Bearish Engulfing: Sellers swept liquidity and overwhelmed buyers with high volume.' 
+    });
   }
 
   // --- 5. Piercing Line & Dark Cloud Cover ---

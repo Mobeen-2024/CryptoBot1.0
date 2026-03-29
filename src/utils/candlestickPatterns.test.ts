@@ -39,17 +39,23 @@ describe('detectPatterns', () => {
     expect(hangingMan).toBeDefined();
   });
 
-  it('should identify Bullish Engulfing only after downtrend', () => {
+  it('should identify Institutional Bullish Engulfing after strict downtrend', () => {
     const data: Candle[] = [
-      { time: 1, open: 100, close: 95, high: 101, low: 94, volume: 100 },
-      { time: 2, open: 95, close: 90, high: 96, low: 89, volume: 100 },
-      { time: 3, open: 90, close: 85, high: 91, low: 84, volume: 100 },
-      // Bullish Engulfing
-      { time: 4, open: 84, close: 92, high: 93, low: 83, volume: 100 },
+      { time: 1, open: 110, close: 108, high: 111, low: 107, volume: 100 },
+      { time: 2, open: 108, close: 106, high: 109, low: 105, volume: 100 },
+      { time: 3, open: 106, close: 104, high: 107, low: 103, volume: 100 },
+      { time: 4, open: 104, close: 102, high: 105, low: 101, volume: 100 },
+      { time: 5, open: 102, close: 100, high: 103, low: 99, volume: 100 },
+      { time: 6, open: 100, close: 98, high: 101, low: 97, volume: 100 },
+      { time: 7, open: 98, close: 96, high: 99, low: 95, volume: 100 }, // Clear 7-candle downtrend
+      { time: 8, open: 96, close: 94, high: 97, low: 93, volume: 100 }, // prevCandle
+      // Institutional Bullish Engulfing: Sweeps low (92.5 < 93), Domination (100 > 97), Volume 300
+      { time: 9, open: 94.1, close: 100, high: 100.5, low: 92.5, volume: 300 },
     ];
-    const patterns = detectPatterns(data, 3);
+    const patterns = detectPatterns(data, 8);
     const engulf = patterns.find(p => p.type === 'BULLISH_ENGULFING');
     expect(engulf).toBeDefined();
+    expect(engulf?.description).toContain('liquidity sweep');
   });
 
   it('should identify Three White Soldiers', () => {
