@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries, createSeriesMarkers } from 'lightweight-charts';
-import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
+import { ChartDrawingLayer, DrawingTool, Drawing, PositionDrawing } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
 import { analyzeEngulfing } from '../utils/patternDetection';
 import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlestickPatterns';
@@ -64,9 +64,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const openOrderLinesRef = useRef<Map<string, any>>(new Map());
   const structuralLevelsRef = useRef<Map<string, any[]>>(new Map()); // Now maps to [shell, core, wickLine, dataStatics]
   const backgroundPoolRef = useRef<any[]>([]);
+  const userPositionsPoolRef = useRef<any[]>([]); // Dedicated pool for user-placed Long/Short background zones
   const trendlineSeriesRef = useRef<any[]>([]);
   const [avgPositions, setAvgPositions] = useState({ buy: -100, sell: -100, buyPrice: 0, sellPrice: 0 });
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [showAvgLines, setShowAvgLines] = useState(false);
   const [showEngulfing, setShowEngulfing] = useState(false);
   const [showPatternBox, setShowPatternBox] = useState(false);
@@ -123,7 +125,17 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   useEffect(() => { dataRef.current = data; }, [data]);
 
   // Helper to parse interval into ms
-  const getIntervalMs = (interval: string) => {
+  const canonicalInterval = (interval: string): string => {
+  if (!interval) return '1h';
+  const match = interval.match(/^(\d+)([a-zA-Z])$/);
+  if (!match) return interval.toLowerCase();
+  const val = match[1];
+  const unit = match[2];
+  if (unit === 'M') return val + 'M';
+  return val + unit.toLowerCase();
+};
+
+const getIntervalMs = (interval: string) => {
     const canonical = canonicalInterval(interval);
     const value = parseInt(canonical);
     const unit = canonical.slice(-1);
@@ -237,6 +249,19 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           autoscaleInfoProvider: () => null,
         });
         backgroundPoolRef.current.push(bgSeries);
+      }
+
+      // --- Dedicated Pool for User Positions (BENEATH CANDLES) ---
+      for (let i = 0; i < 20; i++) {
+        const upSeries = chart.addSeries(AreaSeries, {
+          visible: false,
+          lineVisible: false,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+          autoscaleInfoProvider: () => null,
+        });
+        userPositionsPoolRef.current.push(upSeries);
       }
 
       console.log("[Chart] Creating series...");
@@ -1482,6 +1507,99 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
   }, [data, showStructure, showStructuralLevels, showTrendlines, showGoldenZone, showInternalStructure]);
 
+  // --- Drawing Persistence Logic (AI-ALPHA) ---
+  const storageKey = symbol.replace('/', '');
+
+  // Load drawings on symbol change
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`chart_drawings_${storageKey}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Migration: Ensure all position drawings have targetTime
+        const migrated = parsed.map((d: any) => {
+          if ((d.type === 'long_position' || d.type === 'short_position') && !d.targetTime) {
+            return { ...d, targetTime: d.entryTime + 36000 }; 
+          }
+          return d;
+        });
+        setDrawings(migrated);
+      } else {
+        setDrawings([]);
+      }
+    } catch (e) {
+      console.error("[Chart] Failed to load drawings:", e);
+      setDrawings([]);
+    }
+  }, [symbol]);
+
+  // Save drawings on change with small delay (Auto-Save)
+  useEffect(() => {
+    if (drawings.length === 0 && !localStorage.getItem(`chart_drawings_${storageKey}`)) return;
+    const timer = setTimeout(() => {
+      localStorage.setItem(`chart_drawings_${storageKey}`, JSON.stringify(drawings));
+    }, 1000); // 1s throttle
+    return () => clearTimeout(timer);
+  }, [drawings, storageKey]);
+
+  // --- Background Position "Zone" Rendering (BENEATH CANDLES) ---
+  useEffect(() => {
+     if (!chartRef.current || !data || data.length === 0) return;
+     
+     // Reset pool (Clear visibility and data for unused slots)
+     userPositionsPoolRef.current.forEach(s => {
+        s.applyOptions({ visible: false });
+        s.setData([]);
+     });
+     
+     const positions = drawings.filter(d => d.type === 'long_position' || d.type === 'short_position') as PositionDrawing[];
+     
+     positions.forEach((pos, idx) => {
+        if (idx >= userPositionsPoolRef.current.length / 2) return;
+        
+        const isLong = pos.type === 'long_position';
+        const tpPoolIdx = idx * 2;
+        const slPoolIdx = idx * 2 + 1;
+        
+        const tpSeries = userPositionsPoolRef.current[tpPoolIdx];
+        const slSeries = userPositionsPoolRef.current[slPoolIdx];
+        
+        const startTime = pos.entryTime as UTCTimestamp;
+        const endTime = (pos.targetTime || (pos.entryTime + 36000)) as UTCTimestamp;
+        
+        // --- PRO RENDERING FIX: Use synthetic points to ensure future projection works ---
+        // AreaSeries needs at least 2 points to render width. 
+        // We provide exactly 2 points at the target price for the TP and SL zones.
+        // This ensures the zone appears regardless of whether data exists in the gap.
+        
+        const tpZoneData = [
+          { time: startTime, value: pos.tpPrice },
+          { time: endTime, value: pos.tpPrice }
+        ];
+
+        tpSeries.applyOptions({
+          visible: true,
+          topColor: isLong ? 'rgba(0, 255, 157, 0.12)' : 'rgba(128, 128, 128, 0.05)',
+          bottomColor: isLong ? 'rgba(0, 255, 157, 0.02)' : 'rgba(0, 255, 157, 0.01)',
+          lineVisible: false,
+        });
+        tpSeries.setData(tpZoneData as any);
+
+        const slZoneData = [
+          { time: startTime, value: pos.slPrice },
+          { time: endTime, value: pos.slPrice }
+        ];
+        
+        slSeries.applyOptions({
+           visible: true,
+           topColor: isLong ? 'rgba(128, 128, 128, 0.05)' : 'rgba(255, 0, 127, 0.12)',
+           bottomColor: isLong ? 'rgba(255, 0, 127, 0.01)' : 'rgba(255, 0, 127, 0.02)',
+           lineVisible: false,
+        });
+        slSeries.setData(slZoneData as any);
+     });
+  }, [drawings, data, symbol]);
+
   // --- High Frequency Animation Loop (Heartbeat Pulse) ---
   useEffect(() => {
     if (!showStructuralLevels || !data || data.length === 0) return;
@@ -2060,8 +2178,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           chartApi={chartRef.current}
           candleSeries={seriesRef.current}
           symbol={symbol}
+          interval={chartInterval}
           activeTool={activeTool}
           onToolChange={setActiveTool}
+          drawings={drawings}
+          setDrawings={setDrawings}
           data={data}
         />
 

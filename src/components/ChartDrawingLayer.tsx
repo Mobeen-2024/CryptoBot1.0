@@ -30,6 +30,7 @@ export interface PositionDrawing {
   entryPrice: number; entryTime: number;
   tpPrice: number;
   slPrice: number;
+  targetTime: number; // For dynamic width/duration
   riskAmount: number; // Mocked risk in USD
 }
 
@@ -50,14 +51,44 @@ const TOOL_COLORS: Record<DrawingTool, string> = {
 
 const uid = () => `d_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-const loadDrawings = (key: string): Drawing[] => {
-  try { return JSON.parse(localStorage.getItem(`chart_drawings_${key}`) || '[]'); }
-  catch { return []; }
+// Safe roundRect for older browsers or environments
+const drawRoundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    if (w < 2 * r) r = w / 2;
+    if (h < 2 * r) r = h / 2;
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
 };
 
-const saveDrawings = (key: string, drawings: Drawing[]) => {
-  try { localStorage.setItem(`chart_drawings_${key}`, JSON.stringify(drawings)); }
-  catch {}
+const canonicalInterval = (interval: string): string => {
+  if (!interval) return '1h';
+  const match = interval.match(/^(\d+)([a-zA-Z])$/);
+  if (!match) return interval.toLowerCase();
+  const val = match[1];
+  const unit = match[2];
+  if (unit === 'M') return val + 'M';
+  return val + unit.toLowerCase();
+};
+
+const getIntervalMs = (interval: string) => {
+  const canonical = canonicalInterval(interval);
+  const value = parseInt(canonical);
+  const unit = canonical.slice(-1);
+  switch (unit) {
+    case 'm': return value * 60 * 1000;
+    case 'h': return value * 60 * 60 * 1000;
+    case 'd': return value * 24 * 60 * 60 * 1000;
+    case 'w': return value * 7 * 24 * 60 * 60 * 1000;
+    case 'M': return value * 30 * 24 * 60 * 60 * 1000;
+    default: return 60000;
+  }
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -66,39 +97,30 @@ interface Props {
   chartApi: any;          // IChartApi from lightweight-charts
   candleSeries: any;      // The main candlestick series for priceToCoordinate
   symbol: string;
+  interval: string;
   activeTool: DrawingTool;
   onToolChange: (t: DrawingTool) => void;
+  drawings: Drawing[];
+  setDrawings: React.Dispatch<React.SetStateAction<Drawing[]>>;
   data: any[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ChartDrawingLayer: React.FC<Props> = ({
-  chartApi, candleSeries, symbol, activeTool, onToolChange, data,
+  chartApi, candleSeries, symbol, interval, activeTool, onToolChange, drawings, setDrawings, data,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [draftStart, setDraftStart] = useState<{ px: number; py: number; price: number; time: number } | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [draggingPart, setDraggingPart] = useState<'entry' | 'tp' | 'sl' | 'p1' | 'p2' | null>(null);
+  const [draggingPart, setDraggingPart] = useState<'entry' | 'tp' | 'sl' | 'p1' | 'p2' | 'duration' | null>(null);
   const [isHoveringShape, setIsHoveringShape] = useState(false);
   const [annotationDraft, setAnnotationDraft] = useState<{ price: number; time: number } | null>(null);
   const [annotationText, setAnnotationText] = useState('');
   const animRef = useRef<number>(0);
   const storageKey = symbol.replace('/', '');
-
-  // Load drawings for this symbol
-  useEffect(() => {
-    setDrawings(loadDrawings(storageKey));
-    setSelectedId(null);
-  }, [symbol]);
-
-  // Persist drawings whenever they change
-  useEffect(() => {
-    saveDrawings(storageKey, drawings);
-  }, [drawings, storageKey]);
 
   // Listen for clear-all signal from parent toolbar
   useEffect(() => {
@@ -112,7 +134,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
     };
     window.addEventListener('clearDrawings', handler);
     return () => window.removeEventListener('clearDrawings', handler);
-  }, [storageKey]);
+  }, [storageKey, setDrawings]);
 
   // ── Coordinate bridge ──────────────────────────────────────────────────────
 
@@ -122,21 +144,87 @@ export const ChartDrawingLayer: React.FC<Props> = ({
   }, [candleSeries]);
 
   const timeToX = useCallback((time: number): number | null => {
-    if (!chartApi) return null;
-    try { return chartApi.timeScale().timeToCoordinate(time as any); }
+    if (!chartApi || !data || data.length === 0) return null;
+    try {
+      // 1. Try native mapping
+      const native = chartApi.timeScale().timeToCoordinate(time as any);
+      if (native !== null) return native;
+
+      // 2. Future Extrapolation (AI-ALPHA)
+      // If native mapping fails, it's likely a future timestamp.
+      // We calculate its position relative to the last known candle.
+      const lastBar = data[data.length - 1];
+      const lastBarX = chartApi.timeScale().timeToCoordinate(lastBar.time as any);
+      if (lastBarX === null) return null;
+
+      const intervalMs = getIntervalMs(interval);
+      const deltaTime = time - (lastBar.time as number);
+      const barsForward = deltaTime / (intervalMs / 1000);
+      
+      // Calculate pixel width of a single bar (approximate)
+      // Using logical indices for precision
+      const timeScale = chartApi.timeScale();
+      const lastLogical = timeScale.coordinateToLogical(lastBarX);
+      if (lastLogical === null) return null;
+      
+      const futureLogical = lastLogical + barsForward;
+      return timeScale.logicalToCoordinate(futureLogical as any);
+    }
     catch { return null; }
-  }, [chartApi]);
+  }, [chartApi, data, interval]);
 
   const xyToPrice = useCallback((y: number): number | null => {
     if (!candleSeries) return null;
-    return candleSeries.coordinateToPrice(y);
-  }, [candleSeries]);
+    const price = candleSeries.coordinateToPrice(y);
+    if (price !== null) return price;
+
+    // Coordinate Extrapolation for Volume Pane / Bottom Areas
+    // If the standard API fails, we estimate based on the visible range
+    try {
+      const firstBar = data[0];
+      const lastBar = data[data.length - 1];
+      if (!firstBar || !lastBar) return null;
+      
+      const firstY = candleSeries.priceToCoordinate(firstBar.high);
+      const lastY = candleSeries.priceToCoordinate(lastBar.low);
+      if (firstY == null || lastY == null) return null;
+      
+      // Rough linear extrapolation relative to the main scale height
+      const height = Math.abs(lastY - firstY) || 1;
+      const priceRange = Math.abs(firstBar.high - lastBar.low) || 1;
+      const pxPerPrice = height / priceRange;
+      
+      const deltaY = y - lastY;
+      return lastBar.low - (deltaY / pxPerPrice);
+    } catch { return null; }
+  }, [candleSeries, data]);
 
   const xyToTime = useCallback((x: number): number | null => {
-    if (!chartApi) return null;
-    try { return chartApi.timeScale().coordinateToTime(x) as number | null; }
+    if (!chartApi || !data || data.length === 0) return null;
+    try {
+      // 1. Try native mapping
+      const native = chartApi.timeScale().coordinateToTime(x) as number | null;
+      if (native !== null) return native;
+
+      // 2. Future Extrapolation (AI-ALPHA)
+      // If we clicked in the right-hand blank space, we extrapolate based on bar logicals
+      const timeScale = chartApi.timeScale();
+      const logical = timeScale.coordinateToLogical(x);
+      if (logical === null) return null;
+
+      const lastBar = data[data.length - 1];
+      const lastBarX = timeScale.timeToCoordinate(lastBar.time as any);
+      if (lastBarX === null) return null;
+      
+      const lastLogical = timeScale.coordinateToLogical(lastBarX);
+      if (lastLogical === null) return null;
+
+      const barsForward = logical - lastLogical;
+      const intervalMs = getIntervalMs(interval);
+      return (lastBar.time as number) + Math.round(barsForward) * (intervalMs / 1000);
+    }
     catch { return null; }
-  }, [chartApi]);
+  }, [chartApi, data, interval]);
 
   // ── Canvas render loop ────────────────────────────────────────────────────
 
@@ -209,9 +297,9 @@ export const ChartDrawingLayer: React.FC<Props> = ({
              
              // Glass panel background simulation (dark transparent)
              ctx.shadowBlur = 10;
-             ctx.fillStyle = 'rgba(5, 11, 20, 0.85)';
+             ctx.fillStyle = 'rgba(5, 11, 20, 0.95)';
              ctx.beginPath();
-             ctx.roundRect(cx - (tw/2) - 8, cy - 24, tw + 16, 18, 4);
+             drawRoundRect(ctx, cx - (tw/2) - 8, cy - 24, tw + 16, 18, 4);
              ctx.fill();
              
              // Text print
@@ -235,7 +323,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           const tw = ctx.measureText(label).width;
           ctx.fillStyle = d.color;
           ctx.beginPath();
-          ctx.roundRect(12, y - 10, tw + 10, 18, 3);
+          drawRoundRect(ctx, 12, y - 10, tw + 10, 18, 3);
           ctx.fill();
           ctx.fillStyle = '#050b14'; // Darker contrast for 2050 theme
           ctx.fillText(label, 17, y + 3);
@@ -250,7 +338,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           // Bubble
           ctx.fillStyle = d.color;
           ctx.beginPath();
-          ctx.roundRect(x + 8, y - 28, textW + 14, 22, 5);
+          drawRoundRect(ctx, x + 8, y - 28, textW + 14, 22, 5);
           ctx.fill();
           // Arrow tail
           ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 8, y - 17); ctx.lineTo(x + 8, y - 14); ctx.closePath(); ctx.fill();
@@ -264,66 +352,94 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       }
 
       if (d.type === 'long_position' || d.type === 'short_position') {
-        const x = timeToX(d.entryTime);
+        const xE = timeToX(d.entryTime);
+        const xT_raw = d.targetTime ? timeToX(d.targetTime) : null;
         const yE = priceToY(d.entryPrice);
         const yTP = priceToY(d.tpPrice);
         const ySL = priceToY(d.slPrice);
 
-        if (x != null && yE != null && yTP != null && ySL != null) {
+        if (xE != null && yE != null && yTP != null && ySL != null) {
+          // If xT is null (future/off-screen), default to 140px width
+          const xT = xT_raw ?? (xE + 140);
           const isLong = d.type === 'long_position';
-          const boxWidth = 140; // Modern wide plate
+          const boxWidth = Math.max(80, xT - xE);
           
-          // --- TP Box (Success Zone) ---
-          ctx.fillStyle = 'rgba(0, 255, 157, 0.15)';
+          // --- TP Box (Success Zone) with Modern Vertical Gradient ---
           const tpRectY = Math.min(yE, yTP);
           const tpRectH = Math.abs(yE - yTP);
-          ctx.fillRect(x, tpRectY, boxWidth, tpRectH);
-          ctx.strokeStyle = '#00FF9D';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x, tpRectY, boxWidth, tpRectH);
 
-          // --- SL Box (Risk Zone) ---
-          ctx.fillStyle = 'rgba(255, 0, 127, 0.15)';
-          const slRectY = Math.min(yE, ySL);
-          const slRectH = Math.abs(yE - ySL);
-          ctx.fillRect(x, slRectY, boxWidth, slRectH);
-          ctx.strokeStyle = '#FF007F';
-          ctx.strokeRect(x, slRectY, boxWidth, slRectH);
-
-          // --- Metrics calculation ---
+          // Phase-1: Metrics & Logic Preparation
           const risk = Math.abs(d.entryPrice - d.slPrice);
           const reward = Math.abs(d.tpPrice - d.entryPrice);
           const ratio = risk > 0 ? (reward / risk).toFixed(2) : '0';
           const riskPct = ((risk / d.entryPrice) * 100).toFixed(2);
+          const targetPct = ((reward / d.entryPrice) * 100).toFixed(2);
           const posSize = risk > 0 ? (d.riskAmount / risk).toFixed(4) : '0';
 
-          // --- Glass HUD Overlay ---
-          // Position HUD centered over entry to avoid handle occlusion
-          const hudY = yE - 25;
-          ctx.fillStyle = 'rgba(5, 11, 20, 0.95)';
-          ctx.beginPath();
-          ctx.roundRect(x + 10, hudY - 50, 120, 52, 8); // Extra height for padding
-          ctx.fill();
-          ctx.strokeStyle = isLong ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 127, 0.4)';
-          ctx.stroke();
+          const intervalMs = getIntervalMs(interval);
+          const barCount = Math.round((d.targetTime - d.entryTime) / (intervalMs / 1000));
+          const durationStr = `${barCount} Bars`;
 
+          // (Background Fills now handled by Chart.tsx underneath)
+          ctx.strokeStyle = '#00FF9D';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(xE, tpRectY, boxWidth, tpRectH);
+
+          // --- SL Box Border only ---
+          const slRectY = Math.min(yE, ySL);
+          const slRectH = Math.abs(yE - ySL);
+          ctx.strokeStyle = '#FF007F';
+          ctx.strokeRect(xE, slRectY, boxWidth, slRectH);
+
+          // --- Advanced PnL HUD Feature: 1:1 R:R Line ---
+          const oneToOnePrice = isLong ? d.entryPrice + risk : d.entryPrice - risk;
+          const yOneToOne = priceToY(oneToOnePrice);
+          if (yOneToOne !== null) {
+            ctx.setLineDash([2, 4]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(xE, yOneToOne);
+            ctx.lineTo(xE + boxWidth, yOneToOne);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.font = '8px monospace';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.fillText('1:1 BE', xE + boxWidth - 35, yOneToOne - 4);
+          }
+
+          // --- Entry Line (Holographic Laser) ---
+          ctx.save();
+          if (isSelected) {
+            // Pulsing Selection Glow
+            const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
+            ctx.shadowBlur = 10 + pulse * 10;
+            ctx.shadowColor = isLong ? '#00FF9D' : '#FF007F';
+          }
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.beginPath(); ctx.moveTo(xE, yE); ctx.lineTo(xE + boxWidth, yE); ctx.stroke();
+          ctx.restore();
+
+          // --- Embedded Labels (Premium HUD Style) ---
           ctx.font = 'bold 10px monospace';
           ctx.fillStyle = '#fff';
-          ctx.fillText(`Ratio: ${ratio}`, x + 20, hudY - 35);
-          ctx.font = '8px monospace';
+          
+          ctx.fillText(`TARGET: +${targetPct}% | R:R ${ratio}`, xE + 10, tpRectY + 15);
+          ctx.fillText(`STOP: -${riskPct}% | SIZE: ${posSize}`, xE + 10, slRectY + slRectH - 8);
+
+          // Duration Label (Center bottom)
+          ctx.font = 'italic 9px monospace';
           ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          ctx.fillText(`Size: ${posSize} Units`, x + 20, hudY - 22);
-          ctx.fillStyle = '#FF007F'; // Risk is always red
-          ctx.font = 'bold 9px monospace';
-          ctx.fillText(`Risk: -${riskPct}%`, x + 20, hudY - 10);
+          ctx.fillText(durationStr, xE + boxWidth / 2 - 15, (isLong ? slRectY + slRectH : tpRectY + tpRectH) + 12);
 
           // --- Drag Handles (Targeting Nodes) ---
           if (isSelected) {
             ctx.shadowBlur = 10;
             ctx.shadowColor = '#fff';
             ctx.fillStyle = '#fff';
-            [yE, yTP, ySL].forEach((y) => {
-              ctx.beginPath(); ctx.arc(x + boxWidth, y, 4, 0, Math.PI * 2); ctx.fill();
+            [{ x: xE + boxWidth, y: yTP }, { x: xE + boxWidth, y: ySL }, { x: xE + boxWidth, y: yE }].forEach((p) => {
+              ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
             });
             ctx.shadowBlur = 0;
           }
@@ -356,7 +472,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       ctx.beginPath(); ctx.arc(draftStart.px, draftStart.py, 2, 0, Math.PI * 2); ctx.fill();
       
       // Dynamic Draft Measurement rendering
-      const draftPrice = candleSeries?.coordinateToPrice(mousePos.y) || 0;
+      const draftPrice = xyToPrice(mousePos.y) || 0;
       const priceDelta = draftPrice - draftStart.price;
       const pctChange = (priceDelta / draftStart.price) * 100;
       const sign = priceDelta >= 0 ? '+' : '';
@@ -368,9 +484,9 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       const cy = (draftStart.py + mousePos.y) / 2;
       
       ctx.shadowBlur = 10;
-      ctx.fillStyle = 'rgba(5, 11, 20, 0.85)';
+      ctx.fillStyle = 'rgba(5, 11, 20, 0.95)';
       ctx.beginPath();
-      ctx.roundRect(cx - (tw/2) - 8, cy - 24, tw + 16, 18, 4);
+      drawRoundRect(ctx, cx - (tw/2) - 8, cy - 24, tw + 16, 18, 4);
       ctx.fill();
       
       ctx.shadowBlur = 0;
@@ -420,11 +536,14 @@ export const ChartDrawingLayer: React.FC<Props> = ({
         const boxWidth = 140;
 
         if (dx != null && yE != null && yTP != null && ySL != null) {
+          const dxT = d.targetTime ? timeToX(d.targetTime) : null;
+          const boxWidth = dxT !== null ? Math.max(80, dxT - dx) : 140;
+
           // Check handles at the right edge of the box
           const hX = dx + boxWidth;
           if (Math.hypot(x - hX, y - yTP) < 10) return { id: d.id, part: 'tp' as const };
           if (Math.hypot(x - hX, y - ySL) < 10) return { id: d.id, part: 'sl' as const };
-          if (Math.hypot(x - hX, y - yE) < 10) return { id: d.id, part: 'entry' as const };
+          if (Math.hypot(x - hX, y - yE) < 10) return { id: d.id, part: 'duration' as const };
           
           // Check if clicking anywhere inside the box zones
           if (x >= dx && x <= dx + boxWidth) {
@@ -484,9 +603,10 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           if (draggingPart === 'p2') return { ...d, p2: { price, time: time ?? d.p2.time } };
         }
         if (d.type === 'long_position' || d.type === 'short_position') {
-          if (draggingPart === 'entry') return { ...d, entryPrice: price };
+          if (draggingPart === 'entry') return { ...d, entryPrice: price, entryTime: time ?? d.entryTime };
           if (draggingPart === 'tp') return { ...d, tpPrice: price };
           if (draggingPart === 'sl') return { ...d, slPrice: price };
+          if (draggingPart === 'duration' && time !== null) return { ...d, targetTime: time };
         }
         return d;
       }));
@@ -562,6 +682,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
         entryTime: time,
         slPrice: isLong ? price - slDist : price + slDist,
         tpPrice: isLong ? price + tpDist : price - tpDist,
+        targetTime: time + (getIntervalMs(interval) * 10 / 1000), // Smart width based on actual interval
         riskAmount: 100, // Mock $100 risk
       };
       setDrawings(prev => [...prev, p]);
