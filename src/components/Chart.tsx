@@ -4,6 +4,7 @@ import { ChartDrawingLayer, DrawingTool, Drawing, PositionDrawing } from './Char
 import { ChartConfig } from '../types/chart';
 import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlestickPatterns';
 import { analyzeMarketStructure } from '../utils/marketStructure';
+import { calculateTacticalConfluence } from '../utils/tacticalConfluence';
 import { ChartHUD } from './ChartHUD';
 
 // Utility to normalize interval strings to Binance-canonical format
@@ -120,12 +121,22 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     nearestShield: { type: string, price: number } | null;
     nearestMagnet: { type: string, price: number } | null;
     isConfluence: boolean;
+    strikeProbability?: number;
+    reasoning?: string[];
+    signal?: 'STRONG_BUY' | 'STRONG_SELL' | 'NEUTRAL';
+    isNewsProtection?: boolean;
+    session?: string;
   }>({
     trend: 'BULLISH',
     lastAction: 'NONE',
     nearestShield: null,
     nearestMagnet: null,
     isConfluence: false,
+    strikeProbability: 0,
+    reasoning: [],
+    signal: 'NEUTRAL',
+    isNewsProtection: false,
+    session: 'ASIA'
   });
 
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
@@ -1412,12 +1423,30 @@ const getIntervalMs = (interval: string) => {
         return Math.abs(latestPrice - mid) / latestPrice < 0.01;
       });
 
+      // 3. Calculate 2050 Tactical Confluence Strike Score
+      const latestPatterns = detectPatterns(data, data.length - 1);
+      const currentTime = data[data.length - 1].time;
+      const strike = calculateTacticalConfluence(analysis, latestPatterns, latestPrice, currentTime);
+
+      // Session Calculation for HUD
+      const date = new Date(typeof currentTime === 'string' ? currentTime : (Number(currentTime) * 1000));
+      const hour = date.getUTCHours();
+      let sessionName = 'ASIA';
+      if (hour >= 8 && hour < 14) sessionName = 'LONDON';
+      if (hour >= 14 && hour < 21) sessionName = 'NEW YORK';
+      if (hour >= 13 && hour <= 16) sessionName = 'LND/NY OV';
+
       setHudData({
         trend: currentTrend,
         lastAction: lastActionType,
         nearestShield,
         nearestMagnet,
         isConfluence: isNearZone,
+        strikeProbability: strike.probability,
+        reasoning: strike.reasoning,
+        signal: strike.signal,
+        isNewsProtection: analysis.isNewsProtection,
+        session: sessionName
       });
     } catch (e) {
       console.error("[Chart] HUD Engine Sync Error:", e);
@@ -1945,6 +1974,11 @@ const getIntervalMs = (interval: string) => {
           nearestShield={hudData.nearestShield}
           nearestMagnet={hudData.nearestMagnet}
           isConfluence={hudData.isConfluence}
+          strikeProbability={hudData.strikeProbability}
+          reasoning={hudData.reasoning}
+          signal={hudData.signal}
+          isNewsProtection={hudData.isNewsProtection}
+          session={hudData.session}
         />
 
         {/* Recent High/Low Markers Overlay Layer */}

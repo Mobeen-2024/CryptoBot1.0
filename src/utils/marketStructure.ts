@@ -39,14 +39,40 @@ export interface LiquidityGrab {
   description: string;
 }
 
+export interface Imbalance {
+  id: string;
+  top: number;
+  bottom: number;
+  startTime: number | string;
+  type: 'BULLISH_FVG' | 'BEARISH_FVG';
+  isMitigated: boolean;
+  mitigatedAtIdx?: number;
+  strength: number; // 0-100 based on expansion size
+}
+
 export interface MarketStructureAnalysis {
   nodes: MarketNode[];
   internalNodes: MarketNode[];
   levels: StructuralLevel[];
   trendlines: Trendline[];
   grabs: LiquidityGrab[];
-  currentTrend: 'BULLISH' | 'BEARISH'; // Phase 1: HUD Sync
+  imbalances: Imbalance[]; // 2050 Engine Addition
+  currentTrend: 'BULLISH' | 'BEARISH'; 
   lastActionType: 'CHoCH' | 'BOS' | 'NONE';
+  atr: number; 
+  isNewsProtection: boolean; // 2050 Engine Addition
+}
+
+function calculateATR(data: any[], period: number = 14): number {
+  if (data.length < period + 1) return 0;
+  let trs: number[] = [];
+  for (let i = 1; i < data.length; i++) {
+    const high = data[i].high;
+    const low = data[i].low;
+    const prevClose = data[i - 1].close;
+    trs.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
+  }
+  return trs.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
 function getSessionWeight(time: number | string): number {
@@ -64,15 +90,20 @@ function getSessionWeight(time: number | string): number {
 
 export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
   if (!data || data.length < lb * 2 + 1) return { 
-    nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [], 
-    currentTrend: 'BULLISH', lastActionType: 'NONE' 
+    nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [], imbalances: [],
+    currentTrend: 'BULLISH', lastActionType: 'NONE', atr: 0, isNewsProtection: false
   };
 
   const nodes: MarketNode[] = [];
   const internalNodes: MarketNode[] = [];
   const grabs: LiquidityGrab[] = [];
+  const imbalances: Imbalance[] = [];
   let currentTrend: 'BULLISH' | 'BEARISH' = 'BULLISH';
   let lastActionType: 'CHoCH' | 'BOS' | 'NONE' = 'NONE';
+  let isNewsProtection = false;
+  
+  const atr = calculateATR(data);
+  const gammaGuardThreshold = atr * 1.5; // Institutional Displacement Requirement
   
   // Phase 3: Separate Macro from Internal
   let macroLastHigh: number | null = null;
@@ -94,19 +125,83 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     const currentHigh = data[i].high;
     const currentLow = data[i].low;
 
-    // --- Phase 1: SMC Sequencing (CHoCH vs BOS) ---
+    // --- Dynamic Rolling ATR (Gamma-Guard Perfection) ---
+    // Recalculating ATR dynamically for the current historical context
+    const currentAtr = calculateATR(data.slice(0, i + 1));
+    
+    // --- Phase 1: SMC Sequencing (CHoCH vs BOS) with Gamma-Guard Displacement ---
     if (currentTrend === 'BULLISH' && macroLastLow !== null && currentClose < macroLastLow) {
-      currentTrend = 'BEARISH';
-      if (lastBreakDirection === 'BULLISH') { pendingCHoCH = true; lastActionType = 'CHoCH'; }
-      else { pendingBOS = true; lastActionType = 'BOS'; }
-      lastBreakDirection = 'BEARISH';
+      // Gamma-Guard: Ensure the break is decisive (Institutional Displacement)
+      const displacement = macroLastLow - currentClose;
+      if (displacement > (currentAtr * 0.5)) { 
+        currentTrend = 'BEARISH';
+        if (lastBreakDirection === 'BULLISH') { pendingCHoCH = true; lastActionType = 'CHoCH'; }
+        else { pendingBOS = true; lastActionType = 'BOS'; }
+        lastBreakDirection = 'BEARISH';
+      }
     } 
     else if (currentTrend === 'BEARISH' && macroLastHigh !== null && currentClose > macroLastHigh) {
-      currentTrend = 'BULLISH';
-      if (lastBreakDirection === 'BEARISH') { pendingCHoCH = true; lastActionType = 'CHoCH'; }
-      else { pendingBOS = true; lastActionType = 'BOS'; }
-      lastBreakDirection = 'BULLISH';
+      const displacement = currentClose - macroLastHigh;
+      if (displacement > (currentAtr * 0.5)) {
+        currentTrend = 'BULLISH';
+        if (lastBreakDirection === 'BEARISH') { pendingCHoCH = true; lastActionType = 'CHoCH'; }
+        else { pendingBOS = true; lastActionType = 'BOS'; }
+        lastBreakDirection = 'BULLISH';
+      }
     }
+
+    // --- Fair Value Gap (FVG) / Imbalance Engine with Displacement Constraint ---
+    if (i >= 2) {
+      const p2 = data[i - 2];
+      const p1 = data[i - 1]; // The Displacement Candle
+      const cur = data[i];
+      
+      const p1BodySize = Math.abs(p1.close - p1.open);
+      // Rolling mean body size for displacement validation (10 periods)
+      const recentBodies = data.slice(Math.max(0, i - 11), i - 1).map(d => Math.abs(d.close - d.open));
+      const avgBody = recentBodies.length > 0 ? recentBodies.reduce((a, b) => a + b, 0) / recentBodies.length : 0;
+      
+      const isInstitutionalDisplacement = p1BodySize > (avgBody * 1.5);
+
+      // Bullish FVG: Low of candle 3 > High of candle 1 AND Institutional Displacement
+      if (cur.low > p2.high && isInstitutionalDisplacement) {
+        imbalances.push({
+          id: `fvg_bull_${cur.time}`,
+          top: cur.low,
+          bottom: p2.high,
+          startTime: cur.time,
+          type: 'BULLISH_FVG',
+          isMitigated: false,
+          strength: Math.min(100, Math.round(((cur.low - p2.high) / (currentAtr || 1)) * 100))
+        });
+      }
+      // Bearish FVG: High of candle 3 < Low of candle 1 AND Institutional Displacement
+      if (cur.high < p2.low && isInstitutionalDisplacement) {
+        imbalances.push({
+          id: `fvg_bear_${cur.time}`,
+          top: p2.low,
+          bottom: cur.high,
+          startTime: cur.time,
+          type: 'BEARISH_FVG',
+          isMitigated: false,
+          strength: Math.min(100, Math.round(((p2.low - cur.high) / (currentAtr || 1)) * 100))
+        });
+      }
+    }
+
+    // --- FVG Mitigation Logic ---
+    imbalances.forEach(fvg => {
+      if (!fvg.isMitigated) {
+        if (fvg.type === 'BULLISH_FVG' && data[i].low <= fvg.bottom) {
+          fvg.isMitigated = true;
+          fvg.mitigatedAtIdx = i;
+        }
+        if (fvg.type === 'BEARISH_FVG' && data[i].high >= fvg.top) {
+          fvg.isMitigated = true;
+          fvg.mitigatedAtIdx = i;
+        }
+      }
+    });
 
     // --- Liquidity Grab (Sweep) Detection ---
     if (macroLastHigh !== null && currentHigh > macroLastHigh && currentClose < macroLastHigh) {
@@ -253,6 +348,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
         }
       }
     });
+
+    // NEWS PROTECTION / VOLATILITY VELOCITY FILTER (2050 Perfection)
+    const prevAtrs = data.slice(Math.max(0, i - 10), i).map((_, idx) => calculateATR(data.slice(0, Math.max(0, i - 10) + idx + 1)));
+    const avgVelocity = prevAtrs.length > 0 ? prevAtrs.reduce((a, b) => a + b, 0) / prevAtrs.length : currentAtr;
+    isNewsProtection = currentAtr > (avgVelocity * 3);
   }
 
   // --- Phase 3: Level Clustering (Institutional Confluence Zones) ---
@@ -376,8 +476,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     levels: filteredLevels.slice(-15),
     trendlines: trendlines.slice(-4),
     grabs: grabs.slice(-10),
+    imbalances: imbalances.filter(f => !f.isMitigated).slice(-8), // Only show active imbalances
     currentTrend,
-    lastActionType
+    lastActionType,
+    atr,
+    isNewsProtection
   };
 }
 
