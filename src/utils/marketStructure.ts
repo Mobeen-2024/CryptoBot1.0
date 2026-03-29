@@ -246,22 +246,67 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   const trendlines: Trendline[] = [];
   const hls = nodes.filter(n => n.type === 'HL' && n.isExternal);
   const lhs = nodes.filter(n => n.type === 'LH' && n.isExternal);
-
-  const generateLine = (points: MarketNode[], type: 'bullish' | 'bearish') => {
+  
+  const findValidRay = (points: MarketNode[], type: 'bullish' | 'bearish') => {
     if (points.length < 2) return;
-    const p1 = points[points.length - 2];
-    const p2 = points[points.length - 1];
-    trendlines.push({
-      id: `trnd_${type}_${p1.time}`,
-      start: { time: p1.time, price: p1.price },
-      end: { time: p2.time, price: p2.price },
-      type,
-      isProven: points.length >= 3
-    });
+    
+    // We iterate backwards to find the most recent valid "Proven" or "Strong" anchor pair
+    for (let i = points.length - 1; i >= 1; i--) {
+      for (let j = i - 1; j >= 0; j--) {
+        const p1 = points[j];
+        const p2 = points[i];
+        
+        // 1. Slope Validation
+        const slope = (p2.price - p1.price) / (p2.index - p1.index);
+        if (type === 'bullish' && slope <= 0) continue; 
+        if (type === 'bearish' && slope >= 0) continue;
+
+        // 2. Intersection Protocol (Body Check)
+        let isBroken = false;
+        let touches = 2; // Start with the 2 anchors
+        
+        // Scan every candle from p1 index to the end of data
+        for (let k = p1.index + 1; k < data.length; k++) {
+          const expectedPrice = p1.price + slope * (k - p1.index);
+          const close = data[k].close;
+          const high = data[k].high;
+          const low = data[k].low;
+
+          // Discard if ANY candle CLOSES beyond the line
+          if (type === 'bullish' && close < expectedPrice) { isBroken = true; break; }
+          if (type === 'bearish' && close > expectedPrice) { isBroken = true; break; }
+
+          // Proximity Scan for "Proven" touches (within 0.2%)
+          const wickNear = type === 'bullish' ? 
+            Math.abs(low - expectedPrice) / expectedPrice : 
+            Math.abs(high - expectedPrice) / expectedPrice;
+            
+          if (k !== p2.index && wickNear < 0.002) touches++;
+        }
+
+        if (!isBroken) {
+          // 3. Ray Extrapolation (Project 30 days into the future)
+          // Rough estimate: candles * interval = 30 days. 
+          // For simplicity, we just project +500 logical bars
+          const futureIndex = data.length + 500;
+          const futurePrice = p1.price + slope * (futureIndex - p1.index);
+          const futureTime = (data[data.length - 1].time + (30 * 24 * 60 * 60)) as number; // ~30 days
+
+          trendlines.push({
+            id: `trnd_${type}_${p1.time}`,
+            start: { time: p1.time, price: p1.price },
+            end: { time: futureTime, price: futurePrice },
+            type,
+            isProven: touches >= 3
+          });
+          return; // Found the best valid line for this type
+        }
+      }
+    }
   };
 
-  generateLine(hls, 'bullish');
-  generateLine(lhs, 'bearish');
+  findValidRay(hls, 'bullish');
+  findValidRay(lhs, 'bearish');
 
   return {
     nodes: nodes.sort((a, b) => a.index - b.index),

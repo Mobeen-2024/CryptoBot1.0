@@ -1504,20 +1504,26 @@ const getIntervalMs = (interval: string) => {
           });
         }
 
-        // 5. Trendlines...
+        // 5. Trendlines (Institutional Ray Projection)
         if (showTrendlines) {
           tlData.forEach(tl => {
+            const isProven = tl.isProven;
             const tlSeries = chart.addSeries(LineSeries, {
               color: tl.type === 'bullish' ? '#34d399' : '#f43f5e',
-              lineWidth: tl.isProven ? 2 : 1,
-              lineStyle: tl.isProven ? 0 : 2,
+              lineWidth: isProven ? 2 : 1.5,
+              lineStyle: isProven ? 0 : 2, // Solid for Proven, Dashed for unproven
               crosshairMarkerVisible: false,
               lastValueVisible: false,
               priceLineVisible: false,
+              // Shadow glow for proven lines
+              // Note: Lightweight charts doesn't natively support shadow on LineSeries, 
+              // but we use the color/width to differentiate strength.
             });
+            
+            // We ensure we only provide 2 points to draw the Ray to the future
             tlSeries.setData([
-              { time: tl.start.time, value: tl.start.price },
-              { time: tl.end.time, value: tl.end.price }
+              { time: tl.start.time as UTCTimestamp, value: tl.start.price },
+              { time: tl.end.time as UTCTimestamp, value: tl.end.price }
             ]);
             trendlineSeriesRef.current.push(tlSeries);
           });
