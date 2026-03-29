@@ -3,8 +3,10 @@ export interface MarketNode {
   price: number;
   type: 'HH' | 'HL' | 'LH' | 'LL';
   isBreakOfStructure: boolean;
+  isCHoCH: boolean; 
   isRoleReversal: boolean;
   isExternal: boolean; 
+  strength: 'STRONG' | 'WEAK' | 'NEUTRAL';
   index: number;
 }
 
@@ -23,10 +25,11 @@ export interface StructuralLevel {
 
 export interface Trendline {
   id: string;
-  start: { time: number | string; price: number };
+  start: { time: number | string; price: number; index: number };
   end: { time: number | string; price: number };
   type: 'bullish' | 'bearish';
   isProven: boolean; 
+  slope: number;
 }
 
 export interface LiquidityGrab {
@@ -38,6 +41,7 @@ export interface LiquidityGrab {
 
 export interface MarketStructureAnalysis {
   nodes: MarketNode[];
+  internalNodes: MarketNode[]; // Phase 3: Trace Line Data
   levels: StructuralLevel[];
   trendlines: Trendline[];
   grabs: LiquidityGrab[];
@@ -57,18 +61,23 @@ function getSessionWeight(time: number | string): number {
 }
 
 export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
-  if (!data || data.length < lb * 2 + 1) return { nodes: [], levels: [], trendlines: [], grabs: [] };
+  if (!data || data.length < lb * 2 + 1) return { nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [] };
 
   const nodes: MarketNode[] = [];
+  const internalNodes: MarketNode[] = [];
   const grabs: LiquidityGrab[] = [];
   let currentTrend: 'BULLISH' | 'BEARISH' = 'BULLISH';
   
-  let lastHigh: number | null = null;
-  let lastLow: number | null = null;
+  // Phase 3: Separate Macro from Internal
+  let macroLastHigh: number | null = null;
+  let macroLastLow: number | null = null;
+  
+  // Phase 1: SMC Sequencing (CHoCH vs BOS)
+  let lastBreakDirection: 'BULLISH' | 'BEARISH' | null = null;
 
   const rawLevels: StructuralLevel[] = [];
-  let pendingBullishBOS = false;
-  let pendingBearishBOS = false;
+  let pendingBOS = false;
+  let pendingCHoCH = false;
 
   // Track the rolling mean volume for relative strength calculation
   const volBuffer = data.slice(-20).map(d => d.volume);
@@ -79,21 +88,25 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     const currentHigh = data[i].high;
     const currentLow = data[i].low;
 
-    // --- Break of Structure (BOS) Live Check ---
-    if (currentTrend === 'BULLISH' && lastLow !== null && currentClose < lastLow) {
+    // --- Phase 1: SMC Sequencing (CHoCH vs BOS) ---
+    if (currentTrend === 'BULLISH' && macroLastLow !== null && currentClose < macroLastLow) {
       currentTrend = 'BEARISH';
-      pendingBearishBOS = true;
+      if (lastBreakDirection === 'BULLISH') pendingCHoCH = true;
+      else pendingBOS = true;
+      lastBreakDirection = 'BEARISH';
     } 
-    else if (currentTrend === 'BEARISH' && lastHigh !== null && currentClose > lastHigh) {
+    else if (currentTrend === 'BEARISH' && macroLastHigh !== null && currentClose > macroLastHigh) {
       currentTrend = 'BULLISH';
-      pendingBullishBOS = true;
+      if (lastBreakDirection === 'BEARISH') pendingCHoCH = true;
+      else pendingBOS = true;
+      lastBreakDirection = 'BULLISH';
     }
 
     // --- Liquidity Grab (Sweep) Detection ---
-    if (lastHigh !== null && currentHigh > lastHigh && currentClose < lastHigh) {
+    if (macroLastHigh !== null && currentHigh > macroLastHigh && currentClose < macroLastHigh) {
        grabs.push({ time: data[i].time, price: currentHigh, type: 'sweep_high', description: 'Liquidity Grab (Buy Stop Run)' });
     }
-    if (lastLow !== null && currentLow < lastLow && currentClose > lastLow) {
+    if (macroLastLow !== null && currentLow < macroLastLow && currentClose > macroLastLow) {
        grabs.push({ time: data[i].time, price: currentLow, type: 'sweep_low', description: 'Liquidity Grab (Sell Stop Run)' });
     }
 
@@ -140,17 +153,30 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
         strengthScore
       });
 
-      nodes.push({
-        time: data[i].time,
-        price,
-        type: lastHigh === null || price > lastHigh ? 'HH' : 'LH',
-        isBreakOfStructure: pendingBullishBOS,
-        isRoleReversal: false,
-        isExternal: isPH_Ext,
-        index: i
-      });
-      lastHigh = price;
-      if (pendingBullishBOS) pendingBullishBOS = false;
+      // --- Phase 1: Inside Bar Filter (Institutional Noise Rejection) ---
+      const prev = data[i - 1];
+      const isInsideBar = data[i].high <= prev.high && data[i].low >= prev.low;
+      
+      if (!isInsideBar) {
+        const node: MarketNode = {
+          time: data[i].time,
+          price,
+          type: macroLastHigh === null || price > macroLastHigh ? 'HH' : 'LH',
+          isBreakOfStructure: pendingBOS && currentTrend === 'BULLISH',
+          isCHoCH: pendingCHoCH && currentTrend === 'BULLISH',
+          isRoleReversal: false,
+          isExternal: isPH_Ext,
+          strength: 'NEUTRAL',
+          index: i
+        };
+        
+        if (isPH_Ext) nodes.push(node);
+        else internalNodes.push(node); // Sub-fractal Trace Point
+      }
+      
+      macroLastHigh = price;
+      pendingBOS = false;
+      pendingCHoCH = false;
     }
 
     if (isPL_Int) {
@@ -179,17 +205,30 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
         strengthScore
       });
 
-      nodes.push({
-        time: data[i].time,
-        price,
-        type: lastLow === null || price < lastLow ? 'LL' : 'HL',
-        isBreakOfStructure: pendingBearishBOS,
-        isRoleReversal: false,
-        isExternal: isPL_Ext,
-        index: i
-      });
-      lastLow = price;
-      if (pendingBearishBOS) pendingBearishBOS = false;
+      // --- Phase 1: Inside Bar Filter (Institutional Noise Rejection) ---
+      const prev = data[i - 1];
+      const isInsideBar = data[i].high <= prev.high && data[i].low >= prev.low;
+      
+      if (!isInsideBar) {
+        const node: MarketNode = {
+          time: data[i].time,
+          price,
+          type: macroLastLow === null || price < macroLastLow ? 'LL' : 'HL',
+          isBreakOfStructure: pendingBOS && currentTrend === 'BEARISH',
+          isCHoCH: pendingCHoCH && currentTrend === 'BEARISH',
+          isRoleReversal: false,
+          isExternal: isPL_Ext,
+          strength: 'NEUTRAL',
+          index: i
+        };
+        
+        if (isPL_Ext) nodes.push(node);
+        else internalNodes.push(node); // Sub-fractal Trace Point
+      }
+      
+      macroLastLow = price;
+      pendingBOS = false;
+      pendingCHoCH = false;
     }
 
     // 3. Dynamic Breaches with Institutional Hardening (BOS Logic)
@@ -294,10 +333,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
 
           trendlines.push({
             id: `trnd_${type}_${p1.time}`,
-            start: { time: p1.time, price: p1.price },
+            start: { time: p1.time, price: p1.price, index: p1.index },
             end: { time: futureTime, price: futurePrice },
             type,
-            isProven: touches >= 3
+            isProven: touches >= 3,
+            slope
           });
           return; // Found the best valid line for this type
         }
@@ -308,8 +348,25 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   findValidRay(hls, 'bullish');
   findValidRay(lhs, 'bearish');
 
+  // --- Phase 2: STRONG vs WEAK Classification ---
+  nodes.forEach((node, idx) => {
+    if (!node.isExternal) return;
+    
+    // A Strong node is one that actually caused a BOS on the opposite side
+    const nextNodes = nodes.slice(idx + 1);
+    const causedBreak = nextNodes.some(n => n.isBreakOfStructure || n.isCHoCH);
+    
+    if (causedBreak) {
+      node.strength = 'STRONG';
+    } else {
+      // If a node was formed but price reversed before it could cause a BOS, it is WEAK
+      node.strength = 'WEAK';
+    }
+  });
+
   return {
     nodes: nodes.sort((a, b) => a.index - b.index),
+    internalNodes: internalNodes.sort((a, b) => a.index - b.index),
     levels: filteredLevels.slice(-15),
     trendlines: trendlines.slice(-4),
     grabs: grabs.slice(-10)

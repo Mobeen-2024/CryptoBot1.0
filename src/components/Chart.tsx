@@ -65,6 +65,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const backgroundPoolRef = useRef<any[]>([]);
   const userPositionsPoolRef = useRef<any[]>([]); // Dedicated pool for user-placed Long/Short background zones
   const trendlineSeriesRef = useRef<any[]>([]);
+  const subFractalSeriesRef = useRef<any | null>(null);
   const [avgPositions, setAvgPositions] = useState({ buy: -100, sell: -100, buyPrice: 0, sellPrice: 0 });
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
   const [drawings, setDrawings] = useState<Drawing[]>([]);
@@ -1365,7 +1366,10 @@ const getIntervalMs = (interval: string) => {
       });
       structuralLevelsRef.current.clear();
       backgroundPoolRef.current.forEach(s => s.applyOptions({ visible: false }));
-      
+      if (subFractalSeriesRef.current) {
+         try { chart.removeSeries(subFractalSeriesRef.current); } catch(e) {}
+         subFractalSeriesRef.current = null;
+      }
       trendlineSeriesRef.current.forEach(s => chart.removeSeries(s));
       trendlineSeriesRef.current = [];
 
@@ -1379,24 +1383,40 @@ const getIntervalMs = (interval: string) => {
         // ... (Nodes and Golden Zone logic remains the same)
         if (showStructure) {
           nodes.forEach(node => {
-            if (!showInternalStructure && !node.isExternal && !node.isBreakOfStructure) return;
+            // ONLY SHOW MACRO/BOS/CHoCH LABELS (Hide Internal Text Spam)
+            if (!node.isExternal && !node.isBreakOfStructure && !node.isCHoCH) return;
+            
             const isBullish = node.type === 'HH' || node.type === 'HL';
             const isPeak = node.type === 'HH' || node.type === 'LH';
-            let structuralLabel: string | undefined = undefined;
-            if (node.isExternal || node.isBreakOfStructure) {
-              structuralLabel = node.isBreakOfStructure ? `${node.type} [BOS]` : node.type;
+            
+            let structuralLabel = node.type as string;
+            let markerColor = isBullish ? '#34d399' : '#f43f5e';
+            
+            if (node.isCHoCH) {
+              structuralLabel = `CHoCH [${node.type}]`;
+              markerColor = '#fcd535'; 
+            } else if (node.isBreakOfStructure) {
+              structuralLabel = `BOS [${node.type}]`;
             }
+
+            if (node.strength === 'STRONG') {
+              structuralLabel = `🛡️ STRG ${structuralLabel}`;
+            } else if (node.strength === 'WEAK') {
+              structuralLabel = `🎯 WEAK ${structuralLabel}`;
+            }
+
             chartMarkers.push({
               time: node.time,
               position: isPeak ? 'aboveBar' : 'belowBar',
-              color: isBullish ? (node.isExternal ? '#34d399' : '#34d39966') : (node.isExternal ? '#f43f5e' : '#f43f5e66'),
+              color: markerColor,
               shape: isPeak ? 'arrowDown' : 'arrowUp',
               text: structuralLabel,
-              size: node.isExternal ? 2 : 1
+              size: 2
             });
           });
         }
 
+        // 6. The "Holy Grail" Golden Zone Confluence Engine (AI-ALPHA)
         if (showGoldenZone) {
           const patterns = patternMarkersRef.current || [];
           patterns.forEach(pm => {
@@ -1404,21 +1424,55 @@ const getIntervalMs = (interval: string) => {
             const isBearishSignal = pm.type === 'BEARISH';
             if (!isBullishSignal && !isBearishSignal) return;
 
-            const priceAtTime = isBullishSignal ? pm.low : pm.high;
-            const level = levels.find(l => {
+            // --- Precision Structural Confluence ---
+            const patternPrice = isBullishSignal ? pm.low : pm.high;
+            const markerTime = Number(pm.time);
+            
+            // Find Level Confluence
+            const structuralConfluence = levels.find(l => {
+              // Temporal Alignment: Level must exist before or during pattern
+              if (Number(l.startTime) > markerTime) return false;
+              
+              // Directional Alignment: Bullish on Support, Bearish on Resistance
+              const isEffectiveSupport = (l.type === 'support' && !l.isBroken) || (l.type === 'resistance' && l.isBroken);
+              const isEffectiveResistance = (l.type === 'resistance' && !l.isBroken) || (l.type === 'support' && l.isBroken);
+              
+              if (isBullishSignal && !isEffectiveSupport) return false;
+              if (isBearishSignal && !isEffectiveResistance) return false;
+
+              // Precision "Cloud" Hitbox: Exact Wick-to-Body zone
               const upper = Math.max(l.priceWick, l.priceBody);
               const lower = Math.min(l.priceWick, l.priceBody);
-              const buffer = (upper - lower) * 1.5;
-              return priceAtTime >= (lower - buffer) && priceAtTime <= (upper + buffer);
+              return patternPrice >= lower && patternPrice <= upper;
             });
 
-            if (level && level.strengthScore > 80) {
+            if (structuralConfluence) {
+              // --- 3rd Point: Diagonal Trendline Confluence ---
+              let hasTrendlineConfluence = false;
+              if (showTrendlines) {
+                const currentIndex = data.findIndex(d => d.time === pm.time);
+                if (currentIndex !== -1) {
+                  hasTrendlineConfluence = tlData.some(tl => {
+                    if (tl.type !== (isBullishSignal ? 'bullish' : 'bearish')) return false;
+                    if (Number(tl.start.time) > markerTime) return false;
+                    
+                    // Linear calculation for expected trendline price at this bar
+                    const expectedPrice = tl.start.price + tl.slope * (currentIndex - tl.start.index);
+                    const proximity = Math.abs(patternPrice - expectedPrice) / expectedPrice;
+                    return proximity < 0.003; // Within 0.3% confluence
+                  });
+                }
+              }
+
+              const label = hasTrendlineConfluence ? '💎 GOLDEN [LEVEL+TREND]' : '💎 GOLDEN [LEVEL]';
+              const neonColor = isBullishSignal ? '#00ffff' : '#ff00ff'; // Cyan for Bulls, Magenta for Bears
+
               chartMarkers.push({
                 time: pm.time,
                 position: isBullishSignal ? 'belowBar' : 'aboveBar',
-                color: '#fcd535',
-                shape: isBullishSignal ? 'arrowUp' : 'arrowDown',
-                text: '★ GOLDEN ZONE',
+                color: neonColor,
+                shape: 'diamond',
+                text: label,
                 size: 2
               });
             }
@@ -1511,22 +1565,42 @@ const getIntervalMs = (interval: string) => {
             const tlSeries = chart.addSeries(LineSeries, {
               color: tl.type === 'bullish' ? '#34d399' : '#f43f5e',
               lineWidth: isProven ? 2 : 1.5,
-              lineStyle: isProven ? 0 : 2, // Solid for Proven, Dashed for unproven
+              lineStyle: isProven ? 0 : 2, 
               crosshairMarkerVisible: false,
               lastValueVisible: false,
               priceLineVisible: false,
-              // Shadow glow for proven lines
-              // Note: Lightweight charts doesn't natively support shadow on LineSeries, 
-              // but we use the color/width to differentiate strength.
             });
             
-            // We ensure we only provide 2 points to draw the Ray to the future
             tlSeries.setData([
               { time: tl.start.time as UTCTimestamp, value: tl.start.price },
               { time: tl.end.time as UTCTimestamp, value: tl.end.price }
             ]);
             trendlineSeriesRef.current.push(tlSeries);
           });
+        }
+
+        // --- Phase 3: Sub-Fractal Trace Mapping (AI-ALPHA) ---
+        if (showInternalStructure && analysis.internalNodes.length > 1) {
+          const sfSeries = chart.addSeries(LineSeries, {
+            color: '#34d399',
+            lineWidth: 1,
+            lineStyle: 2, // Dashed
+            crosshairMarkerVisible: false,
+            lastValueVisible: false,
+            priceLineVisible: false,
+            handleScroll: false,
+            handleScale: false,
+          });
+          sfSeries.applyOptions({
+            baseLineVisible: false,
+            lastValueVisible: false,
+          });
+          
+          sfSeries.setData(analysis.internalNodes.map(n => ({
+            time: n.time as UTCTimestamp,
+            value: n.price
+          })));
+          subFractalSeriesRef.current = sfSeries;
         }
       } else if (markersPlugin) {
         markersPlugin.setMarkers([]);
