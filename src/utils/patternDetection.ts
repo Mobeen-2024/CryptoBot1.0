@@ -15,6 +15,11 @@ export function analyzeEngulfing(prev: any, curr: any): EngulfingResult {
     return { isBullish: false, isBearish: false, hasHighVolume: false, isExpansion: false };
   }
 
+  const prevIsUp = prev.close > prev.open;
+  const prevIsDown = prev.close < prev.open;
+  const currIsUp = curr.close > curr.open;
+  const currIsDown = curr.close < curr.open;
+
   const prevBT = Math.max(prev.open, prev.close);
   const prevBB = Math.min(prev.open, prev.close);
   const currBT = Math.max(curr.open, curr.close);
@@ -23,18 +28,18 @@ export function analyzeEngulfing(prev: any, curr: any): EngulfingResult {
   const prevBodySize = prevBT - prevBB;
   const currBodySize = currBT - currBB;
 
-  // Rule: BT_t >= BT_t-1 AND BB_t <= BB_t-1
-  const engulfsTop = currBT >= prevBT;
-  const engulfsBottom = currBB <= prevBB;
+  // CTB Rule: Current body MUST fully engulf previous body
+  const engulfsBody = currBT >= prevBT && currBB <= prevBB;
   const isExpansion = currBodySize > prevBodySize;
 
-  const isEngulfing = engulfsTop && engulfsBottom && isExpansion;
+  const bullishEngulf = prevIsDown && currIsUp && engulfsBody;
+  const bearishEngulf = prevIsUp && currIsDown && engulfsBody;
 
   return {
-    isBullish: isEngulfing && curr.close > curr.open,
-    isBearish: isEngulfing && curr.close < curr.open,
+    isBullish: bullishEngulf,
+    isBearish: bearishEngulf,
     hasHighVolume: curr.volume > prev.volume,
-    isExpansion
+    isExpansion: isExpansion
   };
 }
 

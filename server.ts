@@ -35,6 +35,9 @@ shadowDb.exec(`
   )
 `);
 
+// Clear any open shadow orders on startup to prevent "stale" orders from auto-executing on refresh
+shadowDb.prepare("DELETE FROM shadow_pending_orders WHERE status = 'open'").run();
+
 export const pendingShadowOrders: any[] = shadowDb.prepare('SELECT * FROM shadow_pending_orders WHERE status = ?').all('open');
 
 export function addPendingShadowOrder(order: any) {
@@ -738,10 +741,12 @@ async function startServer() {
           const pendingOrderId = `sim_pending_${Date.now()}`;
           const computedType = (takeProfit || slTrigger) ? 'oco' : orderType;
 
-          // Cancel old pending shadow orders for the same symbol & side (e.g., replacing old TP/SL)
+          // Cancel old pending shadow orders for the same symbol, side & marginMode (e.g., replacing old TP/SL)
+          const expectedMarginMode = marginMode ? marginMode.toLowerCase() : undefined;
           for (let reverseIdx = pendingShadowOrders.length - 1; reverseIdx >= 0; reverseIdx--) {
             const o = pendingShadowOrders[reverseIdx];
-            if (o.symbol === ccxtSymbol && o.status === 'open' && o.side === orderSide) {
+            const currentOrderMarginMode = o.marginMode ? o.marginMode.toLowerCase() : undefined;
+            if (o.symbol === ccxtSymbol && o.status === 'open' && o.side === orderSide && currentOrderMarginMode === expectedMarginMode) {
               updatePendingShadowOrderStatus(o.id, 'canceled');
               pendingShadowOrders.splice(reverseIdx, 1);
             }
@@ -751,7 +756,7 @@ async function startServer() {
             id: pendingOrderId, symbol: ccxtSymbol, side: orderSide, type: computedType,
             amount: amount, limitPrice: Number(takeProfit || price),
             stopPrice: Number(slTrigger || stopPrice),
-            marginMode, baseAsset, quoteAsset, balanceAsset,
+            marginMode: expectedMarginMode, baseAsset, quoteAsset, balanceAsset,
             status: 'open'
           };
 
@@ -940,6 +945,53 @@ async function startServer() {
     }
   });
 
+  app.delete('/api/binance/order', async (req, res) => {
+    try {
+      const { symbol, orderId } = req.query;
+      const isShadow = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+
+      if (isShadow) {
+        // Remove from in-memory array
+        const idx = pendingShadowOrders.findIndex((o: any) => o.id === orderId);
+        if (idx !== -1) {
+          updatePendingShadowOrderStatus(orderId as string, 'canceled');
+          pendingShadowOrders.splice(idx, 1);
+        }
+        return res.json({ message: 'Shadow order canceled' });
+      }
+
+      const ccxtSymbol = (symbol as string).replace('USDT', '/USDT');
+      const order = await authenticatedExchange.cancelOrder(orderId as string, ccxtSymbol);
+      res.json(order);
+    } catch (error: any) {
+      handleBinanceError(error, res, 'Failed to cancel order');
+    }
+  });
+
+  app.delete('/api/binance/orders/all', async (req, res) => {
+    try {
+      const isShadow = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+
+      if (isShadow) {
+        shadowDb.prepare("UPDATE shadow_pending_orders SET status = 'canceled' WHERE status = 'open'").run();
+        pendingShadowOrders.length = 0; // Clear the in-memory array
+        return res.json({ message: 'All shadow orders cleared' });
+      }
+
+      const { symbol } = req.query;
+      if (symbol) {
+        const ccxtSymbol = (symbol as string).replace('USDT', '/USDT');
+        await authenticatedExchange.cancelAllOrders(ccxtSymbol);
+      } else {
+        return res.status(400).json({ error: 'Symbol required for live order cancellation' });
+      }
+      
+      res.json({ message: 'Orders canceled' });
+    } catch (error: any) {
+      handleBinanceError(error, res, 'Failed to clear orders');
+    }
+  });
+
   // Open / Pending Orders Endpoint
   app.get('/api/backend/openOrders', (req, res) => {
     try {
@@ -1036,7 +1088,13 @@ async function startServer() {
       // Attach any open pending shadow orders as TP / SL targets
       const augmentedPositions = activePositions.map(pos => {
         const cleanPosSymbol = pos.symbol.replace('-ISOLATED', '').replace('-CROSS', '').replace('/', '');
-        const matchingOrders = pendingShadowOrders.filter((o: any) => o.status === 'open' && o.symbol.replace('/', '') === cleanPosSymbol);
+        const expectedMarginMode = pos.symbol.includes('-ISOLATED') ? 'isolated' : (pos.symbol.includes('-CROSS') ? 'cross' : undefined);
+        const matchingOrders = pendingShadowOrders.filter((o: any) => {
+          const currentOrderMarginMode = o.marginMode ? o.marginMode.toLowerCase() : undefined;
+          return o.status === 'open' && 
+                 o.symbol.replace('/', '') === cleanPosSymbol &&
+                 currentOrderMarginMode === expectedMarginMode;
+        });
 
         let tpPrice: number | undefined = undefined;
         let slPrice: number | undefined = undefined;

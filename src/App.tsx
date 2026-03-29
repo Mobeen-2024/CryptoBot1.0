@@ -870,7 +870,7 @@ export default function App() {
         </div>
 
         {/* ─── BOTTOM ROW: Tabbed Terminal ────────────────────────── */}
-        <div className="flex flex-col shrink-0 glass-panel border border-[var(--holo-cyan)]/20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden min-h-[250px] sm:min-h-[300px] rounded-2xl">
+        <div className="flex flex-col shrink-0 glass-panel border border-[var(--holo-cyan)]/20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] overflow-hidden h-[450px] sm:h-[500px] rounded-2xl">
           {/* Tab Bar */}
           <div className="flex border-b border-white/5 bg-black/40 backdrop-blur-md shrink-0 overflow-x-auto custom-scrollbar">
             {([

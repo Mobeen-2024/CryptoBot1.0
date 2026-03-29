@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
+import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
 import { analyzeEngulfing } from '../utils/patternDetection';
 import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlestickPatterns';
+import { analyzeMarketStructure } from '../utils/marketStructure';
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -31,6 +32,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<any>(null);
+  const markersPluginRef = useRef<any>(null);
   const mainLineSeriesRef = useRef<any>(null);
   const supertrendSeriesRef = useRef<any>(null);
   const emaSeriesRef = useRef<any>(null);
@@ -60,11 +62,20 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const kdjJRef = useRef<any>(null);
 
   const openOrderLinesRef = useRef<Map<string, any>>(new Map());
+  const structuralLevelsRef = useRef<Map<string, any[]>>(new Map()); // Now maps to [shell, core, wickLine, dataStatics]
+  const backgroundPoolRef = useRef<any[]>([]);
+  const trendlineSeriesRef = useRef<any[]>([]);
   const [avgPositions, setAvgPositions] = useState({ buy: -100, sell: -100, buyPrice: 0, sellPrice: 0 });
   const [activeTool, setActiveTool] = useState<DrawingTool>('none');
   const [showAvgLines, setShowAvgLines] = useState(false);
   const [showEngulfing, setShowEngulfing] = useState(false);
   const [showPatternBox, setShowPatternBox] = useState(false);
+  const [showStructure, setShowStructure] = useState(false);
+  const [showStructuralLevels, setShowStructuralLevels] = useState(false);
+  const [showTrendlines, setShowTrendlines] = useState(false);
+  const [showGoldenZone, setShowGoldenZone] = useState(false);
+  const [showInternalStructure, setShowInternalStructure] = useState(false);
+  const [pulseTick, setPulseTick] = useState(0); // For heartbeat animations
   const [crosshairData, setCrosshairData] = useState<{
     time: string | number;
     open: number;
@@ -214,6 +225,20 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       chartRef.current = chart;
 
+      // --- Pre-allocate Background Series Pool (AI-ALPHA BENEATH CANDLES) ---
+      // We create these BEFORE the candlestick series to ensure they render underneath
+      for (let i = 0; i < 40; i++) {
+        const bgSeries = chart.addSeries(AreaSeries, {
+          visible: false,
+          lineVisible: false,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+          autoscaleInfoProvider: () => null,
+        });
+        backgroundPoolRef.current.push(bgSeries);
+      }
+
       console.log("[Chart] Creating series...");
       const candlestickSeries = chart.addSeries(CandlestickSeries, {
         upColor: '#00E5FF',
@@ -245,7 +270,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       mainLineSeriesRef.current = mainLineSeries;
       mainLineSeries.setData(data.filter(d => d.close != null).map((d: any) => ({ time: d.time, value: d.close })));
 
-      // Dummy markers removed. Will be set by trades useEffect.
+      // Initialize v5 Markers Plugin
+      const msPlugin = createSeriesMarkers(candlestickSeries);
+      markersPluginRef.current = msPlugin;
 
       const supertrendSeries = chart.addSeries(AreaSeries, {
         lineType: 2, // LineType.WithSteps
@@ -1285,6 +1312,215 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     setPatternMarkers(newPatternMarkers);
   }, [data, config?.patternOverlay, showEngulfing]);
 
+  // --- Heartbeat Animation Engine (AI-ALPHA) ---
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPulseTick(t => (t + 1) % 100);
+    }, 100); // 100ms step for smooth pulsing
+    return () => clearInterval(interval);
+  }, []);
+
+  // Execute Market Structure Kernel (Injects Natively via setMarkers)
+  useEffect(() => {
+    try {
+      const series = seriesRef.current;
+      const markersPlugin = markersPluginRef.current;
+      const chart = chartRef.current;
+      if (!series || !markersPlugin || !chart) return;
+
+      // Clean old structural artifacts (Reset pool and remove markers)
+      structuralLevelsRef.current.forEach(artifacts => {
+        const [,, wickLine] = artifacts;
+        if (wickLine) {
+           try { series.removePriceLine(wickLine); } catch (e) {}
+        }
+      });
+      structuralLevelsRef.current.clear();
+      backgroundPoolRef.current.forEach(s => s.applyOptions({ visible: false }));
+      
+      trendlineSeriesRef.current.forEach(s => chart.removeSeries(s));
+      trendlineSeriesRef.current = [];
+
+      if ((showStructure || showStructuralLevels || showTrendlines || showGoldenZone) && data && data.length > 0) {
+        const analysis = analyzeMarketStructure(data, 5); 
+        const { nodes, levels, trendlines: tlData, grabs } = analysis;
+        
+        const chartMarkers: any[] = [];
+        const latestPrice = data[data.length - 1].close;
+
+        // ... (Nodes and Golden Zone logic remains the same)
+        if (showStructure) {
+          nodes.forEach(node => {
+            if (!showInternalStructure && !node.isExternal && !node.isBreakOfStructure) return;
+            const isBullish = node.type === 'HH' || node.type === 'HL';
+            const isPeak = node.type === 'HH' || node.type === 'LH';
+            let structuralLabel: string | undefined = undefined;
+            if (node.isExternal || node.isBreakOfStructure) {
+              structuralLabel = node.isBreakOfStructure ? `${node.type} [BOS]` : node.type;
+            }
+            chartMarkers.push({
+              time: node.time,
+              position: isPeak ? 'aboveBar' : 'belowBar',
+              color: isBullish ? (node.isExternal ? '#34d399' : '#34d39966') : (node.isExternal ? '#f43f5e' : '#f43f5e66'),
+              shape: isPeak ? 'arrowDown' : 'arrowUp',
+              text: structuralLabel,
+              size: node.isExternal ? 2 : 1
+            });
+          });
+        }
+
+        if (showGoldenZone) {
+          const patterns = patternMarkersRef.current || [];
+          patterns.forEach(pm => {
+            const isBullishSignal = pm.type === 'BULLISH';
+            const isBearishSignal = pm.type === 'BEARISH';
+            if (!isBullishSignal && !isBearishSignal) return;
+
+            const priceAtTime = isBullishSignal ? pm.low : pm.high;
+            const level = levels.find(l => {
+              const upper = Math.max(l.priceWick, l.priceBody);
+              const lower = Math.min(l.priceWick, l.priceBody);
+              const buffer = (upper - lower) * 1.5;
+              return priceAtTime >= (lower - buffer) && priceAtTime <= (upper + buffer);
+            });
+
+            if (level && level.strengthScore > 80) {
+              chartMarkers.push({
+                time: pm.time,
+                position: isBullishSignal ? 'belowBar' : 'aboveBar',
+                color: '#fcd535',
+                shape: isBullishSignal ? 'arrowUp' : 'arrowDown',
+                text: '★ GOLDEN ZONE',
+                size: 2
+              });
+            }
+          });
+        }
+
+        grabs.forEach(grab => {
+           chartMarkers.push({
+             time: grab.time,
+             position: grab.type === 'sweep_high' ? 'aboveBar' : 'belowBar',
+             color: '#fcd535',
+             shape: 'circle',
+             text: '⚡ SWEEP',
+             size: 2
+           });
+        });
+
+        const deduplicated = chartMarkers.filter((m, i, arr) => i === 0 || m.time !== arr[i-1].time);
+        markersPlugin.setMarkers(deduplicated);
+
+        // 4. Supply/Demand Clouds (AI-ALPHA BENEATH CANDLES)
+        if (showStructuralLevels) {
+          levels.forEach((lvl, idx) => {
+            const poolIdx = idx * 2;
+            if (poolIdx + 1 >= backgroundPoolRef.current.length) return;
+
+            const shell = backgroundPoolRef.current[poolIdx];
+            const core = backgroundPoolRef.current[poolIdx + 1];
+            const isSup = lvl.type === 'support';
+            const baseColor = lvl.isBroken ? '128, 128, 128' : (isSup ? '52, 211, 153' : '244, 63, 94');
+            
+            // Reduced opacities
+            const shellOpacity = lvl.isBroken ? 0.03 : 0.08;
+            const coreOpacity = lvl.isBroken ? 0.05 : 0.2;
+
+            shell.applyOptions({
+              visible: true,
+              topColor: `rgba(${baseColor}, ${shellOpacity})`,
+              bottomColor: `rgba(${baseColor}, 0.02)`,
+            });
+            const pHigh = Math.max(lvl.priceWick, lvl.priceBody);
+            shell.setData(data.slice(-100).map(d => ({ time: d.time, value: pHigh })));
+
+            core.applyOptions({
+              visible: true,
+              topColor: `rgba(${baseColor}, ${coreOpacity})`,
+              bottomColor: `rgba(${baseColor}, ${coreOpacity * 0.5})`,
+            });
+            const coreHeight = Math.abs(lvl.priceWick - lvl.priceBody) * 0.4;
+            core.setData(data.slice(-100).map(d => ({ time: d.time, value: lvl.pricePOC + coreHeight / 2 })));
+
+            // Wick Line (Boundary)
+            const wickLine = series.createPriceLine({
+               price: lvl.priceWick,
+               color: `rgba(${baseColor}, ${lvl.isBroken ? 0.2 : 0.8})`,
+               lineWidth: 1,
+               lineStyle: lvl.isBroken ? 1 : 0,
+               axisLabelVisible: !lvl.isBroken,
+               title: `${lvl.type.toUpperCase()} [STR: ${lvl.strengthScore}%]${lvl.isBroken ? ' (GHOST)' : ''}`,
+            });
+
+            structuralLevelsRef.current.set(lvl.id, [shell, core, wickLine, lvl]);
+          });
+        }
+
+        // 5. Trendlines...
+        if (showTrendlines) {
+          tlData.forEach(tl => {
+            const tlSeries = chart.addSeries(LineSeries, {
+              color: tl.type === 'bullish' ? '#34d399' : '#f43f5e',
+              lineWidth: tl.isProven ? 2 : 1,
+              lineStyle: tl.isProven ? 0 : 2,
+              crosshairMarkerVisible: false,
+              lastValueVisible: false,
+              priceLineVisible: false,
+            });
+            tlSeries.setData([
+              { time: tl.start.time, value: tl.start.price },
+              { time: tl.end.time, value: tl.end.price }
+            ]);
+            trendlineSeriesRef.current.push(tlSeries);
+          });
+        }
+      } else if (markersPlugin) {
+        markersPlugin.setMarkers([]);
+      }
+    } catch (err) {
+      console.error("[Chart] Fatal error running Market Structure:", err);
+    }
+  }, [data, showStructure, showStructuralLevels, showTrendlines, showGoldenZone, showInternalStructure]);
+
+  // --- High Frequency Animation Loop (Heartbeat Pulse) ---
+  useEffect(() => {
+    if (!showStructuralLevels || !data || data.length === 0) return;
+    const latestPrice = data[data.length - 1].close;
+    
+    // Check if Golden Zone fast pulse is active
+    let fastPulseActive = false;
+    if (showGoldenZone) {
+       const lastTime = data[data.length - 1].time;
+       fastPulseActive = (patternMarkersRef.current || []).some(pm => pm.time === lastTime);
+    }
+
+    structuralLevelsRef.current.forEach((artifacts) => {
+      const [shell, core, wickLine, lvl] = artifacts;
+      if (!shell || !core || !lvl) return;
+      if (lvl.isBroken) return; // Ghosts don't pulse
+
+      const isSup = lvl.type === 'support';
+      const isActive = Math.abs(latestPrice - lvl.priceWick) / lvl.priceWick < 0.005;
+      const baseColor = isSup ? '52, 211, 153' : '244, 63, 94';
+
+      let opacityCoeff = 1.0;
+      if (isActive) {
+        const period = fastPulseActive ? 5 : 20; 
+        opacityCoeff = 0.5 + Math.sin((pulseTick / period) * 2 * Math.PI) * 0.3;
+      }
+
+      shell.applyOptions({
+        topColor: `rgba(${baseColor}, ${0.08 * opacityCoeff})`,
+        bottomColor: `rgba(${baseColor}, 0.01)`,
+      });
+      core.applyOptions({
+        topColor: `rgba(${baseColor}, ${0.2 * opacityCoeff})`,
+        bottomColor: `rgba(${baseColor}, ${0.1 * opacityCoeff})`,
+      });
+    });
+  }, [pulseTick, showStructuralLevels, showGoldenZone]);
+
+
   // Sync Open Orders to Price Lines
   useEffect(() => {
     const series = seriesRef.current;
@@ -1398,6 +1634,46 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                   </div>
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">Box Over</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showStructuralLevels} onChange={e => setShowStructuralLevels(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#eab308]/20 peer-checked:border-[#eab308]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#eab308] peer-checked:shadow-[0_0_10px_#eab308]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#eab308]/40 group-hover/toggle:text-[#eab308] transition-colors font-mono">Structural Levels</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showTrendlines} onChange={e => setShowTrendlines(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#8b5cf6]/20 peer-checked:border-[#8b5cf6]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#8b5cf6] peer-checked:shadow-[0_0_10px_#8b5cf6]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8b5cf6]/40 group-hover/toggle:text-[#8b5cf6] transition-colors font-mono">Trendlines</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showGoldenZone} onChange={e => setShowGoldenZone(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[var(--holo-gold)]/20 peer-checked:border-[var(--holo-gold)]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[var(--holo-gold)] peer-checked:shadow-[0_0_10px_var(--holo-gold)]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--holo-gold)]/40 group-hover/toggle:text-[var(--holo-gold)] transition-colors font-mono">Golden Zone</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showStructure} onChange={e => setShowStructure(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#00f0ff]/20 peer-checked:border-[#00f0ff]/40 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#00f0ff] peer-checked:shadow-[0_0_10px_#00f0ff]" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#00f0ff]/40 group-hover/toggle:text-[#00f0ff] transition-colors font-mono">Nodes</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                  <div className="relative">
+                    <input type="checkbox" checked={showInternalStructure} onChange={e => setShowInternalStructure(e.target.checked)} className="sr-only peer" />
+                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#00f0ff]/10 peer-checked:border-[#00f0ff]/20 transition-all" />
+                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/10 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#00f0ff]/50" />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#00f0ff]/20 group-hover/toggle:text-[#00f0ff]/50 transition-colors font-mono">Internal Struct</span>
+                </label>
               </div>
             </div>
           </div>
@@ -1411,11 +1687,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             { id: 'none', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select', color: '#ffffff' },
             { id: 'trendline', icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4', title: 'Trendline', color: '#00E5FF' },
             { id: 'horizontal', icon: 'M5 12h14', title: 'Support/Resist', color: '#fcd535' },
+            { id: 'long_position', icon: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7 M12 18v-6 M9 15h6', title: 'Long Position', color: '#00FF9D' },
+            { id: 'short_position', icon: 'M13 18v-6 M9 15h6 M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7', title: 'Short Position', color: '#FF007F' },
           ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
             <button
               key={tool.id}
               title={tool.title}
-              onClick={() => setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool);
+              }}
               className={`p-2.5 rounded-xl transition-all relative group/tool ${activeTool === tool.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
@@ -1781,6 +2062,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           symbol={symbol}
           activeTool={activeTool}
           onToolChange={setActiveTool}
+          data={data}
         />
 
         {/* ── Active Candle Highlight Aura ── */}

@@ -339,3 +339,50 @@ input[type="number"] {
   transform: scale(1.2);
   box-shadow: 0 0 15px var(--holo-cyan-glow), 0 0 5px white;
 }
+
+/* ─── AI Neural Command Center Animations ────────────────────────── */
+
+@keyframes neural-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.animate-neural-scan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent, var(--holo-cyan), transparent);
+  height: 20%;
+  width: 100%;
+  pointer-events: none;
+  z-index: 10;
+  animation: neural-scan 3s linear infinite;
+}
+
+@keyframes hologram-flicker {
+  0% { opacity: 0.95; transform: scale(1); }
+  5% { opacity: 0.85; transform: scale(1.001); }
+  10% { opacity: 0.9; transform: scale(1); }
+  15% { opacity: 0.8; transform: scale(0.999); }
+  25% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.95; transform: scale(1); }
+}
+
+.animate-hologram {
+  animation: hologram-flicker 4s linear infinite;
+}
+
+@keyframes pulse-glow-cyan {
+  0%, 100% { box-shadow: 0 0 10px var(--holo-cyan-glow); }
+  50% { box-shadow: 0 0 25px var(--holo-cyan-glow), 0 0 10px var(--holo-cyan); }
+}
+
+.glow-pulse-cyan {
+  animation: pulse-glow-cyan 2s ease-in-out infinite;
+}
+
+/* Decryption Character Flicker (handled via JS, but base style) */
+.decrypting {
+  font-family: var(--font-mono);
+  text-shadow: 0 0 8px var(--holo-cyan-glow);
+}
