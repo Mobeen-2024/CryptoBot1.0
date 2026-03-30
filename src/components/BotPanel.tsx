@@ -178,6 +178,7 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
                 <div className="grid grid-cols-2 gap-2">
                   {(['LONG', 'SHORT'] as BotStrategy[]).map(s => (
                     <button key={s} onClick={() => set('strategy', s)}
+                      title={s === 'LONG' ? "Set Bullish Strategy" : "Set Bearish Strategy"}
                       className={`py-2 rounded font-black text-[10px] tracking-widest uppercase transition-all ${cfg.strategy === s ? (s === 'LONG' ? 'bg-[var(--holo-cyan)]/15 border border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[0_0_10px_rgba(57,255,20,0.2)]' : 'bg-[var(--holo-magenta)]/15 border border-[var(--holo-magenta)]/50 text-[var(--holo-magenta)] shadow-[0_0_10px_rgba(255,7,58,0.2)]') : 'bg-black border border-white/[0.1] text-gray-500 hover:text-gray-300'}`}>{s}</button>
                   ))}
                 </div>

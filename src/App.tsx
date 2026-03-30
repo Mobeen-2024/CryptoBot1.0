@@ -852,12 +852,14 @@ export default function App() {
               />
               <button
                 onClick={() => setActiveMode('SPOT')}
+                title="Switch to Spot Margin Mode"
                 className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'SPOT' ? 'text-cyan-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
               >
                 Spot Margin
               </button>
               <button
                 onClick={() => setActiveMode('DELTA')}
+                title="Switch to Delta Master Mode"
                 className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'DELTA' ? 'text-cyan-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
               >
                 Delta Master
@@ -905,6 +907,7 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                title={tab.label}
                 className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id
                     ? 'text-[var(--holo-gold)] border-[var(--holo-gold)] bg-[var(--holo-gold)]/5'
                     : 'text-[#5e6673] border-transparent hover:text-[#848e9c] hover:bg-[#1e2329]'

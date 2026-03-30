@@ -1844,7 +1844,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       <div className="absolute top-0 left-0 right-0 z-[100] h-14 opacity-10 group-hover/chart:opacity-100 transition-all duration-500 group/toolbar">
         <div className="flex items-center justify-center px-6 pt-3 h-full">
           {/* TACTICAL MATRIX CONTROLLER */}
-          <div className="flex items-center gap-5 px-5 py-2.5 bg-black/50 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative group/tmc overflow-visible hover:border-emerald-500/30 transition-all duration-500 ring-1 ring-white/5">
+          <div title="Tactical Matrix Controller" className="flex items-center gap-5 px-5 py-2.5 bg-black/50 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative group/tmc overflow-visible hover:border-emerald-500/30 transition-all duration-500 ring-1 ring-white/5">
             {/* Branded Identity - Integrated Header */}
             <div className="flex items-center gap-2 pr-4 border-r border-white/10 select-none">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
