@@ -1853,10 +1853,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
       {/* ═══════════════ TACTICAL MATRIX: DESKTOP CUBE HOVER (md:flex) ═══════════════ */}
-      <div className="hidden md:flex absolute right-4 top-4 bottom-4 z-50 pointer-events-none group/matrix">
+      <div className="hidden md:flex absolute right-0 top-0 bottom-0 z-50 pointer-events-none group/matrix flex-col items-end">
         {/* The Animated Cube Trigger */}
-        <div className="w-12 h-12 glass-panel-modern border border-[var(--holo-cyan)]/30 rounded-xl flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(0,229,255,0.15)] group-hover/matrix:opacity-0 transition-opacity duration-300 pointer-events-auto">
-           <Activity className="w-6 h-6 text-[var(--holo-cyan)] animate-pulse" />
+        <div className="p-4 pointer-events-auto">
+          <div className="w-12 h-12 glass-panel-modern border border-[var(--holo-cyan)]/30 rounded-xl flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(0,229,255,0.15)] group-hover/matrix:opacity-0 transition-opacity duration-300">
+             <Activity className="w-6 h-6 text-[var(--holo-cyan)] animate-pulse" />
+          </div>
         </div>
 
         {/* The Sliding Panel */}
