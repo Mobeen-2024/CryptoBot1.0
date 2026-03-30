@@ -276,6 +276,12 @@ export default function App() {
   };
 
   useEffect(() => {
+    const handleToggleStyle = () => setIsStyleModalOpen(prev => !prev);
+    window.addEventListener('toggleStyleModal', handleToggleStyle);
+    return () => window.removeEventListener('toggleStyleModal', handleToggleStyle);
+  }, []);
+
+  useEffect(() => {
     refreshBalance();
 
     // Fetch historical user trades

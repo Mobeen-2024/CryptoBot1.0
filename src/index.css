@@ -600,3 +600,136 @@ input[type="number"] {
   font-family: var(--font-mono);
   text-shadow: 0 0 8px var(--holo-cyan-glow);
 }
+
+/* ─── PHANTOM TERMINAL MASTER UTILITIES ────────────────────────── */
+
+/* 1. Unified Mobile Phantom Dock */
+.phantom-dock-glass {
+  background: rgba(10, 13, 20, 0.75);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* 2. Mobile Dynamic Island */
+.dynamic-island-pill {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.dynamic-island-expanded {
+  border-radius: 2rem;
+  width: calc(100% - 2rem);
+  max-width: 400px;
+}
+
+/* 3. Holographic Data Grids (Desktop) */
+.holo-data-grid {
+  display: grid;
+  gap: 1px;
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.1);
+}
+
+.holo-data-cell {
+  background: rgba(5, 11, 20, 0.6);
+  padding: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.holo-data-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, transparent, rgba(0, 229, 255, 0.03), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.holo-data-cell:hover::after {
+  transform: translateX(100%);
+}
+
+/* 4. Magnetic Hover Dock (Drawing Toolbar) */
+.magnetic-dock-item {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
+}
+
+.magnetic-dock-item:hover {
+  transform: scale(1.2) translateY(-2px);
+  background: rgba(0, 229, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+}
+
+/* 5. Cyberpunk Terminal OS Animations */
+@keyframes crt-on {
+  0% { transform: scaleY(0.005) scaleX(0); opacity: 0; }
+  50% { transform: scaleY(0.005) scaleX(1); opacity: 1; }
+  100% { transform: scaleY(1) scaleX(1); opacity: 1; }
+}
+
+.animate-crt-on {
+  animation: crt-on 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+@keyframes scanline-drop {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(500%); }
+}
+
+.cyber-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: rgba(0, 229, 255, 0.2);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+  animation: scanline-drop 2s linear infinite;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* 6. Sliding Matrix Drawer */
+.matrix-drawer-slide {
+  transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.3s;
+}
+
+.matrix-drawer-hidden {
+  transform: translateX(120%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.matrix-drawer-visible {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 7. Metallic Protocol Button */
+.protocol-btn-metallic {
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.protocol-btn-metallic:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.protocol-btn-glow-cyan:hover {
+  border-color: var(--holo-cyan);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.3), inset 0 0 10px rgba(0, 229, 255, 0.1);
+  color: var(--holo-cyan);
+}

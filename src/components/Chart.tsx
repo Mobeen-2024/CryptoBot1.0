@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import TacticalToggle from './TacticalToggle';
-import { Activity, Zap, Shield, Database, Layers, Box, TrendingUp, Network, Cpu, Info } from 'lucide-react';
+import { Activity, Zap, Shield, Database, Layers, Box, TrendingUp, Network, Cpu, Info, X, Trash2, SlidersHorizontal } from 'lucide-react';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool, Drawing, PositionDrawing } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
@@ -8,6 +9,13 @@ import { detectPatterns, Pattern as CandlestickPattern } from '../utils/candlest
 import { analyzeMarketStructure } from '../utils/marketStructure';
 import { calculateTacticalConfluence } from '../utils/tacticalConfluence';
 import { ChartHUD } from './ChartHUD';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+/** Utility for Tailwind class merging */
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // Utility to normalize interval strings to Binance-canonical format
 const canonicalInterval = (interval: string): string => {
@@ -1844,26 +1852,41 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
-      {/* ═══════════════ TACTICAL MATRIX: DESKTOP SIDE PANEL (md:flex) ═══════════════ */}
-      <div title="Tactical Matrix Controller" className="hidden md:flex absolute right-16 top-4 w-60 h-64 z-50 flex-col gap-2 
-                      group opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+      {/* ═══════════════ TACTICAL MATRIX: DESKTOP SLIDING DRAWER (md:flex) ═══════════════ */}
+      <div className="hidden md:flex absolute right-0 top-4 bottom-4 z-50 pointer-events-none group/matrix">
+        {/* Hover Trigger Area (Invisible but wide) */}
+        <div className="w-16 h-full pointer-events-auto cursor-pointer" />
         
-        {/* The Command Panel */}
-        <div className="flex-1 glass-panel-modern overflow-hidden pointer-events-auto flex flex-col rounded-3xl">
-          
+        {/* The Sliding Panel */}
+        <div className={cn(
+          "w-72 h-full glass-panel-modern shadow-[0_0_50px_rgba(0,0,0,0.8)] border-l border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] translate-x-[calc(100%-12px)] group-hover/matrix:translate-x-0",
+          "hover:border-l-[var(--holo-cyan)]/40"
+        )}>
+          {/* Edge Glowing Handle */}
+          <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/30 to-transparent flex items-center justify-center">
+             <div className="w-1.5 h-12 rounded-full bg-[var(--holo-cyan)]/60 blur-[2px] animate-pulse" />
+          </div>
+
           {/* Header */}
-          <div className="p-2 border-b border-[var(--holo-cyan)]/10 bg-[var(--holo-cyan)]/5 flex flex-col gap-0.5">
-            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--holo-cyan)] flex items-center gap-2">
-              <Activity className="w-3 h-3" /> Tactical Matrix
+          <div className="p-6 border-b border-white/5 bg-[var(--holo-cyan)]/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-1 opacity-20">
+               <Cpu className="w-12 h-12 text-[var(--holo-cyan)]" />
+            </div>
+            <h3 className="text-xs uppercase tracking-[0.4em] font-black text-white flex items-center gap-3 relative z-10">
+              <Activity className="w-4 h-4 text-[var(--holo-cyan)]" /> 
+              Tactical Matrix
             </h3>
-            <p className="text-[7px] text-[var(--holo-cyan)]/40 uppercase tracking-[0.3em] font-mono px-5">Matrix_HUD // v2.0</p>
+            <p className="text-[9px] text-[var(--holo-cyan)]/50 uppercase tracking-[0.3em] font-mono mt-2 pl-7 relative z-10">Neural_Link // Active</p>
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-1.5 space-y-2">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
             <section>
-              <p className="text-[7.5px] text-[#5e6673] uppercase mb-1 px-1 font-mono tracking-widest leading-none">Analysis Layers</p>
-              <div className="space-y-0.5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-1 rounded-full bg-[var(--holo-cyan)]" />
+                <p className="text-[10px] text-white/30 uppercase font-black tracking-[0.2em]">Alpha Constraints</p>
+              </div>
+              <div className="space-y-1">
                 <TacticalToggle label="Engulfing" icon={<Activity className="w-3.5 h-3.5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" />
                 <TacticalToggle label="Box Over" icon={<Box className="w-3.5 h-3.5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" />
                 <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
@@ -1872,83 +1895,99 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               </div>
             </section>
 
-            <div className="h-[1px] bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/10 to-transparent my-1" />
+            <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
             <section>
-              <p className="text-[7.5px] text-[#5e6673] uppercase mb-1 px-1 font-mono tracking-widest leading-none">Market Topology</p>
-              <div className="space-y-0.5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-1 rounded-full bg-[var(--holo-magenta)]" />
+                <p className="text-[10px] text-white/30 uppercase font-black tracking-[0.2em]">Market Topology</p>
+              </div>
+              <div className="space-y-1">
                 <TacticalToggle label="Nodes" icon={<Cpu className="w-3.5 h-3.5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" />
                 <TacticalToggle label="Internal" icon={<Network className="w-3.5 h-3.5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" />
               </div>
             </section>
-
-            <div className="h-[1px] bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/10 to-transparent my-1" />
-
-            <section>
-              <p className="text-[7.5px] text-[#5e6673] uppercase mb-1 px-1 font-mono tracking-widest leading-none">System Cache</p>
-              <div className="space-y-0.5">
-                <TacticalToggle label="Targets" icon={<Shield className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="SL/TP Viz" />
-              </div>
-            </section>
           </div>
 
-          {/* Footer status */}
-          <div className="p-2 bg-black/40 border-t border-white/5">
-             <div className="flex items-center gap-1.5 mb-1.5">
-               <div className="w-1 h-1 rounded-full bg-[var(--holo-cyan)] animate-ping" />
-               <span className="text-[7px] font-black text-white/30 uppercase tracking-[0.1em]">Neural Sync...</span>
+          {/* Status Diagnostic Footer */}
+          <div className="p-6 bg-black/40 border-t border-white/5">
+             <div className="flex items-center justify-between mb-3">
+               <div className="flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] animate-ping" />
+                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Neural Link</span>
+               </div>
+               <span className="text-[9px] font-mono text-[var(--holo-cyan)]">99%</span>
              </div>
-             <div className="flex gap-0.5">
-               {[1,1,1,1,1,1,1,0,0,0].map((v, i) => (
-                 <div key={i} className={`h-1 flex-1 rounded-full ${v ? 'bg-[var(--holo-cyan)]/40' : 'bg-white/5'}`} />
+             <div className="flex gap-1">
+               {[1,1,1,1,1,1,1,1,1,0].map((v, i) => (
+                 <div key={i} className={cn(
+                   "h-1 flex-1 rounded-full transition-all duration-1000",
+                   v ? "bg-[var(--holo-cyan)]/40 shadow-[0_0_5px_var(--holo-cyan-glow)]" : "bg-white/5"
+                 )} />
                ))}
              </div>
           </div>
         </div>
       </div>
 
-      {/* ═══════════════ TACTICAL MATRIX: MOBILE FAB & MODAL (md:hidden) ═══════════════ */}
-      <div className="md:hidden absolute top-28 right-4 z-[60]">
+
+      {/* ═══════════════ PHANTOM MOBILE DOCK (md:hidden) ═══════════════ */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[150] h-16 phantom-dock-glass flex items-center justify-around px-4 pb-safe">
+        {/* Drawing Tools Trigger */}
         <button 
-          id="tactical-matrix-mobile-fab"
-          onClick={() => setIsMobileMatrixOpen(true)}
-          className="w-12 h-12 rounded-full bg-[#0a0d14]/90 backdrop-blur-2xl border-2 border-[var(--holo-cyan)]/40 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,242,0.3)] active:scale-90 transition-all"
+          onClick={() => setIsMobileMatrixOpen(false)} // Just a placeholder for now, maybe we toggle a sub-strip
+          className="flex flex-col items-center gap-1 text-white/40 active:text-[var(--holo-cyan)] transition-colors"
         >
-          <Activity className="w-6 h-6 text-[var(--holo-cyan)] animate-pulse" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /></svg>
+          <span className="text-[8px] font-black uppercase tracking-widest">Tools</span>
+        </button>
+
+        {/* Tactical Matrix Trigger */}
+        <button 
+          onClick={() => setIsMobileMatrixOpen(true)}
+          className={cn(
+            "w-14 h-14 -mt-8 rounded-full bg-black border-2 flex items-center justify-center shadow-2xl transition-all active:scale-90",
+            isMobileMatrixOpen ? "border-[var(--holo-cyan)] text-[var(--holo-cyan)]" : "border-white/10 text-white/40"
+          )}
+        >
+          <Activity className="w-6 h-6" />
+        </button>
+
+        {/* System Override Trigger (External Event for now or passed from App) */}
+        <button 
+          onClick={() => window.dispatchEvent(new CustomEvent('toggleStyleModal'))}
+          className="flex flex-col items-center gap-1 text-white/40 active:text-[var(--holo-magenta)] transition-colors"
+        >
+          <Zap className="w-18 h-18" />
+          <span className="text-[8px] font-black uppercase tracking-widest">Override</span>
         </button>
       </div>
 
-      {isMobileMatrixOpen && (
-        <div className="md:hidden fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* ═══════════════ TACTICAL MATRIX: MOBILE MODAL (Integrated with Dock) ═══════════════ */}
+      {isMobileMatrixOpen && createPortal(
+        <div className="md:hidden fixed inset-0 z-[1000] flex items-end justify-center">
           {/* Overlay */}
-          <div 
-            id="tactical-matrix-mobile-overlay"
-            className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            onClick={() => setIsMobileMatrixOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMatrixOpen(false)} />
           
-          {/* Modal Content */}
-          <div className="relative w-full max-w-sm glass-panel-modern rounded-[2rem] overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in duration-300">
-            <div className="p-4 border-b border-[var(--holo-cyan)]/20 bg-[var(--holo-cyan)]/5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Activity className="w-5 h-5 text-[var(--holo-cyan)]" />
-                <div>
-                  <h3 className="text-xs uppercase tracking-widest font-black text-white">Tactical Matrix</h3>
-                  <p className="text-[8px] text-[var(--holo-cyan)]/50 font-mono">Mobile_Interface // v2.0</p>
-                </div>
+          {/* Bottom Sheet Style Modal */}
+          <div className="relative w-full glass-panel-modern rounded-t-[2.5rem] overflow-hidden flex flex-col max-h-[70vh] animate-in slide-in-from-bottom duration-500 pb-12">
+            <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1" />
+            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+              <div className="flex flex-col">
+                <h3 className="text-xs uppercase tracking-[0.3em] font-black text-white">Tactical Matrix</h3>
+                <p className="text-[8px] text-[var(--holo-cyan)] font-mono mt-1 tracking-widest uppercase">System Control Unit</p>
               </div>
               <button 
                 onClick={() => setIsMobileMatrixOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 active:bg-white/10"
+                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 active:scale-95 transition-all"
               >
-                <Info className="w-4 h-4 rotate-45" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {/* Group: Core Intelligence */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar pb-16">
               <section>
-                <p className="text-[10px] text-[var(--holo-cyan)]/40 uppercase mb-3 font-mono tracking-[0.2em]">Analysis Layers</p>
+                <p className="text-[10px] text-white/20 uppercase mb-4 font-black tracking-[0.2em]">Alpha Intelligence</p>
                 <div className="space-y-2">
                   <TacticalToggle label="Engulfing" icon={<Activity className="w-5 h-5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" />
                   <TacticalToggle label="Box Over" icon={<Box className="w-5 h-5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" />
@@ -1959,36 +1998,22 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               </section>
 
               <section>
-                <p className="text-[10px] text-[var(--holo-cyan)]/40 uppercase mb-3 font-mono tracking-[0.2em]">Market Topology</p>
+                <p className="text-[10px] text-white/20 uppercase mb-4 font-black tracking-[0.2em]">Topology Engine</p>
                 <div className="space-y-2">
                   <TacticalToggle label="Nodes" icon={<Cpu className="w-5 h-5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" />
                   <TacticalToggle label="Internal" icon={<Network className="w-5 h-5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" />
                 </div>
               </section>
-
-              <section>
-                <p className="text-[10px] text-[var(--holo-cyan)]/40 uppercase mb-3 font-mono tracking-[0.2em]">System Cache</p>
-                <div className="space-y-2">
-                  <TacticalToggle label="Targets" icon={<Shield className="w-5 h-5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="SL/TP Viz" />
-                </div>
-              </section>
-            </div>
-
-            <div className="p-4 bg-black/40 border-t border-white/10">
-              <button 
-                onClick={() => setIsMobileMatrixOpen(false)}
-                className="w-full py-3 rounded-xl bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/30 text-[10px] font-black uppercase tracking-[0.3em] text-[var(--holo-cyan)] active:bg-[var(--holo-cyan)]/20 transition-all"
-              >
-                Close Matrix
-              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* ═══════════════ VERTICAL DRAWING TOOLBAR ═══════════════ */}
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 z-[101] opacity-10 group-hover/chart:opacity-100 transition-all duration-500 flex flex-col items-center gap-2 p-1.5 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] group/tools">
-        <div className="flex flex-col gap-1 px-1">
+
+      {/* ═══════════════ PHANTOM MAGNETIC DRAWING DOCK (Desktop) ═══════════════ */}
+      <div className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-[101] flex-col items-center gap-4 p-2.5 glass-panel rounded-3xl shadow-2xl group/tools transition-all duration-700 hover:scale-105">
+        <div className="flex flex-col gap-2">
           {([
             { id: 'none', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select', color: '#ffffff' },
             { id: 'trendline', icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4', title: 'Trendline', color: '#00E5FF' },
@@ -2003,32 +2028,37 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 e.stopPropagation();
                 setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool);
               }}
-              className={`p-2.5 rounded-xl transition-all relative group/tool ${activeTool === tool.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
+              className={cn(
+                "magnetic-dock-item p-3 rounded-2xl relative transition-all",
+                activeTool === tool.id ? "bg-white/10 ring-1 ring-white/20" : "hover:bg-white/5"
+              )}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                stroke={activeTool === tool.id ? tool.color : '#848e9c'}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke={activeTool === tool.id ? tool.color : 'rgba(255,255,255,0.4)'}
                 strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className="relative z-10"
               >
                 <path d={tool.icon} />
               </svg>
-              {activeTool === tool.id && <div className="absolute inset-1 rounded-lg shadow-[0_0_15px_currentColor] opacity-20" style={{ color: tool.color }} />}
+              {activeTool === tool.id && (
+                <div className="absolute inset-2 blur-md opacity-40 animate-pulse" style={{ backgroundColor: tool.color }} />
+              )}
             </button>
           ))}
         </div>
-        <div className="w-6 h-px bg-white/10 my-1" />
+        <div className="w-8 h-[1px] bg-white/10" />
         <button
-          title="Clear All Drawings"
-          className="p-2.5 rounded-xl text-white/30 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 transition-all"
+          title="Clear Terminal Drawings"
+          className="p-3 rounded-2xl text-white/20 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 transition-all active:scale-90"
           onClick={() => {
             localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
             setActiveTool('none');
             window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 6l-1 14H6L5 6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+          <Trash2 className="w-[18px] h-[18px]" />
         </button>
       </div>
+
 
       {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
