@@ -158,7 +158,7 @@ export const ChartHUD: React.FC<ChartHUDProps> = ({
             isStrong && "ring-1 ring-cyan-500/30 border-cyan-400/40 shadow-[0_0_30px_rgba(34,211,238,0.1)]"
           )}>
             <div className="flex items-center gap-4">
-              <div className="flex flex-col">
+              <div className="flex flex-col min-w-[85px]">
                 <div className="flex items-center gap-2 mb-1">
                    <div className={cn(
                      "w-1.5 h-1.5 rounded-full",
@@ -174,18 +174,22 @@ export const ChartHUD: React.FC<ChartHUDProps> = ({
                 </div>
               </div>
 
-              {strikeProbability > 0 && (
-                <div className="pl-4 border-l border-white/10">
-                   <p className="text-[6px] text-white/20 font-black uppercase tracking-widest mb-0.5">Strike</p>
-                   <p className={cn("text-sm font-black italic leading-none", strikeProbability >= 85 ? "text-cyan-400" : "text-white/80")}>
-                    {strikeProbability}%
-                   </p>
-                </div>
-              )}
+              <div className="pl-4 border-l border-white/10 min-w-[75px] flex flex-col justify-center">
+                 <div className="flex items-center gap-1.5 mb-0.5">
+                   <Target className="w-2 h-2 text-white/20" />
+                   <p className="text-[6px] text-white/20 font-black uppercase tracking-widest leading-none">Strike</p>
+                 </div>
+                 <p className={cn("text-sm font-black italic leading-none", strikeProbability >= 85 ? "text-cyan-400" : "text-white/80")}>
+                  {strikeProbability > 0 ? `${strikeProbability}%` : '---'}
+                 </p>
+              </div>
 
-              <div className="pl-4 border-l border-white/10 min-w-[50px]">
-                 <p className="text-[6px] text-white/20 font-black uppercase tracking-widest mb-0.5">Session</p>
-                 <p className="text-[9px] font-black text-white/60 uppercase tracking-tighter">{session}</p>
+              <div className="pl-4 border-l border-white/10 min-w-[65px] flex flex-col justify-center">
+                 <div className="flex items-center gap-1.5 mb-0.5">
+                   <Globe className="w-2 h-2 text-white/20" />
+                   <p className="text-[6px] text-white/20 font-black uppercase tracking-widest leading-none">Session</p>
+                 </div>
+                 <p className="text-[9px] font-black text-white/60 uppercase tracking-tighter leading-none">{session}</p>
               </div>
             </div>
           </div>

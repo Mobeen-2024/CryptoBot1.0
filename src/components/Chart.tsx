@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import TacticalToggle from './TacticalToggle';
-import { Activity, Zap, Shield, Database, Layers, Box, TrendingUp, Network, Cpu, Info, X, Trash2, SlidersHorizontal } from 'lucide-react';
+import { Activity, Zap, Shield, Database, Layers, Box, TrendingUp, Network, Cpu, Info, X, Trash2, SlidersHorizontal, Target, Globe } from 'lucide-react';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool, Drawing, PositionDrawing } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
@@ -1852,20 +1852,20 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
-      {/* ═══════════════ TACTICAL MATRIX: DESKTOP SLIDING DRAWER (md:flex) ═══════════════ */}
-      <div className="hidden md:flex absolute right-0 top-4 bottom-4 z-50 pointer-events-none group/matrix">
-        {/* Hover Trigger Area (Invisible but wide) */}
-        <div className="w-16 h-full pointer-events-auto cursor-pointer" />
-        
+      {/* ═══════════════ TACTICAL MATRIX: DESKTOP CUBE HOVER (md:flex) ═══════════════ */}
+      <div className="hidden md:flex absolute right-4 top-4 bottom-4 z-50 pointer-events-none group/matrix">
+        {/* The Animated Cube Trigger */}
+        <div className="w-12 h-12 glass-panel-modern border border-[var(--holo-cyan)]/30 rounded-xl flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(0,229,255,0.15)] group-hover/matrix:opacity-0 transition-opacity duration-300 pointer-events-auto">
+           <Activity className="w-6 h-6 text-[var(--holo-cyan)] animate-pulse" />
+        </div>
+
         {/* The Sliding Panel */}
         <div className={cn(
-          "w-72 h-full glass-panel-modern shadow-[0_0_50px_rgba(0,0,0,0.8)] border-l border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] translate-x-[calc(100%-12px)] group-hover/matrix:translate-x-0",
-          "hover:border-l-[var(--holo-cyan)]/40"
+          "absolute right-0 top-0 bottom-0 w-80 glass-panel-modern shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)]",
+          "opacity-0 scale-95 translate-x-10 pointer-events-none group-hover/matrix:opacity-100 group-hover/matrix:scale-100 group-hover/matrix:translate-x-0 group-hover/matrix:pointer-events-auto"
         )}>
           {/* Edge Glowing Handle */}
-          <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/30 to-transparent flex items-center justify-center">
-             <div className="w-1.5 h-12 rounded-full bg-[var(--holo-cyan)]/60 blur-[2px] animate-pulse" />
-          </div>
+          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/30 to-transparent" />
 
           {/* Header */}
           <div className="p-6 border-b border-white/5 bg-[var(--holo-cyan)]/5 relative overflow-hidden">
@@ -1892,6 +1892,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
                 <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-3.5 h-3.5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
                 <TacticalToggle label="Golden Zone" icon={<Zap className="w-3.5 h-3.5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
+                <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" />
               </div>
             </section>
 
@@ -2011,52 +2012,57 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       )}
 
 
-      {/* ═══════════════ PHANTOM MAGNETIC DRAWING DOCK (Desktop) ═══════════════ */}
-      <div className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-[101] flex-col items-center gap-4 p-2.5 glass-panel rounded-3xl shadow-2xl group/tools transition-all duration-700 hover:scale-105">
-        <div className="flex flex-col gap-2">
-          {([
-            { id: 'none', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select', color: '#ffffff' },
-            { id: 'trendline', icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4', title: 'Trendline', color: '#00E5FF' },
-            { id: 'horizontal', icon: 'M5 12h14', title: 'Support/Resist', color: '#fcd535' },
-            { id: 'long_position', icon: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7 M12 18v-6 M9 15h6', title: 'Long Position', color: '#00FF9D' },
-            { id: 'short_position', icon: 'M13 18v-6 M9 15h6 M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7', title: 'Short Position', color: '#FF007F' },
-          ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
-            <button
-              key={tool.id}
-              title={tool.title}
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool);
-              }}
-              className={cn(
-                "magnetic-dock-item p-3 rounded-2xl relative transition-all",
-                activeTool === tool.id ? "bg-white/10 ring-1 ring-white/20" : "hover:bg-white/5"
-              )}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke={activeTool === tool.id ? tool.color : 'rgba(255,255,255,0.4)'}
-                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      {/* ═══════════════ PHANTOM MAGNETIC DRAWING DOCK (Desktop Stealth) ═══════════════ */}
+      <div className="hidden md:flex absolute left-0 inset-y-0 w-8 z-[200] group/tools-trigger items-center justify-start pointer-events-auto">
+        {/* Visual Edge Handle (Subtle hint) */}
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-24 rounded-r-full bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/20 to-transparent group-hover/tools-trigger:opacity-0 transition-opacity" />
+
+        <div className="flex flex-col items-center gap-4 p-2.5 glass-panel rounded-r-3xl shadow-2xl transition-all duration-700 opacity-0 -translate-x-full scale-90 group-hover/tools-trigger:opacity-100 group-hover/tools-trigger:translate-x-0 group-hover/tools-trigger:scale-100 pointer-events-auto ml-1 border-y border-r border-[var(--holo-cyan)]/20">
+          <div className="flex flex-col gap-2">
+            {([
+              { id: 'none', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5', title: 'Select', color: '#ffffff' },
+              { id: 'trendline', icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4', title: 'Trendline', color: '#00E5FF' },
+              { id: 'horizontal', icon: 'M5 12h14', title: 'Support/Resist', color: '#fcd535' },
+              { id: 'long_position', icon: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7 M12 18v-6 M9 15h6', title: 'Long Position', color: '#00FF9D' },
+              { id: 'short_position', icon: 'M13 18v-6 M9 15h6 M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7', title: 'Short Position', color: '#FF007F' },
+            ] as { id: DrawingTool; icon: string; title: string; color: string }[]).map(tool => (
+              <button
+                key={tool.id}
+                title={tool.title}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveTool(prev => prev === tool.id ? 'none' : tool.id as DrawingTool);
+                }}
+                className={cn(
+                  "magnetic-dock-item p-3 rounded-2xl relative transition-all",
+                  activeTool === tool.id ? "bg-white/10 ring-1 ring-white/20" : "hover:bg-white/5"
+                )}
               >
-                <path d={tool.icon} />
-              </svg>
-              {activeTool === tool.id && (
-                <div className="absolute inset-2 blur-md opacity-40 animate-pulse" style={{ backgroundColor: tool.color }} />
-              )}
-            </button>
-          ))}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke={activeTool === tool.id ? tool.color : 'rgba(255,255,255,0.4)'}
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <path d={tool.icon} />
+                </svg>
+                {activeTool === tool.id && (
+                  <div className="absolute inset-2 blur-md opacity-40 animate-pulse" style={{ backgroundColor: tool.color }} />
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="w-8 h-[1px] bg-white/10" />
+          <button
+            title="Clear Terminal Drawings"
+            className="p-3 rounded-2xl text-white/20 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 transition-all active:scale-90"
+            onClick={() => {
+              localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
+              setActiveTool('none');
+              window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
+            }}
+          >
+            <Trash2 className="w-[18px] h-[18px]" />
+          </button>
         </div>
-        <div className="w-8 h-[1px] bg-white/10" />
-        <button
-          title="Clear Terminal Drawings"
-          className="p-3 rounded-2xl text-white/20 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 transition-all active:scale-90"
-          onClick={() => {
-            localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
-            setActiveTool('none');
-            window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
-          }}
-        >
-          <Trash2 className="w-[18px] h-[18px]" />
-        </button>
       </div>
 
 
