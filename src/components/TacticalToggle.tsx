@@ -19,16 +19,16 @@ const TacticalToggle: React.FC<TacticalToggleProps> = ({ label, active, onToggle
         hover:bg-white/[0.03] active:bg-white/10 group/toggle touch-manipulation
       `}
     >
-      <div className="flex items-center gap-3 lg:gap-2">
-        <div className={`p-2 lg:p-1.5 rounded-lg transition-colors ${active ? 'bg-white/10 lg:bg-white/5 text-white' : 'text-[#5e6673]'}`}>
+      <div className="flex items-center gap-3 lg:gap-2 flex-1 min-w-0">
+        <div className={`flex-shrink-0 p-2 lg:p-1.5 rounded-lg transition-colors ${active ? 'bg-white/10 lg:bg-white/5 text-white' : 'text-[#5e6673]'}`}>
           {icon}
         </div>
-        <div className="flex flex-col items-start translate-y-[1px]">
-          <span className={`text-[11px] lg:text-[10px] font-black uppercase tracking-tight leading-none ${active ? 'text-white' : 'text-[#5e6673]'} transition-colors`}>
+        <div className="flex flex-col items-start translate-y-[1px] flex-1 min-w-0 overflow-hidden">
+          <span className={`w-full text-[11px] lg:text-[10px] font-black uppercase tracking-tight leading-none ${active ? 'text-white' : 'text-[#5e6673]'} transition-colors truncate`}>
             {label}
           </span>
           {subtitle && (
-            <span className="text-[8px] lg:text-[7px] font-mono uppercase tracking-widest text-[#5e6673]/60 mt-1">
+            <span className="w-full text-[8px] lg:text-[7px] font-mono uppercase tracking-widest text-[#5e6673]/60 mt-1 truncate">
               {subtitle}
             </span>
           )}
@@ -37,7 +37,7 @@ const TacticalToggle: React.FC<TacticalToggleProps> = ({ label, active, onToggle
       
       {/* Pill Switch */}
       <div className={`
-        w-8 h-4 lg:w-7 lg:h-3.5 rounded-full relative transition-all duration-300 ring-1 ring-inset
+        flex-shrink-0 w-8 h-4 lg:w-7 lg:h-3.5 rounded-full relative transition-all duration-300 ring-1 ring-inset
         ${active ? 'bg-[var(--holo-cyan)]/30 lg:bg-[var(--holo-cyan)]/20 ring-[var(--holo-cyan)]/40 lg:ring-[var(--holo-cyan)]/30' : 'bg-white/10 lg:bg-white/5 ring-white/20 lg:ring-white/10'}
       `}>
         <div className={`

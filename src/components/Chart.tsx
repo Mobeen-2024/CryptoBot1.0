@@ -1997,6 +1997,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                   <TacticalToggle label="S-Levels" icon={<Layers className="w-5 h-5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
                   <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-5 h-5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
                   <TacticalToggle label="Golden Zone" icon={<Zap className="w-5 h-5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
+                  <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-5 h-5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" />
                 </div>
               </section>
 
