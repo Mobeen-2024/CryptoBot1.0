@@ -153,16 +153,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
   // Helper to parse interval into ms
   const canonicalInterval = (interval: string): string => {
-  if (!interval) return '1h';
-  const match = interval.match(/^(\d+)([a-zA-Z])$/);
-  if (!match) return interval.toLowerCase();
-  const val = match[1];
-  const unit = match[2];
-  if (unit === 'M') return val + 'M';
-  return val + unit.toLowerCase();
-};
+    if (!interval) return '1h';
+    const match = interval.match(/^(\d+)([a-zA-Z])$/);
+    if (!match) return interval.toLowerCase();
+    const val = match[1];
+    const unit = match[2];
+    if (unit === 'M') return val + 'M';
+    return val + unit.toLowerCase();
+  };
 
-const getIntervalMs = (interval: string) => {
+  const getIntervalMs = (interval: string) => {
     const canonical = canonicalInterval(interval);
     const value = parseInt(canonical);
     const unit = canonical.slice(-1);
@@ -1336,7 +1336,7 @@ const getIntervalMs = (interval: string) => {
         const isNeutral = p.sentiment === 'neutral';
 
         // Volume Imbalance calculation (Pro-level Confirmation)
-        const avgVol3 = (data[i - 1].volume + (data[i - 2]?.volume || data[i-1].volume) + (data[i - 3]?.volume || data[i-1].volume)) / 3;
+        const avgVol3 = (data[i - 1].volume + (data[i - 2]?.volume || data[i - 1].volume) + (data[i - 3]?.volume || data[i - 1].volume)) / 3;
         const hasHighVolume = data[i].volume > (avgVol3 * 1.3);
 
         newPatternMarkers.push({
@@ -1386,16 +1386,16 @@ const getIntervalMs = (interval: string) => {
       const latestPrice = data[data.length - 1].close;
 
       // --- UPDATED Phase 1: Institutional Radar (Fixed SCANNING Bug) ---
-      
+
       // 1. Find Nearest Shield (Supply/Demand Levels > 40 Strength)
       let nearestShield: any = null;
       let minShieldDist = Infinity;
-      
+
       levels.forEach(l => {
         if (l.strengthScore < 40) return;
         const price = (l.priceWick + l.priceBody) / 2;
         const dist = Math.abs(price - latestPrice);
-        
+
         // Logical Alignment: Support below price, Resistance above
         const isSupport = price < latestPrice;
         if (dist < minShieldDist) {
@@ -1463,24 +1463,24 @@ const getIntervalMs = (interval: string) => {
 
       // Clean old structural artifacts (Reset pool and remove markers)
       structuralLevelsRef.current.forEach(artifacts => {
-        const [,, wickLine] = artifacts;
+        const [, , wickLine] = artifacts;
         if (wickLine) {
-           try { series.removePriceLine(wickLine); } catch (e) {}
+          try { series.removePriceLine(wickLine); } catch (e) { }
         }
       });
       structuralLevelsRef.current.clear();
       backgroundPoolRef.current.forEach(s => s.applyOptions({ visible: false }));
       if (subFractalSeriesRef.current) {
-         try { chart.removeSeries(subFractalSeriesRef.current); } catch(e) {}
-         subFractalSeriesRef.current = null;
+        try { chart.removeSeries(subFractalSeriesRef.current); } catch (e) { }
+        subFractalSeriesRef.current = null;
       }
       trendlineSeriesRef.current.forEach(s => chart.removeSeries(s));
       trendlineSeriesRef.current = [];
 
       if (data && data.length > 0) {
-        const analysis = analyzeMarketStructure(data, 5); 
+        const analysis = analyzeMarketStructure(data, 5);
         const { nodes, levels, trendlines: tlData, grabs, currentTrend, lastActionType } = analysis;
-        
+
         const chartMarkers: any[] = [];
 
         // ONLY render visual artifacts if toggled ON
@@ -1490,7 +1490,7 @@ const getIntervalMs = (interval: string) => {
             const sfSeries = chart.addSeries(LineSeries, {
               color: '#34d399',
               lineWidth: 1,
-              lineStyle: 2, 
+              lineStyle: 2,
               crosshairMarkerVisible: false,
               lastValueVisible: false,
               priceLineVisible: false,
@@ -1509,7 +1509,7 @@ const getIntervalMs = (interval: string) => {
               let markerColor = isBullish ? '#34d399' : '#f43f5e';
               if (node.isCHoCH) {
                 structuralLabel = `CHoCH [${node.type}]`;
-                markerColor = '#fcd535'; 
+                markerColor = '#fcd535';
               } else if (node.isBreakOfStructure) structuralLabel = `BOS [${node.type}]`;
               if (node.strength === 'STRONG') structuralLabel = `🛡️ STRG ${structuralLabel}`;
               else if (node.strength === 'WEAK') structuralLabel = `🎯 WEAK ${structuralLabel}`;
@@ -1573,14 +1573,14 @@ const getIntervalMs = (interval: string) => {
 
           // Sweeps
           grabs.forEach(grab => {
-             chartMarkers.push({
-               time: grab.time,
-               position: grab.type === 'sweep_high' ? 'aboveBar' : 'belowBar',
-               color: '#fcd535',
-               shape: 'circle',
-               text: '⚡ SWEEP',
-               size: 2
-             });
+            chartMarkers.push({
+              time: grab.time,
+              position: grab.type === 'sweep_high' ? 'aboveBar' : 'belowBar',
+              color: '#fcd535',
+              shape: 'circle',
+              text: '⚡ SWEEP',
+              size: 2
+            });
           });
 
           // Supply/Demand Clouds
@@ -1595,15 +1595,15 @@ const getIntervalMs = (interval: string) => {
               shell.applyOptions({ visible: true, topColor: `rgba(${baseColor}, ${lvl.isBroken ? 0.04 : 0.08})`, bottomColor: `rgba(${baseColor}, 0.01)` });
               const historicalPoints = data.filter(d => d.time >= lvl.startTime).map(d => ({ time: d.time, value: Math.max(lvl.priceWick, lvl.priceBody) }));
               if (historicalPoints.length > 0) {
-                 historicalPoints.push({ time: (historicalPoints[historicalPoints.length - 1].time + 31536000) as UTCTimestamp, value: Math.max(lvl.priceWick, lvl.priceBody) });
-                 shell.setData(historicalPoints);
+                historicalPoints.push({ time: (historicalPoints[historicalPoints.length - 1].time + 31536000) as UTCTimestamp, value: Math.max(lvl.priceWick, lvl.priceBody) });
+                shell.setData(historicalPoints);
               }
               core.applyOptions({ visible: true, topColor: `rgba(${baseColor}, ${lvl.isBroken ? 0.06 : 0.2})`, bottomColor: `rgba(${baseColor}, 0.1)` });
               const coreHeight = Math.abs(lvl.priceWick - lvl.priceBody) * 0.4;
               const corePoints = data.filter(d => d.time >= lvl.startTime).map(d => ({ time: d.time, value: lvl.pricePOC + coreHeight / 2 }));
               if (corePoints.length > 0) {
-                 corePoints.push({ time: (corePoints[corePoints.length - 1].time + 31536000) as UTCTimestamp, value: lvl.pricePOC + coreHeight / 2 });
-                 core.setData(corePoints);
+                corePoints.push({ time: (corePoints[corePoints.length - 1].time + 31536000) as UTCTimestamp, value: lvl.pricePOC + coreHeight / 2 });
+                core.setData(corePoints);
               }
               const labelPrefix = lvl.isBroken ? `BREAKER ${lvl.type === 'support' ? 'RES' : 'SUP'}` : lvl.type.toUpperCase();
               const wickLine = series.createPriceLine({ price: lvl.priceWick, color: `rgba(${baseColor}, ${lvl.isBroken ? 0.3 : 0.8})`, lineWidth: 1, lineStyle: lvl.isBroken ? 2 : 0, axisLabelVisible: true, title: `${labelPrefix} [STR: ${lvl.strengthScore}%]` });
@@ -1621,7 +1621,7 @@ const getIntervalMs = (interval: string) => {
           }
         } // End visual checks
 
-        const deduplicated = chartMarkers.filter((m, i, arr) => i === 0 || m.time !== arr[i-1].time);
+        const deduplicated = chartMarkers.filter((m, i, arr) => i === 0 || m.time !== arr[i - 1].time);
         markersPlugin.setMarkers(deduplicated);
       } else if (markersPlugin) {
         markersPlugin.setMarkers([]);
@@ -1641,7 +1641,7 @@ const getIntervalMs = (interval: string) => {
         // Migration: Ensure all position drawings have targetTime
         const migrated = parsed.map((d: any) => {
           if ((d.type === 'long_position' || d.type === 'short_position') && !d.targetTime) {
-            return { ...d, targetTime: d.entryTime + 36000 }; 
+            return { ...d, targetTime: d.entryTime + 36000 };
           }
           return d;
         });
@@ -1666,72 +1666,72 @@ const getIntervalMs = (interval: string) => {
 
   // --- Background Position "Zone" Rendering (BENEATH CANDLES) ---
   useEffect(() => {
-     if (!chartRef.current || !data || data.length === 0) return;
-     
-     // Reset pool (Clear visibility and data for unused slots)
-     userPositionsPoolRef.current.forEach(s => {
-        s.applyOptions({ visible: false });
-        s.setData([]);
-     });
-     
-     const positions = drawings.filter(d => d.type === 'long_position' || d.type === 'short_position') as PositionDrawing[];
-     
-     positions.forEach((pos, idx) => {
-        if (idx >= userPositionsPoolRef.current.length / 2) return;
-        
-        const isLong = pos.type === 'long_position';
-        const tpPoolIdx = idx * 2;
-        const slPoolIdx = idx * 2 + 1;
-        
-        const tpSeries = userPositionsPoolRef.current[tpPoolIdx];
-        const slSeries = userPositionsPoolRef.current[slPoolIdx];
-        
-        const startTime = pos.entryTime as UTCTimestamp;
-        const endTime = (pos.targetTime || (pos.entryTime + 36000)) as UTCTimestamp;
-        
-        // --- PRO RENDERING FIX: Use synthetic points to ensure future projection works ---
-        // AreaSeries needs at least 2 points to render width. 
-        // We provide exactly 2 points at the target price for the TP and SL zones.
-        // This ensures the zone appears regardless of whether data exists in the gap.
-        
-        const tpZoneData = [
-          { time: startTime, value: pos.tpPrice },
-          { time: endTime, value: pos.tpPrice }
-        ];
+    if (!chartRef.current || !data || data.length === 0) return;
 
-        tpSeries.applyOptions({
-          visible: true,
-          topColor: isLong ? 'rgba(0, 255, 157, 0.12)' : 'rgba(128, 128, 128, 0.05)',
-          bottomColor: isLong ? 'rgba(0, 255, 157, 0.02)' : 'rgba(0, 255, 157, 0.01)',
-          lineVisible: false,
-        });
-        tpSeries.setData(tpZoneData as any);
+    // Reset pool (Clear visibility and data for unused slots)
+    userPositionsPoolRef.current.forEach(s => {
+      s.applyOptions({ visible: false });
+      s.setData([]);
+    });
 
-        const slZoneData = [
-          { time: startTime, value: pos.slPrice },
-          { time: endTime, value: pos.slPrice }
-        ];
-        
-        slSeries.applyOptions({
-           visible: true,
-           topColor: isLong ? 'rgba(128, 128, 128, 0.05)' : 'rgba(255, 0, 127, 0.12)',
-           bottomColor: isLong ? 'rgba(255, 0, 127, 0.01)' : 'rgba(255, 0, 127, 0.02)',
-           lineVisible: false,
-        });
-        slSeries.setData(slZoneData as any);
-     });
+    const positions = drawings.filter(d => d.type === 'long_position' || d.type === 'short_position') as PositionDrawing[];
+
+    positions.forEach((pos, idx) => {
+      if (idx >= userPositionsPoolRef.current.length / 2) return;
+
+      const isLong = pos.type === 'long_position';
+      const tpPoolIdx = idx * 2;
+      const slPoolIdx = idx * 2 + 1;
+
+      const tpSeries = userPositionsPoolRef.current[tpPoolIdx];
+      const slSeries = userPositionsPoolRef.current[slPoolIdx];
+
+      const startTime = pos.entryTime as UTCTimestamp;
+      const endTime = (pos.targetTime || (pos.entryTime + 36000)) as UTCTimestamp;
+
+      // --- PRO RENDERING FIX: Use synthetic points to ensure future projection works ---
+      // AreaSeries needs at least 2 points to render width. 
+      // We provide exactly 2 points at the target price for the TP and SL zones.
+      // This ensures the zone appears regardless of whether data exists in the gap.
+
+      const tpZoneData = [
+        { time: startTime, value: pos.tpPrice },
+        { time: endTime, value: pos.tpPrice }
+      ];
+
+      tpSeries.applyOptions({
+        visible: true,
+        topColor: isLong ? 'rgba(0, 255, 157, 0.12)' : 'rgba(128, 128, 128, 0.05)',
+        bottomColor: isLong ? 'rgba(0, 255, 157, 0.02)' : 'rgba(0, 255, 157, 0.01)',
+        lineVisible: false,
+      });
+      tpSeries.setData(tpZoneData as any);
+
+      const slZoneData = [
+        { time: startTime, value: pos.slPrice },
+        { time: endTime, value: pos.slPrice }
+      ];
+
+      slSeries.applyOptions({
+        visible: true,
+        topColor: isLong ? 'rgba(128, 128, 128, 0.05)' : 'rgba(255, 0, 127, 0.12)',
+        bottomColor: isLong ? 'rgba(255, 0, 127, 0.01)' : 'rgba(255, 0, 127, 0.02)',
+        lineVisible: false,
+      });
+      slSeries.setData(slZoneData as any);
+    });
   }, [drawings, data, symbol]);
 
   // --- High Frequency Animation Loop (Heartbeat Pulse) ---
   useEffect(() => {
     if (!showStructuralLevels || !data || data.length === 0) return;
     const latestPrice = data[data.length - 1].close;
-    
+
     // Check if Golden Zone fast pulse is active
     let fastPulseActive = false;
     if (showGoldenZone) {
-       const lastTime = data[data.length - 1].time;
-       fastPulseActive = (patternMarkersRef.current || []).some(pm => pm.time === lastTime);
+      const lastTime = data[data.length - 1].time;
+      fastPulseActive = (patternMarkersRef.current || []).some(pm => pm.time === lastTime);
     }
 
     structuralLevelsRef.current.forEach((artifacts) => {
@@ -1745,7 +1745,7 @@ const getIntervalMs = (interval: string) => {
 
       let opacityCoeff = 1.0;
       if (isActive) {
-        const period = fastPulseActive ? 5 : 20; 
+        const period = fastPulseActive ? 5 : 20;
         opacityCoeff = 0.5 + Math.sin((pulseTick / period) * 2 * Math.PI) * 0.3;
       }
 
@@ -1847,10 +1847,10 @@ const getIntervalMs = (interval: string) => {
           <div className="flex items-center gap-5 px-5 py-2.5 bg-black/50 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative group/tmc overflow-visible hover:border-emerald-500/30 transition-all duration-500 ring-1 ring-white/5">
             {/* Branded Identity - Integrated Header */}
             <div className="flex items-center gap-2 pr-4 border-r border-white/10 select-none">
-               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
-               <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/50 group-hover/tmc:text-white transition-colors">
-                 Tactical Matrix Controller
-               </span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+              <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/50 group-hover/tmc:text-white transition-colors">
+                Tactical Matrix Controller
+              </span>
             </div>
             <div className="flex items-center gap-5">
               {/* SL / TP Toggle */}
@@ -1958,7 +1958,7 @@ const getIntervalMs = (interval: string) => {
           ))}
         </div>
         <div className="w-6 h-px bg-white/10 my-1" />
-        <button 
+        <button
           title="Clear All Drawings"
           className="p-2.5 rounded-xl text-white/30 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 transition-all"
           onClick={() => {
@@ -1967,14 +1967,14 @@ const getIntervalMs = (interval: string) => {
             window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 6l-1 14H6L5 6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 6l-1 14H6L5 6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
         </button>
       </div>
 
       {/* ═══════════════ CHART AREA ═══════════════ */}
       <div className="relative flex-1 w-full overflow-hidden">
         {/* 💎 AI-ALPHA TACTICAL HUD 💎 */}
-        <ChartHUD 
+        <ChartHUD
           symbol={symbol}
           trend={hudData.trend}
           lastAction={hudData.lastAction}
@@ -2154,8 +2154,8 @@ const getIntervalMs = (interval: string) => {
               {/* Main Rounded Box Backend */}
               <div
                 className={`absolute inset-0 border border-white/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)] backdrop-blur-2xl flex justify-center items-center z-10 transition-transform duration-300 group-hover:scale-110 ${m.isBuy
-                    ? 'bg-gradient-to-br from-[#00E5FF] to-[#00aaee] rounded-md'
-                    : 'bg-gradient-to-br from-[#FF007F] to-[#ee0070] rounded-md'
+                  ? 'bg-gradient-to-br from-[#00E5FF] to-[#00aaee] rounded-md'
+                  : 'bg-gradient-to-br from-[#FF007F] to-[#ee0070] rounded-md'
                   }`}
               >
                 <div className="relative w-full h-full flex justify-center items-center">
@@ -2354,8 +2354,8 @@ const getIntervalMs = (interval: string) => {
             style={{ top: candleCountdown.priceY, transform: 'translateY(-50%)' }}
           >
             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-l-lg border-y border-l backdrop-blur-md shadow-lg ${candleCountdown.isUp
-                ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
-                : 'bg-[var(--holo-magenta)]/10 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
+              ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
+              : 'bg-[var(--holo-magenta)]/10 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
               }`}>
               <div className={`w-1 h-1 rounded-full animate-pulse ${candleCountdown.isUp ? 'bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]' : 'bg-[var(--holo-magenta)] shadow-[0_0_8px_var(--holo-magenta)]'}`} />
               <span className="text-[10px] font-mono font-black tracking-widest">{candleCountdown.text}</span>
