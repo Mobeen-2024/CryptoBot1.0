@@ -311,6 +311,7 @@ input[type="number"] {
 /* Futuristic App Range Slider */
 .range-slider-holo {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   background: transparent;
   outline: none;
