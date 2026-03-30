@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import TacticalToggle from './TacticalToggle';
+import { Activity, Zap, Shield, Database, Layers, Box, TrendingUp, Network, Cpu, Info } from 'lucide-react';
 import { createChart, ColorType, UTCTimestamp, IChartApi, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries, createSeriesMarkers } from 'lightweight-charts';
 import { ChartDrawingLayer, DrawingTool, Drawing, PositionDrawing } from './ChartDrawingLayer';
 import { ChartConfig } from '../types/chart';
@@ -138,6 +140,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     isNewsProtection: false,
     session: 'ASIA'
   });
+
+  const [isMobileMatrixOpen, setIsMobileMatrixOpen] = useState(false);
 
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
@@ -1840,92 +1844,147 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* 2050 Gradient Overlay Glow */}
       <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover/chart:opacity-100 transition-opacity duration-1000" />
 
-      {/* ═══════════════ MODERNIZED HOLOGRAPHIC TOOLBAR ═══════════════ */}
-      <div className="absolute top-0 left-0 right-0 z-[100] h-14 opacity-10 group-hover/chart:opacity-100 transition-all duration-500 group/toolbar">
-        <div className="flex items-center justify-center px-6 pt-3 h-full">
-          {/* TACTICAL MATRIX CONTROLLER */}
-          <div title="Tactical Matrix Controller" className="flex items-center gap-5 px-5 py-2.5 bg-black/50 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative group/tmc overflow-visible hover:border-emerald-500/30 transition-all duration-500 ring-1 ring-white/5">
-            {/* Branded Identity - Integrated Header */}
-            <div className="flex items-center gap-2 pr-4 border-r border-white/10 select-none">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/50 group-hover/tmc:text-white transition-colors">
-                Tactical Matrix Controller
-              </span>
-            </div>
-            <div className="flex items-center gap-5">
-              {/* SL / TP Toggle */}
-              <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                <div className="relative">
-                  <input type="checkbox" checked={showAvgLines} onChange={e => setShowAvgLines(e.target.checked)} className="sr-only peer" />
-                  <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[var(--holo-cyan)]/20 peer-checked:border-[var(--holo-cyan)]/40 transition-all" />
-                  <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[var(--holo-cyan)] peer-checked:shadow-[0_0_10px_var(--holo-cyan)]" />
-                </div>
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">SL / TP Cache</span>
-              </label>
+      {/* ═══════════════ TACTICAL MATRIX: DESKTOP SIDE PANEL (md:flex) ═══════════════ */}
+      <div title="Tactical Matrix Controller" className="hidden md:flex absolute right-16 top-4 w-60 h-64 z-50 flex-col gap-2 
+                      group opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+        
+        {/* The Command Panel */}
+        <div className="flex-1 glass-panel-modern overflow-hidden pointer-events-auto flex flex-col rounded-3xl">
+          
+          {/* Header */}
+          <div className="p-2 border-b border-[var(--holo-cyan)]/10 bg-[var(--holo-cyan)]/5 flex flex-col gap-0.5">
+            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-[var(--holo-cyan)] flex items-center gap-2">
+              <Activity className="w-3 h-3" /> Tactical Matrix
+            </h3>
+            <p className="text-[7px] text-[var(--holo-cyan)]/40 uppercase tracking-[0.3em] font-mono px-5">Matrix_HUD // v2.0</p>
+          </div>
 
-              {/* Patterns Toggle Group */}
-              <div className="flex items-center gap-5 pl-5 border-l border-white/10">
-                <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                  <div className="relative">
-                    <input type="checkbox" checked={showEngulfing} onChange={e => setShowEngulfing(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[var(--holo-gold)]/20 peer-checked:border-[var(--holo-gold)]/40 transition-all" />
-                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[var(--holo-gold)] peer-checked:shadow-[0_0_10px_var(--holo-gold)]" />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">Engulfing</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                  <div className="relative">
-                    <input type="checkbox" checked={showPatternBox} onChange={e => setShowPatternBox(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-white/20 peer-checked:border-white/40 transition-all" />
-                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-white" />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 group-hover/toggle:text-white transition-colors">Box Over</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                  <div className="relative">
-                    <input type="checkbox" checked={showStructuralLevels} onChange={e => setShowStructuralLevels(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#eab308]/20 peer-checked:border-[#eab308]/40 transition-all" />
-                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#eab308] peer-checked:shadow-[0_0_10px_#eab308]" />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#eab308]/40 group-hover/toggle:text-[#eab308] transition-colors font-mono">Structural Levels</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                  <div className="relative">
-                    <input type="checkbox" checked={showTrendlines} onChange={e => setShowTrendlines(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#8b5cf6]/20 peer-checked:border-[#8b5cf6]/40 transition-all" />
-                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#8b5cf6] peer-checked:shadow-[0_0_10px_#8b5cf6]" />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8b5cf6]/40 group-hover/toggle:text-[#8b5cf6] transition-colors font-mono">Trendlines</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                  <div className="relative">
-                    <input type="checkbox" checked={showGoldenZone} onChange={e => setShowGoldenZone(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[var(--holo-gold)]/20 peer-checked:border-[var(--holo-gold)]/40 transition-all" />
-                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[var(--holo-gold)] peer-checked:shadow-[0_0_10px_var(--holo-gold)]" />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--holo-gold)]/40 group-hover/toggle:text-[var(--holo-gold)] transition-colors font-mono">Golden Zone</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                  <div className="relative">
-                    <input type="checkbox" checked={showStructure} onChange={e => setShowStructure(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#00f0ff]/20 peer-checked:border-[#00f0ff]/40 transition-all" />
-                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/20 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#00f0ff] peer-checked:shadow-[0_0_10px_#00f0ff]" />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#00f0ff]/40 group-hover/toggle:text-[#00f0ff] transition-colors font-mono">Nodes</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                  <div className="relative">
-                    <input type="checkbox" checked={showInternalStructure} onChange={e => setShowInternalStructure(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-white/5 border border-white/10 rounded-full peer-checked:bg-[#00f0ff]/10 peer-checked:border-[#00f0ff]/20 transition-all" />
-                    <div className="absolute top-1 left-1 w-3 h-3 bg-white/10 rounded-full transition-all peer-checked:translate-x-4 peer-checked:bg-[#00f0ff]/50" />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#00f0ff]/20 group-hover/toggle:text-[#00f0ff]/50 transition-colors font-mono">Internal Struct</span>
-                </label>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-1.5 space-y-2">
+            <section>
+              <p className="text-[7.5px] text-[#5e6673] uppercase mb-1 px-1 font-mono tracking-widest leading-none">Analysis Layers</p>
+              <div className="space-y-0.5">
+                <TacticalToggle label="Engulfing" icon={<Activity className="w-3.5 h-3.5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" />
+                <TacticalToggle label="Box Over" icon={<Box className="w-3.5 h-3.5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" />
+                <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
+                <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-3.5 h-3.5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
+                <TacticalToggle label="Golden Zone" icon={<Zap className="w-3.5 h-3.5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
               </div>
-            </div>
+            </section>
+
+            <div className="h-[1px] bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/10 to-transparent my-1" />
+
+            <section>
+              <p className="text-[7.5px] text-[#5e6673] uppercase mb-1 px-1 font-mono tracking-widest leading-none">Market Topology</p>
+              <div className="space-y-0.5">
+                <TacticalToggle label="Nodes" icon={<Cpu className="w-3.5 h-3.5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" />
+                <TacticalToggle label="Internal" icon={<Network className="w-3.5 h-3.5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" />
+              </div>
+            </section>
+
+            <div className="h-[1px] bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/10 to-transparent my-1" />
+
+            <section>
+              <p className="text-[7.5px] text-[#5e6673] uppercase mb-1 px-1 font-mono tracking-widest leading-none">System Cache</p>
+              <div className="space-y-0.5">
+                <TacticalToggle label="Targets" icon={<Shield className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="SL/TP Viz" />
+              </div>
+            </section>
+          </div>
+
+          {/* Footer status */}
+          <div className="p-2 bg-black/40 border-t border-white/5">
+             <div className="flex items-center gap-1.5 mb-1.5">
+               <div className="w-1 h-1 rounded-full bg-[var(--holo-cyan)] animate-ping" />
+               <span className="text-[7px] font-black text-white/30 uppercase tracking-[0.1em]">Neural Sync...</span>
+             </div>
+             <div className="flex gap-0.5">
+               {[1,1,1,1,1,1,1,0,0,0].map((v, i) => (
+                 <div key={i} className={`h-1 flex-1 rounded-full ${v ? 'bg-[var(--holo-cyan)]/40' : 'bg-white/5'}`} />
+               ))}
+             </div>
           </div>
         </div>
       </div>
+
+      {/* ═══════════════ TACTICAL MATRIX: MOBILE FAB & MODAL (md:hidden) ═══════════════ */}
+      <div className="md:hidden absolute top-28 right-4 z-[60]">
+        <button 
+          id="tactical-matrix-mobile-fab"
+          onClick={() => setIsMobileMatrixOpen(true)}
+          className="w-12 h-12 rounded-full bg-[#0a0d14]/90 backdrop-blur-2xl border-2 border-[var(--holo-cyan)]/40 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,242,0.3)] active:scale-90 transition-all"
+        >
+          <Activity className="w-6 h-6 text-[var(--holo-cyan)] animate-pulse" />
+        </button>
+      </div>
+
+      {isMobileMatrixOpen && (
+        <div className="md:hidden fixed inset-0 z-[200] flex items-center justify-center p-4">
+          {/* Overlay */}
+          <div 
+            id="tactical-matrix-mobile-overlay"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            onClick={() => setIsMobileMatrixOpen(false)}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative w-full max-w-sm glass-panel-modern rounded-[2rem] overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in duration-300">
+            <div className="p-4 border-b border-[var(--holo-cyan)]/20 bg-[var(--holo-cyan)]/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Activity className="w-5 h-5 text-[var(--holo-cyan)]" />
+                <div>
+                  <h3 className="text-xs uppercase tracking-widest font-black text-white">Tactical Matrix</h3>
+                  <p className="text-[8px] text-[var(--holo-cyan)]/50 font-mono">Mobile_Interface // v2.0</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsMobileMatrixOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 active:bg-white/10"
+              >
+                <Info className="w-4 h-4 rotate-45" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {/* Group: Core Intelligence */}
+              <section>
+                <p className="text-[10px] text-[var(--holo-cyan)]/40 uppercase mb-3 font-mono tracking-[0.2em]">Analysis Layers</p>
+                <div className="space-y-2">
+                  <TacticalToggle label="Engulfing" icon={<Activity className="w-5 h-5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" />
+                  <TacticalToggle label="Box Over" icon={<Box className="w-5 h-5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" />
+                  <TacticalToggle label="S-Levels" icon={<Layers className="w-5 h-5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
+                  <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-5 h-5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
+                  <TacticalToggle label="Golden Zone" icon={<Zap className="w-5 h-5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
+                </div>
+              </section>
+
+              <section>
+                <p className="text-[10px] text-[var(--holo-cyan)]/40 uppercase mb-3 font-mono tracking-[0.2em]">Market Topology</p>
+                <div className="space-y-2">
+                  <TacticalToggle label="Nodes" icon={<Cpu className="w-5 h-5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" />
+                  <TacticalToggle label="Internal" icon={<Network className="w-5 h-5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" />
+                </div>
+              </section>
+
+              <section>
+                <p className="text-[10px] text-[var(--holo-cyan)]/40 uppercase mb-3 font-mono tracking-[0.2em]">System Cache</p>
+                <div className="space-y-2">
+                  <TacticalToggle label="Targets" icon={<Shield className="w-5 h-5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="SL/TP Viz" />
+                </div>
+              </section>
+            </div>
+
+            <div className="p-4 bg-black/40 border-t border-white/10">
+              <button 
+                onClick={() => setIsMobileMatrixOpen(false)}
+                className="w-full py-3 rounded-xl bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/30 text-[10px] font-black uppercase tracking-[0.3em] text-[var(--holo-cyan)] active:bg-[var(--holo-cyan)]/20 transition-all"
+              >
+                Close Matrix
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════ VERTICAL DRAWING TOOLBAR ═══════════════ */}
       <div className="absolute left-3 top-1/2 -translate-y-1/2 z-[101] opacity-10 group-hover/chart:opacity-100 transition-all duration-500 flex flex-col items-center gap-2 p-1.5 bg-black/40 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] group/tools">
