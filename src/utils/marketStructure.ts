@@ -67,12 +67,12 @@ export interface MarketStructureAnalysis {
   levels: StructuralLevel[];
   trendlines: Trendline[];
   grabs: LiquidityGrab[];
-  imbalances: Imbalance[]; 
+  imbalances: Imbalance[];
   orderBlocks: OrderBlock[]; // Master 2100 Edition Addition
-  currentTrend: 'BULLISH' | 'BEARISH'; 
+  currentTrend: 'BULLISH' | 'BEARISH';
   lastActionType: 'CHoCH' | 'BOS' | 'NONE';
-  atr: number; 
-  isNewsProtection: boolean; 
+  atr: number;
+  isNewsProtection: boolean;
 }
 
 function calculateATR(data: any[], period: number = 14): number {
@@ -90,7 +90,7 @@ function calculateATR(data: any[], period: number = 14): number {
 function getSessionWeight(time: number | string, currentVol?: number, avgVol?: number): number {
   const date = new Date(typeof time === 'string' ? time : (time * 1000));
   const hour = date.getUTCHours();
-  
+
   // 2100 Master Edition: Dynamic Liquidity Time Warping
   if (currentVol !== undefined && avgVol !== undefined && avgVol > 0) {
     const relativeVolume = currentVol / avgVol;
@@ -109,7 +109,7 @@ function getSessionWeight(time: number | string, currentVol?: number, avgVol?: n
 }
 
 export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
-  if (!data || data.length < lb * 2 + 1) return { 
+  if (!data || data.length < lb * 2 + 1) return {
     nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [], imbalances: [], orderBlocks: [],
     currentTrend: 'BULLISH', lastActionType: 'NONE', atr: 0, isNewsProtection: false
   };
@@ -531,7 +531,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     levels: filteredLevels.slice(-15),
     trendlines: trendlines.slice(-4),
     grabs: grabs.slice(-10),
-    imbalances: imbalances.filter(f => !f.isMitigated).slice(-8), 
+    imbalances: imbalances.filter(f => !f.isMitigated).slice(-8),
     orderBlocks: orderBlocks.filter(ob => !ob.isMitigated).slice(-5), // Active OBs (2100)
     currentTrend,
     lastActionType,

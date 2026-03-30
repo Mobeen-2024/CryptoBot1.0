@@ -1602,7 +1602,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               const isBull = ob.type === 'BULLISH_OB';
               const color = isBull ? 'rgba(52, 211, 153, 0.15)' : 'rgba(244, 63, 94, 0.15)';
               const borderColor = isBull ? 'rgba(52, 211, 153, 0.4)' : 'rgba(244, 63, 94, 0.4)';
-              
+
               // We use the background pool for unmitigated OBs
               const rect = backgroundPoolRef.current[idx + levels.length]; // Offset by levels
               if (rect) {
@@ -1890,7 +1890,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         {/* The Animated Cube Trigger */}
         <div className="p-4 pointer-events-auto">
           <div className="w-12 h-12 glass-panel-modern border border-[var(--holo-cyan)]/30 rounded-xl flex items-center justify-center cursor-pointer shadow-[0_0_20px_rgba(0,229,255,0.15)] group-hover/matrix:opacity-0 transition-opacity duration-300">
-             <Activity className="w-6 h-6 text-[var(--holo-cyan)] animate-pulse" />
+            <Activity className="w-6 h-6 text-[var(--holo-cyan)] animate-pulse" />
           </div>
         </div>
 
@@ -1905,10 +1905,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           {/* Header */}
           <div className="p-6 border-b border-white/5 bg-[var(--holo-cyan)]/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-1 opacity-20">
-               <Cpu className="w-12 h-12 text-[var(--holo-cyan)]" />
+              <Cpu className="w-12 h-12 text-[var(--holo-cyan)]" />
             </div>
             <h3 className="text-xs uppercase tracking-[0.4em] font-black text-white flex items-center gap-3 relative z-10">
-              <Activity className="w-4 h-4 text-[var(--holo-cyan)]" /> 
+              <Activity className="w-4 h-4 text-[var(--holo-cyan)]" />
               Tactical Matrix
             </h3>
             <p className="text-[9px] text-[var(--holo-cyan)]/50 uppercase tracking-[0.3em] font-mono mt-2 pl-7 relative z-10">Neural_Link // Active</p>
@@ -1948,21 +1948,21 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
           {/* Status Diagnostic Footer */}
           <div className="p-6 bg-black/40 border-t border-white/5">
-             <div className="flex items-center justify-between mb-3">
-               <div className="flex items-center gap-2">
-                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] animate-ping" />
-                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Neural Link</span>
-               </div>
-               <span className="text-[9px] font-mono text-[var(--holo-cyan)]">99%</span>
-             </div>
-             <div className="flex gap-1">
-               {[1,1,1,1,1,1,1,1,1,0].map((v, i) => (
-                 <div key={i} className={cn(
-                   "h-1 flex-1 rounded-full transition-all duration-1000",
-                   v ? "bg-[var(--holo-cyan)]/40 shadow-[0_0_5px_var(--holo-cyan-glow)]" : "bg-white/5"
-                 )} />
-               ))}
-             </div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] animate-ping" />
+                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Neural Link</span>
+              </div>
+              <span className="text-[9px] font-mono text-[var(--holo-cyan)]">99%</span>
+            </div>
+            <div className="flex gap-1">
+              {[1, 1, 1, 1, 1, 1, 1, 1, 1, 0].map((v, i) => (
+                <div key={i} className={cn(
+                  "h-1 flex-1 rounded-full transition-all duration-1000",
+                  v ? "bg-[var(--holo-cyan)]/40 shadow-[0_0_5px_var(--holo-cyan-glow)]" : "bg-white/5"
+                )} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1971,7 +1971,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       {/* ═══════════════ PHANTOM MOBILE DOCK (md:hidden) ═══════════════ */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[150] h-16 phantom-dock-glass flex items-center justify-around px-4 pb-safe">
         {/* Drawing Tools Trigger */}
-        <button 
+        <button
           onClick={() => setIsMobileMatrixOpen(false)} // Just a placeholder for now, maybe we toggle a sub-strip
           className="flex flex-col items-center gap-1 text-white/40 active:text-[var(--holo-cyan)] transition-colors"
         >
@@ -1980,7 +1980,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </button>
 
         {/* Tactical Matrix Trigger */}
-        <button 
+        <button
           onClick={() => setIsMobileMatrixOpen(true)}
           className={cn(
             "w-14 h-14 -mt-8 rounded-full bg-black border-2 flex items-center justify-center shadow-2xl transition-all active:scale-90",
@@ -1991,7 +1991,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </button>
 
         {/* System Override Trigger (External Event for now or passed from App) */}
-        <button 
+        <button
           onClick={() => window.dispatchEvent(new CustomEvent('toggleStyleModal'))}
           className="flex flex-col items-center gap-1 text-white/40 active:text-[var(--holo-magenta)] transition-colors"
         >
@@ -2005,7 +2005,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         <div className="md:hidden fixed inset-0 z-[1000] flex items-end justify-center">
           {/* Overlay */}
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMatrixOpen(false)} />
-          
+
           {/* Bottom Sheet Style Modal */}
           <div className="relative w-full glass-panel-modern rounded-t-[2.5rem] overflow-hidden flex flex-col max-h-[70vh] animate-in slide-in-from-bottom duration-500 pb-12">
             <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1" />
@@ -2014,7 +2014,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 <h3 className="text-xs uppercase tracking-[0.3em] font-black text-white">Tactical Matrix</h3>
                 <p className="text-[8px] text-[var(--holo-cyan)] font-mono mt-1 tracking-widest uppercase">System Control Unit</p>
               </div>
-              <button 
+              <button
                 onClick={() => setIsMobileMatrixOpen(false)}
                 className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 active:scale-95 transition-all"
               >

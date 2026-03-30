@@ -66,17 +66,17 @@ export function analyzeEngulfing(data: any[], i: number): EngulfingResult {
   // 4. Liquidity Sweep & Domination (Outside Bar Reversal)
   // AI-ALPHA 2100 MASTER EDITION: Wick Rejection Profiling
   // Requires: Strict delta dominance (>0.75 or <-0.75), full wick consumption, AND minimal counter-rejection wick (<30% of body).
-  const bullishEngulf = currIsUp && 
-                        curr.low <= prev.low && 
-                        curr.close >= prev.high && 
-                        (curr.high - curr.close) < (currBodySize * 0.3) && // 2100 Master Wick Filter
-                        isExpansion && hasHighVolume && deltaScore > 0.75;
+  const bullishEngulf = currIsUp &&
+    curr.low <= prev.low &&
+    curr.close >= prev.high &&
+    (curr.high - curr.close) < (currBodySize * 0.3) && // 2100 Master Wick Filter
+    isExpansion && hasHighVolume && deltaScore > 0.75;
 
-  const bearishEngulf = currIsDown && 
-                        curr.high >= prev.high && 
-                        curr.close <= prev.low && 
-                        (curr.close - curr.low) < (currBodySize * 0.3) && // 2100 Master Wick Filter
-                        isExpansion && hasHighVolume && deltaScore < -0.75;
+  const bearishEngulf = currIsDown &&
+    curr.high >= prev.high &&
+    curr.close <= prev.low &&
+    (curr.close - curr.low) < (currBodySize * 0.3) && // 2100 Master Wick Filter
+    isExpansion && hasHighVolume && deltaScore < -0.75;
 
   return {
     isBullish: bullishEngulf,

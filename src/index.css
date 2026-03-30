@@ -673,9 +673,20 @@ input[type="number"] {
 
 /* 5. Cyberpunk Terminal OS Animations */
 @keyframes crt-on {
-  0% { transform: scaleY(0.005) scaleX(0); opacity: 0; }
-  50% { transform: scaleY(0.005) scaleX(1); opacity: 1; }
-  100% { transform: scaleY(1) scaleX(1); opacity: 1; }
+  0% {
+    transform: scaleY(0.005) scaleX(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scaleY(0.005) scaleX(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scaleY(1) scaleX(1);
+    opacity: 1;
+  }
 }
 
 .animate-crt-on {
@@ -683,8 +694,13 @@ input[type="number"] {
 }
 
 @keyframes scanline-drop {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(500%); }
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(500%);
+  }
 }
 
 .cyber-scanline {
@@ -719,19 +735,19 @@ input[type="number"] {
 
 /* 7. Metallic Protocol Button */
 .protocol-btn-metallic {
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .protocol-btn-metallic:active {
   transform: scale(0.97);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .protocol-btn-glow-cyan:hover {
   border-color: var(--holo-cyan);
   box-shadow: 0 0 20px rgba(0, 229, 255, 0.3), inset 0 0 10px rgba(0, 229, 255, 0.1);
   color: var(--holo-cyan);
-}
+}
