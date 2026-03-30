@@ -3,9 +3,9 @@ export interface MarketNode {
   price: number;
   type: 'HH' | 'HL' | 'LH' | 'LL';
   isBreakOfStructure: boolean;
-  isCHoCH: boolean; 
+  isCHoCH: boolean;
   isRoleReversal: boolean;
-  isExternal: boolean; 
+  isExternal: boolean;
   strength: 'STRONG' | 'WEAK' | 'NEUTRAL';
   index: number;
 }
@@ -28,7 +28,7 @@ export interface Trendline {
   start: { time: number | string; price: number; index: number };
   end: { time: number | string; price: number };
   type: 'bullish' | 'bearish';
-  isProven: boolean; 
+  isProven: boolean;
   slope: number;
 }
 
@@ -50,17 +50,29 @@ export interface Imbalance {
   strength: number; // 0-100 based on expansion size
 }
 
+export interface OrderBlock {
+  id: string;
+  top: number;
+  bottom: number;
+  startTime: number | string;
+  type: 'BULLISH_OB' | 'BEARISH_OB';
+  isMitigated: boolean;
+  mitigatedAtIdx?: number;
+  strength: number;
+}
+
 export interface MarketStructureAnalysis {
   nodes: MarketNode[];
   internalNodes: MarketNode[];
   levels: StructuralLevel[];
   trendlines: Trendline[];
   grabs: LiquidityGrab[];
-  imbalances: Imbalance[]; // 2050 Engine Addition
+  imbalances: Imbalance[]; 
+  orderBlocks: OrderBlock[]; // Master 2100 Edition Addition
   currentTrend: 'BULLISH' | 'BEARISH'; 
   lastActionType: 'CHoCH' | 'BOS' | 'NONE';
   atr: number; 
-  isNewsProtection: boolean; // 2050 Engine Addition
+  isNewsProtection: boolean; 
 }
 
 function calculateATR(data: any[], period: number = 14): number {
@@ -75,10 +87,18 @@ function calculateATR(data: any[], period: number = 14): number {
   return trs.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
-function getSessionWeight(time: number | string): number {
+function getSessionWeight(time: number | string, currentVol?: number, avgVol?: number): number {
   const date = new Date(typeof time === 'string' ? time : (time * 1000));
   const hour = date.getUTCHours();
   
+  // 2100 Master Edition: Dynamic Liquidity Time Warping
+  if (currentVol !== undefined && avgVol !== undefined && avgVol > 0) {
+    const relativeVolume = currentVol / avgVol;
+    if (relativeVolume > 2.0) {
+      return 3.0; // Extreme Liquidity Cluster overrides static session time
+    }
+  }
+
   // London: 08:00 - 16:00 UTC
   // NY: 13:00 - 21:00 UTC
   // Overlap: 13:00 - 16:00 UTC
@@ -90,7 +110,7 @@ function getSessionWeight(time: number | string): number {
 
 export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
   if (!data || data.length < lb * 2 + 1) return { 
-    nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [], imbalances: [],
+    nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [], imbalances: [], orderBlocks: [],
     currentTrend: 'BULLISH', lastActionType: 'NONE', atr: 0, isNewsProtection: false
   };
 
@@ -98,17 +118,18 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   const internalNodes: MarketNode[] = [];
   const grabs: LiquidityGrab[] = [];
   const imbalances: Imbalance[] = [];
+  const orderBlocks: OrderBlock[] = [];
   let currentTrend: 'BULLISH' | 'BEARISH' = 'BULLISH';
   let lastActionType: 'CHoCH' | 'BOS' | 'NONE' = 'NONE';
   let isNewsProtection = false;
-  
+
   const atr = calculateATR(data);
   const gammaGuardThreshold = atr * 1.5; // Institutional Displacement Requirement
-  
+
   // Phase 3: Separate Macro from Internal
   let macroLastHigh: number | null = null;
   let macroLastLow: number | null = null;
-  
+
   // Phase 1: SMC Sequencing (CHoCH vs BOS)
   let lastBreakDirection: 'BULLISH' | 'BEARISH' | null = null;
 
@@ -119,7 +140,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   // Track the rolling mean volume for relative strength calculation
   const volBuffer = data.slice(-20).map(d => d.volume);
   const avgVol = (volBuffer.reduce((a, b) => a + b, 0) / (volBuffer.length || 1)) || 1;
-  
+
   for (let i = lb; i < data.length - lb; i++) {
     const currentClose = data[i].close;
     const currentHigh = data[i].high;
@@ -128,18 +149,18 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     // --- Dynamic Rolling ATR (Gamma-Guard Perfection) ---
     // Recalculating ATR dynamically for the current historical context
     const currentAtr = calculateATR(data.slice(0, i + 1));
-    
+
     // --- Phase 1: SMC Sequencing (CHoCH vs BOS) with Gamma-Guard Displacement ---
     if (currentTrend === 'BULLISH' && macroLastLow !== null && currentClose < macroLastLow) {
       // Gamma-Guard: Ensure the break is decisive (Institutional Displacement)
       const displacement = macroLastLow - currentClose;
-      if (displacement > (currentAtr * 0.5)) { 
+      if (displacement > (currentAtr * 0.5)) {
         currentTrend = 'BEARISH';
         if (lastBreakDirection === 'BULLISH') { pendingCHoCH = true; lastActionType = 'CHoCH'; }
         else { pendingBOS = true; lastActionType = 'BOS'; }
         lastBreakDirection = 'BEARISH';
       }
-    } 
+    }
     else if (currentTrend === 'BEARISH' && macroLastHigh !== null && currentClose > macroLastHigh) {
       const displacement = currentClose - macroLastHigh;
       if (displacement > (currentAtr * 0.5)) {
@@ -155,12 +176,12 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       const p2 = data[i - 2];
       const p1 = data[i - 1]; // The Displacement Candle
       const cur = data[i];
-      
+
       const p1BodySize = Math.abs(p1.close - p1.open);
       // Rolling mean body size for displacement validation (10 periods)
       const recentBodies = data.slice(Math.max(0, i - 11), i - 1).map(d => Math.abs(d.close - d.open));
       const avgBody = recentBodies.length > 0 ? recentBodies.reduce((a, b) => a + b, 0) / recentBodies.length : 0;
-      
+
       const isInstitutionalDisplacement = p1BodySize > (avgBody * 1.5);
 
       // Bullish FVG: Low of candle 3 > High of candle 1 AND Institutional Displacement
@@ -187,6 +208,32 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           strength: Math.min(100, Math.round(((p2.low - cur.high) / (currentAtr || 1)) * 100))
         });
       }
+
+      // --- 2100 MASTER EDITION: Order Block Detection Engine ---
+      // Bullish OB: The final opposing candle before a massive displacement impulse
+      if (cur.low > p2.high && isInstitutionalDisplacement && p2.close < p2.open) {
+        orderBlocks.push({
+          id: `ob_bull_${p2.time}`,
+          top: p2.high,
+          bottom: p2.low,
+          startTime: p2.time,
+          type: 'BULLISH_OB',
+          isMitigated: false,
+          strength: 100
+        });
+      }
+      // Bearish OB: The final opposing candle before a massive displacement impulse
+      if (cur.high < p2.low && isInstitutionalDisplacement && p2.close > p2.open) {
+        orderBlocks.push({
+          id: `ob_bear_${p2.time}`,
+          top: p2.high,
+          bottom: p2.low,
+          startTime: p2.time,
+          type: 'BEARISH_OB',
+          isMitigated: false,
+          strength: 100
+        });
+      }
     }
 
     // --- FVG Mitigation Logic ---
@@ -203,22 +250,30 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       }
     });
 
+    // --- OB Mitigation Logic (Master 2100) ---
+    orderBlocks.forEach(ob => {
+      if (!ob.isMitigated) {
+        if (ob.type === 'BULLISH_OB' && data[i].low <= ob.bottom) ob.isMitigated = true;
+        if (ob.type === 'BEARISH_OB' && data[i].high >= ob.top) ob.isMitigated = true;
+      }
+    });
+
     // --- Liquidity Grab (Sweep) Detection ---
     if (macroLastHigh !== null && currentHigh > macroLastHigh && currentClose < macroLastHigh) {
-       grabs.push({ time: data[i].time, price: currentHigh, type: 'sweep_high', description: 'Liquidity Grab (Buy Stop Run)' });
+      grabs.push({ time: data[i].time, price: currentHigh, type: 'sweep_high', description: 'Liquidity Grab (Buy Stop Run)' });
     }
     if (macroLastLow !== null && currentLow < macroLastLow && currentClose > macroLastLow) {
-       grabs.push({ time: data[i].time, price: currentLow, type: 'sweep_low', description: 'Liquidity Grab (Sell Stop Run)' });
+      grabs.push({ time: data[i].time, price: currentLow, type: 'sweep_low', description: 'Liquidity Grab (Sell Stop Run)' });
     }
 
     const checkPH = (idx: number, look: number) => {
       if (idx - look < 0 || idx + look >= data.length) return false;
-      for (let j = 1; j <= look; j++) if (data[idx-j].high > data[idx].high || data[idx+j].high > data[idx].high) return false;
+      for (let j = 1; j <= look; j++) if (data[idx - j].high > data[idx].high || data[idx + j].high > data[idx].high) return false;
       return true;
     };
     const checkPL = (idx: number, look: number) => {
       if (idx - look < 0 || idx + look >= data.length) return false;
-      for (let j = 1; j <= look; j++) if (data[idx-j].low < data[idx].low || data[idx+j].low < data[idx].low) return false;
+      for (let j = 1; j <= look; j++) if (data[idx - j].low < data[idx].low || data[idx + j].low < data[idx].low) return false;
       return true;
     };
 
@@ -230,15 +285,15 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     if (isPH_Int) {
       const price = data[i].high;
       const body = Math.max(data[i].open, data[i].close);
-      const sessionWeight = getSessionWeight(data[i].time);
+      const sessionWeight = getSessionWeight(data[i].time, data[i].volume, avgVol);
       const rvol = (data[i].volume / avgVol) * sessionWeight;
       const strengthScore = Math.min(Math.round(rvol * 50), 100);
 
       // POC Alignment Logic
       const wickHeight = price - body;
       const bodyHeight = body - Math.min(data[i].open, data[i].close);
-      const isWickPOC = wickHeight > bodyHeight; 
-      
+      const isWickPOC = wickHeight > bodyHeight;
+
       // Phase 4: POC as Center of Mass (HLC3 approximation)
       const pricePOC = (data[i].high + data[i].low + data[i].close) / 3;
 
@@ -257,7 +312,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       // --- Phase 1: Inside Bar Filter (Institutional Noise Rejection) ---
       const prev = data[i - 1];
       const isInsideBar = data[i].high <= prev.high && data[i].low >= prev.low;
-      
+
       if (!isInsideBar) {
         const node: MarketNode = {
           time: data[i].time,
@@ -270,11 +325,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           strength: 'NEUTRAL',
           index: i
         };
-        
+
         if (isPH_Ext) nodes.push(node);
         else internalNodes.push(node); // Sub-fractal Trace Point
       }
-      
+
       macroLastHigh = price;
       pendingBOS = false;
       pendingCHoCH = false;
@@ -283,7 +338,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     if (isPL_Int) {
       const price = data[i].low;
       const body = Math.min(data[i].open, data[i].close);
-      const sessionWeight = getSessionWeight(data[i].time);
+      const sessionWeight = getSessionWeight(data[i].time, data[i].volume, avgVol);
       const rvol = (data[i].volume / avgVol) * sessionWeight;
       const strengthScore = Math.min(Math.round(rvol * 50), 100);
 
@@ -309,7 +364,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       // --- Phase 1: Inside Bar Filter (Institutional Noise Rejection) ---
       const prev = data[i - 1];
       const isInsideBar = data[i].high <= prev.high && data[i].low >= prev.low;
-      
+
       if (!isInsideBar) {
         const node: MarketNode = {
           time: data[i].time,
@@ -322,11 +377,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           strength: 'NEUTRAL',
           index: i
         };
-        
+
         if (isPL_Ext) nodes.push(node);
         else internalNodes.push(node); // Sub-fractal Trace Point
       }
-      
+
       macroLastLow = price;
       pendingBOS = false;
       pendingCHoCH = false;
@@ -339,12 +394,12 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
         // For simplicity here: we check current and previous close
         const prevClose = data[i - 1]?.close || currentClose;
         if (lvl.type === 'resistance' && currentClose > lvl.priceWick && prevClose > lvl.priceWick) {
-           lvl.isBroken = true;
-           lvl.brokenAtIdx = i;
+          lvl.isBroken = true;
+          lvl.brokenAtIdx = i;
         }
         if (lvl.type === 'support' && currentClose < lvl.priceWick && prevClose < lvl.priceWick) {
-           lvl.isBroken = true;
-           lvl.brokenAtIdx = i;
+          lvl.isBroken = true;
+          lvl.brokenAtIdx = i;
         }
       }
     });
@@ -358,11 +413,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   // --- Phase 3: Level Clustering (Institutional Confluence Zones) ---
   const clusteredLevels: StructuralLevel[] = [];
   const sortedRaw = [...rawLevels].sort((a, b) => a.priceWick - b.priceWick);
-  
+
   for (let i = 0; i < sortedRaw.length; i++) {
     const current = sortedRaw[i];
     let merged = false;
-    
+
     for (let j = 0; j < clusteredLevels.length; j++) {
       const existing = clusteredLevels[j];
       // Compare proximity (0.5% threshold)
@@ -391,25 +446,25 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   const trendlines: Trendline[] = [];
   const hls = nodes.filter(n => n.type === 'HL' && n.isExternal);
   const lhs = nodes.filter(n => n.type === 'LH' && n.isExternal);
-  
+
   const findValidRay = (points: MarketNode[], type: 'bullish' | 'bearish') => {
     if (points.length < 2) return;
-    
+
     // We iterate backwards to find the most recent valid "Proven" or "Strong" anchor pair
     for (let i = points.length - 1; i >= 1; i--) {
       for (let j = i - 1; j >= 0; j--) {
         const p1 = points[j];
         const p2 = points[i];
-        
+
         // 1. Slope Validation
         const slope = (p2.price - p1.price) / (p2.index - p1.index);
-        if (type === 'bullish' && slope <= 0) continue; 
+        if (type === 'bullish' && slope <= 0) continue;
         if (type === 'bearish' && slope >= 0) continue;
 
         // 2. Intersection Protocol (Body Check)
         let isBroken = false;
         let touches = 2; // Start with the 2 anchors
-        
+
         // Scan every candle from p1 index to the end of data
         for (let k = p1.index + 1; k < data.length; k++) {
           const expectedPrice = p1.price + slope * (k - p1.index);
@@ -422,10 +477,10 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           if (type === 'bearish' && close > expectedPrice) { isBroken = true; break; }
 
           // Proximity Scan for "Proven" touches (within 0.2%)
-          const wickNear = type === 'bullish' ? 
-            Math.abs(low - expectedPrice) / expectedPrice : 
+          const wickNear = type === 'bullish' ?
+            Math.abs(low - expectedPrice) / expectedPrice :
             Math.abs(high - expectedPrice) / expectedPrice;
-            
+
           if (k !== p2.index && wickNear < 0.002) touches++;
         }
 
@@ -457,11 +512,11 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   // --- Phase 2: STRONG vs WEAK Classification ---
   nodes.forEach((node, idx) => {
     if (!node.isExternal) return;
-    
+
     // A Strong node is one that actually caused a BOS on the opposite side
     const nextNodes = nodes.slice(idx + 1);
     const causedBreak = nextNodes.some(n => n.isBreakOfStructure || n.isCHoCH);
-    
+
     if (causedBreak) {
       node.strength = 'STRONG';
     } else {
@@ -476,7 +531,8 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     levels: filteredLevels.slice(-15),
     trendlines: trendlines.slice(-4),
     grabs: grabs.slice(-10),
-    imbalances: imbalances.filter(f => !f.isMitigated).slice(-8), // Only show active imbalances
+    imbalances: imbalances.filter(f => !f.isMitigated).slice(-8), 
+    orderBlocks: orderBlocks.filter(ob => !ob.isMitigated).slice(-5), // Active OBs (2100)
     currentTrend,
     lastActionType,
     atr,

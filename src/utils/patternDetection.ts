@@ -26,7 +26,7 @@ export function analyzeEngulfing(data: any[], i: number): EngulfingResult {
   const currIsDown = curr.close < curr.open;
 
   const currBodySize = Math.abs(curr.close - curr.open);
-  
+
   // 1. Institutional Momentum Check (Expansion vs 10-candle mean)
   const avgBodySize = data.slice(i - 10, i).reduce((sum, c) => sum + Math.abs(c.close - c.open), 0) / 10;
   // AI-ALPHA 2050 Requirement: 1.618 (Golden Ratio) expansion or absolute dominance
@@ -34,7 +34,7 @@ export function analyzeEngulfing(data: any[], i: number): EngulfingResult {
 
   // 2. Volume Check (Confirmation vs 5-candle mean) with Synthetic Fallback
   const avgVolume5 = data.slice(i - 5, i).reduce((sum, c) => sum + (c.volume || 0), 0) / 5;
-  
+
   // AI-ALPHA 2050 Perfection: Synthetic Volume Proxy (SVP)
   // If volume is 0 or missing, we infer "Relative Institutional Effort" from Range/ATR
   let volumeEffort = curr.volume || 0;
@@ -43,7 +43,7 @@ export function analyzeEngulfing(data: any[], i: number): EngulfingResult {
     const prevRanges = data.slice(i - 10, i).map(d => d.high - d.low);
     const avgRange = prevRanges.reduce((a, b) => a + b, 0) / 10;
     // Proxy: If range expanded > 2x average, we treat it as High Volume effort
-    volumeEffort = (currRange / (avgRange || 1)) * 100; 
+    volumeEffort = (currRange / (avgRange || 1)) * 100;
     const avgProxyVolume = 100; // Normalized baseline
     var hasHighVolume = volumeEffort > (avgProxyVolume * 1.5);
   } else {
@@ -56,23 +56,26 @@ export function analyzeEngulfing(data: any[], i: number): EngulfingResult {
   const upperWick = curr.high - Math.max(curr.open, curr.close);
   const lowerWick = Math.min(curr.open, curr.close) - curr.low;
   const totalRange = curr.high - curr.low || 0.000001;
-  
+
   // deltaScore: -1 (Total Sell Dominance) to +1 (Total Buy Dominance)
   const bodyEngagement = currBodySize / totalRange;
-  const deltaScore = currIsUp ? 
-    (bodyEngagement + (lowerWick / totalRange)) : 
+  const deltaScore = currIsUp ?
+    (bodyEngagement + (lowerWick / totalRange)) :
     -(bodyEngagement + (upperWick / totalRange));
 
   // 4. Liquidity Sweep & Domination (Outside Bar Reversal)
-  // AI-ALPHA 2050 requires strict delta dominance (>0.75 or <-0.75)
+  // AI-ALPHA 2100 MASTER EDITION: Wick Rejection Profiling
+  // Requires: Strict delta dominance (>0.75 or <-0.75), full wick consumption, AND minimal counter-rejection wick (<30% of body).
   const bullishEngulf = currIsUp && 
                         curr.low <= prev.low && 
                         curr.close >= prev.high && 
+                        (curr.high - curr.close) < (currBodySize * 0.3) && // 2100 Master Wick Filter
                         isExpansion && hasHighVolume && deltaScore > 0.75;
 
   const bearishEngulf = currIsDown && 
                         curr.high >= prev.high && 
                         curr.close <= prev.low && 
+                        (curr.close - curr.low) < (currBodySize * 0.3) && // 2100 Master Wick Filter
                         isExpansion && hasHighVolume && deltaScore < -0.75;
 
   return {

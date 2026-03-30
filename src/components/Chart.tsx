@@ -89,6 +89,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   const [showTrendlines, setShowTrendlines] = useState(false);
   const [showGoldenZone, setShowGoldenZone] = useState(false);
   const [showInternalStructure, setShowInternalStructure] = useState(false);
+  const [showOrderBlocks, setShowOrderBlocks] = useState(true); // Default ON for 2100 Edition
   const [pulseTick, setPulseTick] = useState(0); // For heartbeat animations
   const [crosshairData, setCrosshairData] = useState<{
     time: string | number;
@@ -1491,12 +1492,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
       if (data && data.length > 0) {
         const analysis = analyzeMarketStructure(data, 5);
-        const { nodes, levels, trendlines: tlData, grabs, currentTrend, lastActionType } = analysis;
+        const { nodes, levels, trendlines: tlData, grabs, currentTrend, lastActionType, orderBlocks } = analysis;
 
         const chartMarkers: any[] = [];
 
         // ONLY render visual artifacts if toggled ON
-        if (showStructure || showStructuralLevels || showTrendlines || showGoldenZone) {
+        if (showStructure || showStructuralLevels || showTrendlines || showGoldenZone || showOrderBlocks) {
           // 4. Trace Mapping (Internal Structure)
           if (showInternalStructure && analysis.internalNodes.length > 1) {
             const sfSeries = chart.addSeries(LineSeries, {
@@ -1594,6 +1595,38 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               size: 2
             });
           });
+
+          // --- 2100 MASTER: Order Block Visual Rendering ---
+          if (showOrderBlocks) {
+            orderBlocks.filter(ob => !ob.isMitigated).forEach((ob, idx) => {
+              const isBull = ob.type === 'BULLISH_OB';
+              const color = isBull ? 'rgba(52, 211, 153, 0.15)' : 'rgba(244, 63, 94, 0.15)';
+              const borderColor = isBull ? 'rgba(52, 211, 153, 0.4)' : 'rgba(244, 63, 94, 0.4)';
+              
+              // We use the background pool for unmitigated OBs
+              const rect = backgroundPoolRef.current[idx + levels.length]; // Offset by levels
+              if (rect) {
+                rect.applyOptions({
+                  visible: true,
+                  topFillColor: color,
+                  bottomFillColor: color,
+                  topLineColor: borderColor,
+                  bottomLineColor: borderColor,
+                  lineWidth: 1,
+                  lineStyle: 0,
+                  autoscaleInfoProvider: () => ({
+                    priceRange: { minValue: ob.bottom, maxValue: ob.top },
+                  }),
+                });
+                rect.setData([
+                  { time: ob.startTime as UTCTimestamp, price: ob.top },
+                  { time: data[data.length - 1].time as UTCTimestamp, price: ob.top },
+                  { time: ob.startTime as UTCTimestamp, price: ob.bottom },
+                  { time: data[data.length - 1].time as UTCTimestamp, price: ob.bottom },
+                ]);
+              }
+            });
+          }
 
           // Supply/Demand Clouds
           if (showStructuralLevels) {
@@ -1894,6 +1927,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                 <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
                 <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-3.5 h-3.5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
                 <TacticalToggle label="Golden Zone" icon={<Zap className="w-3.5 h-3.5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
+                <TacticalToggle label="Order Blocks" icon={<Database className="w-3.5 h-3.5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" />
                 <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" />
               </div>
             </section>
@@ -1997,6 +2031,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                   <TacticalToggle label="S-Levels" icon={<Layers className="w-5 h-5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
                   <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-5 h-5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
                   <TacticalToggle label="Golden Zone" icon={<Zap className="w-5 h-5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
+                  <TacticalToggle label="Order Blocks" icon={<Database className="w-5 h-5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" />
                   <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-5 h-5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" />
                 </div>
               </section>
