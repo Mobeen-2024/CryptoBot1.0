@@ -5,10 +5,11 @@ import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-type BotType = 'DCA' | 'GRID';
-type BotStrategy = 'LONG' | 'SHORT';
-type BotSignal = 'NONE' | 'MACD' | 'RSI' | 'BOLLINGER';
+type BotStrategyType = 'RANGE_BOUND' | 'BREAKOUT' | 'PULLBACK';
+type MarketCondition = 'TRENDING' | 'RANGING' | 'CHOPPY';
+type MarketDirection = 'BULLISH' | 'BEARISH' | 'SIDEWAYS';
 type BotStatus = 'running' | 'stopped' | 'paused' | 'error';
+type PrimaryTimeframe = '1H' | '4H' | 'Daily';
 
 interface AccessPoint {
   id: string;
@@ -19,20 +20,56 @@ interface AccessPoint {
   status: 'connected' | 'disconnected' | 'error';
 }
 
+interface TopDownLevel {
+  timeframe: 'Weekly' | 'Daily' | '4H' | '1H';
+  levelType: 'Support' | 'Resistance' | 'OB' | 'FVG';
+  price: number;
+  strength: number; // 0-100
+}
+
 interface BotConfig {
-  id: string; name: string; type: BotType; strategy: BotStrategy;
-  accessPointId: string; pair: string; status: BotStatus;
-  orderVolume: number; takeProfit: number; stopLoss: number; maxOrderPrice: number; maxCycles: number;
-  extraOrderStep: number; maxExtraOrders: number; martingale: number;
-  signal: BotSignal;
-  createdAt: number; currentCycle: number; realizedProfit: number; unrealizedPnl: number; position: number; unsoldVolume: number;
+  id: string; 
+  name: string; 
+  strategyType: BotStrategyType;
+  marketCondition: MarketCondition;
+  direction: MarketDirection;
+  accessPointId: string; 
+  pair: string; 
+  status: BotStatus;
+  orderVolume: number; 
+  takeProfit: number; 
+  stopLoss: number;
+  
+  // Top-Down Analysis Data
+  weeklyBias: MarketDirection;
+  dailyBias: MarketDirection;
+  primaryTimeframe: PrimaryTimeframe;
+  keyLevels: TopDownLevel[];
+  
+  createdAt: number; 
+  realizedProfit: number; 
+  unrealizedPnl: number; 
+  tradesCount: number;
 }
 
 const defaultBot = (): Omit<BotConfig, 'id' | 'createdAt'> => ({
-  name: 'Alpha Node', type: 'DCA', strategy: 'LONG', accessPointId: '', pair: 'BTCUSDT', status: 'stopped',
-  orderVolume: 50, takeProfit: 2, stopLoss: 5, maxOrderPrice: 999999, maxCycles: 0,
-  extraOrderStep: 1.5, maxExtraOrders: 5, martingale: 1.0, signal: 'NONE',
-  currentCycle: 0, realizedProfit: 0, unrealizedPnl: 0, position: 0, unsoldVolume: 0,
+  name: 'Alpha Node', 
+  strategyType: 'RANGE_BOUND',
+  marketCondition: 'RANGING',
+  direction: 'SIDEWAYS',
+  accessPointId: '', 
+  pair: 'BTCUSDT', 
+  status: 'stopped',
+  orderVolume: 100, 
+  takeProfit: 2, 
+  stopLoss: 1,
+  weeklyBias: 'SIDEWAYS',
+  dailyBias: 'SIDEWAYS',
+  primaryTimeframe: '4H',
+  keyLevels: [],
+  realizedProfit: 0, 
+  unrealizedPnl: 0, 
+  tradesCount: 0,
 });
 
 // â”€â”€â”€ Storage Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -43,14 +80,18 @@ const saveAPs = (aps: AccessPoint[]) => { try { localStorage.setItem('access_poi
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 // â”€â”€â”€ Cyber Status Badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const StatusBadge: React.FC<{ status: BotStatus | 'connected' | 'disconnected' | 'error' }> = ({ status }) => {
+const StatusBadge: React.FC<{ status: BotStatus | 'connected' | 'disconnected' | 'error' | MarketCondition }> = ({ status }) => {
   const map: Record<string, { text: string; cls: string; dot: string }> = {
-    running:      { text: 'ONLINE',      cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
+    running:      { text: 'ACTIVE',      cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
     stopped:      { text: 'STANDBY',     cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
     paused:       { text: 'SUSPENDED',   cls: 'bg-[var(--holo-gold)]/10 text-[var(--holo-gold)] border-[var(--holo-gold)]/30', dot: 'bg-[var(--holo-gold)]' },
-    error:        { text: 'FAIL',        cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
+    error:        { text: 'ALERT',       cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
     connected:    { text: 'LINKED',      cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
-    disconnected: { text: 'SEVERED',     cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
+    disconnected: { text: 'OFFLINE',     cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
+    // Market States
+    TRENDING:     { text: 'TRENDING',    cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
+    RANGING:      { text: 'RANGING',     cls: 'bg-[#bc13fe]/10 text-[#bc13fe] border-[#bc13fe]/30', dot: 'bg-[#bc13fe]' },
+    CHOPPY:       { text: 'CHOPPY',      cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
   };
   const s = map[status] || map.stopped;
   return (
@@ -138,125 +179,144 @@ const APModal: React.FC<{ onClose: () => void; onSave: (ap: AccessPoint) => void
 // â”€â”€â”€ Cyber Bot Configuration Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; onClose: () => void; onSave: (bot: BotConfig) => void }> = ({ existing, accessPoints, onClose, onSave }) => {
   const [cfg, setCfg] = useState<Omit<BotConfig, 'id' | 'createdAt'>>(existing ? { ...existing } : defaultBot());
+  const [step, setStep] = useState(1);
   const set = <K extends keyof typeof cfg>(k: K, v: (typeof cfg)[K]) => setCfg(f => ({ ...f, [k]: v }));
+
+  const biases: MarketDirection[] = ['BULLISH', 'BEARISH', 'SIDEWAYS'];
+  const strategies: BotStrategyType[] = ['RANGE_BOUND', 'BREAKOUT', 'PULLBACK'];
 
   return (
     <div className="fixed inset-0 z-[200] bg-black/40/90 backdrop-blur-md flex items-center justify-center p-4 overflow-auto py-10" onClick={onClose}>
-      <div className="glass-panel border border-[#bc13fe]/30 rounded-2xl shadow-[0_0_50px_rgba(188,19,254,0.1)] w-full max-w-3xl relative overflow-hidden flex flex-col max-h-full" onClick={e => e.stopPropagation()}>
+      <div className="glass-panel border border-[#bc13fe]/30 rounded-2xl shadow-[0_0_50px_rgba(188,19,254,0.1)] w-full max-w-2xl relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#bc13fe]/10 blur-3xl rounded-full pointer-events-none" />
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-white/[0.05] relative z-10 shrink-0 bg-black/50">
           <div className="flex items-center gap-3">
-             <div className="p-2 bg-[#bc13fe]/10 rounded border border-[#bc13fe]/20 text-[#bc13fe]"><Cpu className="w-5 h-5" /></div>
+             <div className="p-2 bg-[#bc13fe]/10 rounded border border-[#bc13fe]/20 text-[#bc13fe]"><BrainCircuit className="w-5 h-5" /></div>
              <div>
-               <h3 className="text-white font-black tracking-[0.2em] uppercase text-sm">{existing ? 'Reconfigure Node' : 'Initialize Autonomous Node'}</h3>
-               <p className="text-[#bc13fe]/60 text-[9px] font-mono tracking-widest mt-0.5">ALGO_STRATEGY // SYS_BUILDER</p>
+               <h3 className="text-white font-black tracking-[0.2em] uppercase text-sm">Market Structure Engine</h3>
+               <p className="text-[#bc13fe]/60 text-[9px] font-mono tracking-widest mt-0.5">TOP_DOWN_ANALYSIS // STEP {step} OF 3</p>
              </div>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-[var(--holo-magenta)] transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="p-5 space-y-8 overflow-y-auto custom-scrollbar relative z-10 flex-1">
+        <div className="p-5 space-y-6 overflow-y-auto custom-scrollbar relative z-10 flex-1">
+          {step === 1 && (
+            <div className="space-y-6">
+              <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
+                <h4 className="text-[10px] text-[#bc13fe] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
+                  <span className="w-2 h-2 bg-[#bc13fe] animate-pulse" /> [01] core_routing
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Node Alias"><Input placeholder="ALPHA_NODE_01" value={cfg.name} onChange={e => set('name', e.target.value.toUpperCase())} /></Field>
+                  <Field label="Uplink Gateway">
+                    <Select value={cfg.accessPointId} onChange={e => set('accessPointId', e.target.value)}>
+                      <option value="">— UNAVAILABLE —</option>
+                      {accessPoints.map(ap => <option key={ap.id} value={ap.id}>{ap.name} ({ap.exchange})</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Asset Matrix"><Input placeholder="BTCUSDT" value={cfg.pair} onChange={e => set('pair', e.target.value.toUpperCase())} /></Field>
+                  <Field label="Execution Timeframe">
+                    <Select value={cfg.primaryTimeframe} onChange={e => set('primaryTimeframe', e.target.value as PrimaryTimeframe)}>
+                      {['1H', '4H', 'Daily'].map(tf => <option key={tf} value={tf}>{tf} CHART</option>)}
+                    </Select>
+                  </Field>
+                </div>
+              </section>
+            </div>
+          )}
 
-          {/* Core Routing */}
-          <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-            <h4 className="text-[10px] text-[#bc13fe] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-               <span className="w-2 h-2 bg-[#bc13fe] animate-pulse" /> [01] core_routing
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Node Alias"><Input placeholder="ALPHA_NODE_01" value={cfg.name} onChange={e => set('name', e.target.value.toUpperCase())} /></Field>
-              <Field label="Uplink Gateway">
-                <Select value={cfg.accessPointId} onChange={e => set('accessPointId', e.target.value)}>
-                  <option value="">â€” UNAVAILABLE â€”</option>
-                  {accessPoints.map(ap => <option key={ap.id} value={ap.id}>{ap.name} ({ap.exchange})</option>)}
-                </Select>
-              </Field>
-              <Field label="Asset Matrix"><Input placeholder="BTCUSDT" value={cfg.pair} onChange={e => set('pair', e.target.value.toUpperCase())} /></Field>
-              <Field label="Directional Bias">
-                <div className="grid grid-cols-2 gap-2">
-                  {(['LONG', 'SHORT'] as BotStrategy[]).map(s => (
-                    <button key={s} onClick={() => set('strategy', s)}
-                      title={s === 'LONG' ? "Set Bullish Strategy" : "Set Bearish Strategy"}
-                      className={`py-2 rounded font-black text-[10px] tracking-widest uppercase transition-all ${cfg.strategy === s ? (s === 'LONG' ? 'bg-[var(--holo-cyan)]/15 border border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[0_0_10px_rgba(57,255,20,0.2)]' : 'bg-[var(--holo-magenta)]/15 border border-[var(--holo-magenta)]/50 text-[var(--holo-magenta)] shadow-[0_0_10px_rgba(255,7,58,0.2)]') : 'bg-black border border-white/[0.1] text-gray-500 hover:text-gray-300'}`}>{s}</button>
+          {step === 2 && (
+            <div className="space-y-6">
+              <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
+                <h4 className="text-[10px] text-[var(--holo-cyan)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
+                  <span className="w-2 h-2 bg-[var(--holo-cyan)] animate-pulse" /> [02] top_down_alignment
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <Field label="Weekly Bias (Macro)">
+                    <div className="flex gap-2">
+                      {biases.map(b => (
+                        <button key={b} onClick={() => set('weeklyBias', b)}
+                          className={`flex-1 py-2 rounded text-[9px] font-black tracking-widest transition-all border ${cfg.weeklyBias === b ? 'bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'bg-black border-white/[0.1] text-gray-500 hover:text-gray-300'}`}>
+                          {b}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label="Daily Bias (Swing)">
+                    <div className="flex gap-2">
+                      {biases.map(b => (
+                        <button key={b} onClick={() => set('dailyBias', b)}
+                          className={`flex-1 py-2 rounded text-[9px] font-black tracking-widest transition-all border ${cfg.dailyBias === b ? 'bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'bg-black border-white/[0.1] text-gray-500 hover:text-gray-300'}`}>
+                          {b}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                </div>
+                <div className="mt-6 pt-4 border-t border-white/[0.05] bg-[var(--holo-gold)]/5 p-3 rounded-lg flex gap-3">
+                  <ShieldCheck className="w-4 h-4 text-[var(--holo-gold)] shrink-0" />
+                  <p className="text-[9px] text-[var(--holo-gold)]/80 font-mono leading-relaxed uppercase tracking-wider">
+                    Top-down alignment is critical. Ensure Weekly and Daily biases align with your primary timeframe setup to avoid low-probability signals.
+                  </p>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-6">
+              <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
+                <h4 className="text-[10px] text-[var(--holo-gold)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
+                  <span className="w-2 h-2 bg-[var(--holo-gold)] animate-pulse" /> [03] strategy_execution
+                </h4>
+                <div className="grid grid-cols-1 gap-4 mb-6">
+                  {strategies.map(s => (
+                    <button key={s} onClick={() => set('strategyType', s)}
+                      className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group ${cfg.strategyType === s ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/50' : 'bg-black/50 border-white/[0.05] hover:border-white/[0.2]'}`}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className={`text-[11px] font-black tracking-widest uppercase ${cfg.strategyType === s ? 'text-[var(--holo-cyan)]' : 'text-gray-400'}`}>{s.replace('_', ' ')}</span>
+                        {cfg.strategyType === s && <div className="p-1 bg-[var(--holo-cyan)]/20 rounded text-[var(--holo-cyan)]"><ShieldCheck className="w-3 h-3" /></div>}
+                      </div>
+                      <p className="text-[9px] text-gray-500 font-mono leading-relaxed">
+                        {s === 'RANGE_BOUND' && 'Waits for price to approach Support/Resistance levels. Buy at support, sell at resistance.'}
+                        {s === 'BREAKOUT' && 'Detects decisive breaks beyond S/R levels. Filters for institutional displacement to avoid head-fakes.'}
+                        {s === 'PULLBACK' && 'Waits for a breakout followed by a retest of the broken level before confirming entry.'}
+                      </p>
+                    </button>
                   ))}
                 </div>
-              </Field>
+                <div className="grid grid-cols-3 gap-4">
+                  <Field label="Order Volume"><Input type="number" value={cfg.orderVolume} onChange={e => set('orderVolume', +e.target.value)} /></Field>
+                  <Field label="Take Profit %"><Input type="number" value={cfg.takeProfit} onChange={e => set('takeProfit', +e.target.value)} step="0.1" /></Field>
+                  <Field label="Stop Loss %"><Input type="number" value={cfg.stopLoss} onChange={e => set('stopLoss', +e.target.value)} step="0.1" /></Field>
+                </div>
+              </section>
             </div>
-          </section>
-
-          {/* Engine Arch */}
-          <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-            <h4 className="text-[10px] text-[var(--holo-cyan)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-               <span className="w-2 h-2 bg-[var(--holo-cyan)] animate-pulse" /> [02] engine_architecture
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { type: 'DCA' as BotType, label: 'DCA MATRIX', desc: 'Dynamic cost-averaging array with composite macro-exits.' },
-                { type: 'GRID' as BotType, label: 'GRID ARRAY', desc: 'High-frequency micro-oscillatory netting system.' },
-              ].map(t => (
-                <button key={t.type} onClick={() => set('type', t.type)}
-                  className={`p-4 rounded-xl border text-left transition-all ${cfg.type === t.type ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/50 shadow-[0_0_15px_rgba(0,240,255,0.1)]' : 'bg-black/50 border-white/[0.05] hover:border-white/[0.2]'}`}>
-                  <div className={`text-[12px] font-black tracking-widest uppercase mb-1 flex items-center gap-2 ${cfg.type === t.type ? 'text-[var(--holo-cyan)]' : 'text-gray-400'}`}>
-                    <Box className="w-4 h-4" /> {t.label}
-                  </div>
-                  <p className="text-[10px] text-gray-500 font-mono leading-relaxed">{t.desc}</p>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Variables */}
-          <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-             <h4 className="text-[10px] text-[var(--holo-gold)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-               <span className="w-2 h-2 bg-[var(--holo-gold)] animate-pulse" /> [03] execution_variables
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Field label="Vol (USDT)"><Input type="number" value={cfg.orderVolume} onChange={e => set('orderVolume', +e.target.value)} /></Field>
-              <Field label="Take Profit %"><Input type="number" value={cfg.takeProfit} onChange={e => set('takeProfit', +e.target.value)} step="0.1" /></Field>
-              <Field label="Stop Loss %"><Input type="number" value={cfg.stopLoss} onChange={e => set('stopLoss', +e.target.value)} step="0.1" /></Field>
-              <Field label="Max Cycles (0=INF)"><Input type="number" value={cfg.maxCycles} onChange={e => set('maxCycles', +e.target.value)} min={0} /></Field>
-            </div>
-            
-            {cfg.type === 'DCA' && (
-              <div className="mt-4 pt-4 border-t border-white/[0.05] grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <Field label="Dev. Step %"><Input type="number" value={cfg.extraOrderStep} onChange={e => set('extraOrderStep', +e.target.value)} step="0.1" /></Field>
-                <Field label="Max Safety Orders"><Input type="number" value={cfg.maxExtraOrders} onChange={e => set('maxExtraOrders', +e.target.value)} min={1} max={20} /></Field>
-                <Field label="Martingale Coef."><Input type="number" value={cfg.martingale} onChange={e => set('martingale', +e.target.value)} step="0.05" min={1.0} max={2.0} /></Field>
-              </div>
-            )}
-          </section>
-
-          {/* Trigger */}
-          <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-             <h4 className="text-[10px] text-[var(--holo-cyan)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-               <span className="w-2 h-2 bg-[var(--holo-cyan)] animate-pulse" /> [04] neural_triggers
-            </h4>
-             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[ { id: 'NONE', l: 'IMMEDIATE' }, { id: 'MACD', l: 'MACD_CROSS' }, { id: 'RSI', l: 'RSI_EXTREME' }, { id: 'BOLLINGER', l: 'BB_TOUCH' } ].map(sig => (
-                <button key={sig.id} onClick={() => set('signal', sig.id as BotSignal)}
-                  className={`p-2.5 rounded border text-center font-mono text-[10px] font-black tracking-widest transition-all ${cfg.signal === sig.id ? 'bg-[var(--holo-cyan)]/15 border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[0_0_10px_rgba(57,255,20,0.1)]' : 'bg-black border-white/[0.1] text-gray-600 hover:border-white/[0.3]'}`}>
-                  {sig.l}
-                </button>
-              ))}
-            </div>
-          </section>
-
+          )}
         </div>
 
         {/* Footer */}
         <div className="p-5 border-t border-white/[0.05] flex gap-3 bg-black/50 shrink-0">
-          <button onClick={onClose} className="w-1/3 py-3 bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 border border-white/[0.1] text-[11px] font-black tracking-widest uppercase rounded focus:outline-none">Abort Setup</button>
-          <button
-            onClick={() => {
-              if (!cfg.name.trim()) return toast.error('Node Alias required');
-              if (!cfg.accessPointId) return toast.error('Uplink Gateway required');
-              onSave({ ...cfg, id: existing?.id || uid(), createdAt: existing?.createdAt || Date.now() });
-              onClose();
-            }}
-            className="flex-1 py-3 bg-[#bc13fe]/10 hover:bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30 hover:border-[#bc13fe] text-[11px] font-black tracking-widest uppercase rounded focus:outline-none transition-all box-glow-purple"
-          >{existing ? 'Commit Alterations' : 'Initialize Node'}</button>
+          {step > 1 && <button onClick={() => setStep(s => s - 1)} className="w-1/4 py-3 bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 border border-white/[0.1] text-[10px] font-black tracking-widest uppercase rounded">Back</button>}
+          <button onClick={onClose} className="flex-1 py-3 bg-white/[0.02] hover:bg-white/[0.1] text-gray-500 border border-white/[0.05] text-[10px] font-black tracking-widest uppercase rounded">Abort</button>
+          {step < 3 ? (
+            <button onClick={() => {
+              if (step === 1 && (!cfg.name || !cfg.accessPointId)) return toast.error('Alias and Gateway required');
+              setStep(s => s + 1);
+            }} className="flex-1 py-3 bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/30 hover:border-[var(--holo-cyan)] text-[10px] font-black tracking-widest uppercase rounded box-glow transition-all">Next Module</button>
+          ) : (
+            <button
+              onClick={() => {
+                onSave({ ...cfg, id: existing?.id || uid(), createdAt: existing?.createdAt || Date.now() });
+                onClose();
+              }}
+              className="flex-1 py-3 bg-[#bc13fe]/10 hover:bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30 hover:border-[#bc13fe] text-[10px] font-black tracking-widest uppercase rounded focus:outline-none transition-all box-glow-purple"
+            >{existing ? 'Commit Changes' : 'Initialize Strategy'}</button>
+          )}
         </div>
       </div>
     </div>
@@ -269,11 +329,23 @@ const BotCard: React.FC<{
   onToggle: (id: string) => void; onEdit: (bot: BotConfig) => void; onDelete: (id: string) => void;
 }> = ({ bot, ap, onToggle, onEdit, onDelete }) => {
   const isRunning = bot.status === 'running';
+  const isChoppy = bot.marketCondition === 'CHOPPY';
+
   return (
     <div className={`bg-black/60 backdrop-blur-md rounded-xl p-1 relative overflow-hidden transition-all duration-500 ${isRunning ? 'shadow-[0_0_30px_rgba(57,255,20,0.1)] border border-[var(--holo-cyan)]/30' : 'border border-white/[0.05]'}`}>
       
       {isRunning && (
         <div className="absolute inset-0 bg-[linear-gradient(rgba(57,255,20,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(57,255,20,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+      )}
+
+      {isChoppy && (
+        <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+           <div className="space-y-2">
+             <ShieldCheck className="w-8 h-8 text-[var(--holo-magenta)] mx-auto animate-pulse" />
+             <h4 className="text-[var(--holo-magenta)] font-black text-[10px] tracking-widest uppercase">Choppy Market Lockout</h4>
+             <p className="text-gray-400 text-[8px] font-mono leading-relaxed uppercase">Neural filters detected low-probability noise. Execution halted to preserve capital.</p>
+           </div>
+        </div>
       )}
 
       <div className="bg-black/40 rounded-lg h-full p-4 relative z-10 flex flex-col">
@@ -296,17 +368,18 @@ const BotCard: React.FC<{
         </div>
 
         {/* Tactical Config Tags */}
-        <div className="flex gap-2 mb-4">
-           <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] text-[9px] font-mono text-gray-400 font-bold">{bot.type}_{bot.strategy}</span>
-           <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] text-[9px] font-mono text-gray-400 font-bold">TP:{bot.takeProfit}% SL:{bot.stopLoss}%</span>
-           {bot.signal !== 'NONE' && <span className="px-2 py-0.5 rounded bg-[#bc13fe]/10 border border-[#bc13fe]/20 text-[#bc13fe] text-[9px] font-mono font-bold">{bot.signal}_TRIG</span>}
+        <div className="flex flex-wrap gap-2 mb-4">
+           <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] text-[8px] font-mono text-gray-400 font-bold uppercase">{bot.strategyType}</span>
+           <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] text-[8px] font-mono text-gray-400 font-bold uppercase">{bot.primaryTimeframe} EXEC</span>
+           <span className={`px-2 py-0.5 rounded border text-[8px] font-mono font-bold uppercase ${bot.weeklyBias === 'BULLISH' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' : bot.weeklyBias === 'BEARISH' ? 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>W:{bot.weeklyBias}</span>
+           <span className={`px-2 py-0.5 rounded border text-[8px] font-mono font-bold uppercase ${bot.dailyBias === 'BULLISH' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' : bot.dailyBias === 'BEARISH' ? 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>D:{bot.dailyBias}</span>
         </div>
 
         {/* Data Grid */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           <Stat label="NET YIELD" value={`${bot.realizedProfit >= 0 ? '+' : ''}${bot.realizedProfit.toFixed(2)}`} color={bot.realizedProfit > 0 ? 'var(--holo-cyan)' : bot.realizedProfit < 0 ? 'var(--holo-magenta)' : '#848e9c'} sub="USDT" />
-          <Stat label="FLOAT PNL" value={`${bot.unrealizedPnl >= 0 ? '+' : ''}${bot.unrealizedPnl.toFixed(2)}`} color={bot.unrealizedPnl > 0 ? 'var(--holo-cyan)' : bot.unrealizedPnl < 0 ? 'var(--holo-magenta)' : '#848e9c'} sub="USDT" />
-          <Stat label="PHASE CYCLES" value={bot.currentCycle} color="#bc13fe" sub="EXECUTIONS" />
+          <Stat label="PHASE" value={bot.marketCondition} color="#bc13fe" sub="CONDITION" />
+          <Stat label="TRADES" value={bot.tradesCount} color="var(--holo-gold)" sub="EXECUTED" />
         </div>
 
         {/* Neural Activity Sparkline */}
@@ -323,22 +396,23 @@ const BotCard: React.FC<{
                 <Area type="monotone" dataKey="v" stroke={isRunning ? 'var(--holo-cyan)' : '#848e9c'} strokeWidth={1} fill={`url(#grad-${bot.id})`} isAnimationActive={false} />
              </AreaChart>
           </ResponsiveContainer>
-          <div className="absolute top-1 left-2 text-[7px] font-mono text-gray-600 tracking-widest pointer-events-none">PERFORMANCE_MATRIX</div>
+          <div className="absolute top-1 left-2 text-[7px] font-mono text-gray-600 tracking-widest pointer-events-none">STRUCTURE_PROBABILITY_MAP</div>
         </div>
 
         {/* Action Button */}
         <div className="mt-auto pt-4 border-t border-white/[0.05]">
           <button
             onClick={() => onToggle(bot.id)}
+            disabled={isChoppy}
             className={`w-full py-2.5 rounded font-black text-[11px] tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 border group relative overflow-hidden ${
-              isRunning ? 'bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)] box-glow-red' : 'bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] box-glow-green'
+              isRunning ? 'bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)] box-glow-red' : isChoppy ? 'bg-gray-800 border-gray-700 text-gray-600 grayscale' : 'bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] box-glow-green'
             }`}
              >
             {isRunning && <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[var(--holo-magenta)]/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1s_infinite]" />}
-            {!isRunning && <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1s_infinite]" />}
+            {!isRunning && !isChoppy && <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1s_infinite]" />}
             
             {isRunning ? <Square className="w-3.5 h-3.5 relative z-10" fill="currentColor" /> : <Play className="w-3.5 h-3.5 relative z-10" fill="currentColor" />}
-            <span className="relative z-10">{isRunning ? 'Halt Execution' : 'Engage Node'}</span>
+            <span className="relative z-10">{isRunning ? 'Halt Execution' : isChoppy ? 'LOCKED: CHOPPY' : 'Engage Strategy'}</span>
           </button>
         </div>
       </div>
@@ -367,8 +441,12 @@ export const BotPanel: React.FC = () => {
     setBots(prev => prev.map(b => {
       if (b.id !== id) return b;
       if (b.status === 'running') { 
-        toast('Execution Suspended', { style: { background: '#0a0d14', color: '#fcd535', border: '1px solid rgba(252,213,53,0.2)' } }); 
+        toast('Strategy Deactivated', { style: { background: '#0a0d14', color: '#fcd535', border: '1px solid rgba(252,213,53,0.2)' } }); 
         return { ...b, status: 'stopped' }; 
+      }
+      if (b.marketCondition === 'CHOPPY') {
+        toast.error('EXECUTION DENIED: High Noise detected.', { style: { background: '#0a0d14', color: 'var(--holo-magenta)', border: '1px solid rgba(255,7,58,0.2)' } });
+        return b;
       }
       if (!accessPoints.find(ap => ap.id === b.accessPointId)) {
         toast.error('UPLINK FAILURE: Gateway missing', { style: { background: '#0a0d14', color: 'var(--holo-magenta)', border: '1px solid rgba(255,7,58,0.2)' } });
@@ -398,9 +476,9 @@ export const BotPanel: React.FC = () => {
                {runningCount > 0 && <span className="absolute -bottom-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--holo-cyan)] opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--holo-cyan)] border border-black"></span></span>}
              </div>
              <div>
-               <h2 className="text-white font-black text-lg tracking-[0.2em] uppercase">Swarm Matrix</h2>
+               <h2 className="text-white font-black text-lg tracking-[0.2em] uppercase">Market Structure Engine</h2>
                <p className="text-[#bc13fe]/60 text-[10px] font-mono tracking-widest mt-1">
-                 ACTIVE_NODES: {runningCount} <span className="text-gray-600">//</span> GATEWAYS: {accessPoints.length}
+                 MARKET_STATE: <span className="text-[var(--holo-cyan)]">ACTIVE</span> <span className="text-gray-600">//</span> ALIGNMENT: <span className="text-[var(--holo-cyan)]">MULTI-TF</span>
                </p>
              </div>
           </div>
@@ -408,18 +486,18 @@ export const BotPanel: React.FC = () => {
             {view === 'bots' ? (
               <div className="flex gap-2">
                 <button onClick={() => {
-                  const genBot = { ...defaultBot(), id: uid(), name: 'AI_OPTIMIZED_' + Math.floor(Math.random()*999), type: 'GRID' as any, strategy: 'LONG' as any, pair: 'ETHUSDT', orderVolume: 250, takeProfit: 3.5, signal: 'MACD' as any, createdAt: Date.now() };
+                  const genBot: any = { ...defaultBot(), id: uid(), name: 'STRUCT_ALPHA_' + Math.floor(Math.random()*999), strategyType: 'PULLBACK', marketCondition: 'TRENDING', pair: 'ETHUSDT', weeklyBias: 'BULLISH', dailyBias: 'BULLISH', createdAt: Date.now() };
                   if (accessPoints.length > 0) genBot.accessPointId = accessPoints[0].id;
                   setEditingBot(genBot); setShowBotModal(true);
-                  toast.success('AI Synergy Config Synthesized', { iconTheme: {primary: 'var(--holo-cyan)', secondary: '#0a0d14'}, style: { background: '#0a0d14', color: 'var(--holo-cyan)', border: '1px solid rgba(0,240,255,0.2)' } });
+                  toast.success('Top-Down Analysis Synthesized', { iconTheme: {primary: 'var(--holo-cyan)', secondary: '#0a0d14'}, style: { background: '#0a0d14', color: 'var(--holo-cyan)', border: '1px solid rgba(0,240,255,0.2)' } });
                 }}
                   className="bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/30 hover:border-[var(--holo-cyan)] text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded box-glow flex items-center gap-2 transition-all overflow-hidden group relative">
                   <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-                  <BrainCircuit className="w-4 h-4 animate-pulse" /> Auto-Deploy AI
+                  <BrainCircuit className="w-4 h-4 animate-pulse" /> Auto-Align AI
                 </button>
                 <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }}
                   className="bg-[#bc13fe]/10 hover:bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30 hover:border-[#bc13fe] text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded box-glow-purple flex items-center gap-2 transition-all">
-                  <Plus className="w-4 h-4" /> Initialize Node
+                  <Plus className="w-4 h-4" /> Initialize Strategy
                 </button>
               </div>
             ) : (
@@ -433,7 +511,7 @@ export const BotPanel: React.FC = () => {
 
         {/* Neural Tabs */}
         <div className="flex gap-2 border-b border-white/[0.05]">
-          {([['bots', 'Alpha Nodes'], ['access', 'Uplink Gateways']] as [string, string][]).map(([id, label]) => (
+          {([['bots', 'Alpha Strategies'], ['access', 'Uplink Gateways']] as [string, string][]).map(([id, label]) => (
             <button key={id} onClick={() => setView(id as any)}
               className={`px-6 py-2.5 text-[10px] uppercase font-black tracking-widest rounded-t-lg transition-all border-b-2 relative ${view === id ? 'text-[#bc13fe] border-[#bc13fe] bg-gradient-to-t from-[#bc13fe]/10 to-transparent' : 'text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/[0.02]'}`}>
               {label}
@@ -450,18 +528,18 @@ export const BotPanel: React.FC = () => {
             {bots.length > 0 && (
               <div className="grid grid-cols-3 gap-3 mb-6">
                 <Stat label="Total Extracted" value={`${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}`} color={totalPnl > 0 ? 'var(--holo-cyan)' : '#eaecef'} sub="USDT_PROFIT" highlight={totalPnl > 0} />
-                <Stat label="Engaged Protocols" value={runningCount} color={runningCount > 0 ? '#bc13fe' : '#eaecef'} sub={`/ ${bots.length} TOTAL`} />
-                <Stat label="Network Integrity" value="100%" color="var(--holo-cyan)" sub="OPTIMAL" />
+                <Stat label="Active Strategies" value={runningCount} color={runningCount > 0 ? '#bc13fe' : '#eaecef'} sub={`/ ${bots.length} TOTAL`} />
+                <Stat label="Market Condition" value={bots.length > 0 ? bots[0].marketCondition : 'N/A'} color="var(--holo-cyan)" sub="REAL_TIME_STATUS" />
               </div>
             )}
             
             {bots.length === 0 ? (
                <div className="flex flex-col items-center justify-center h-48 border border-white/[0.05] border-dashed rounded-xl bg-black/20 text-center relative overflow-hidden">
                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.05)_0%,transparent_70%)] pointer-events-none" />
-                 <Cpu className="w-10 h-10 text-gray-700 mb-4" />
-                 <h3 className="text-white font-black tracking-widest uppercase text-sm mb-2">Matrix Empty</h3>
-                 <p className="text-gray-500 font-mono text-[10px] tracking-widest mb-6">AWAITING_INITIAL_NODE_CONSTRUCTION</p>
-                 <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }} className="px-6 py-2 border border-[#bc13fe]/50 text-[#bc13fe] text-[10px] tracking-widest uppercase font-black rounded box-glow-purple hover:bg-[#bc13fe]/10 transition-all">Construct Node</button>
+                 <BrainCircuit className="w-10 h-10 text-gray-700 mb-4" />
+                 <h3 className="text-white font-black tracking-widest uppercase text-sm mb-2">Engine Offline</h3>
+                 <p className="text-gray-500 font-mono text-[10px] tracking-widest mb-6">AWAITING_INITIAL_STRATEGY_ALIGNMENT</p>
+                 <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }} className="px-6 py-2 border border-[#bc13fe]/50 text-[#bc13fe] text-[10px] tracking-widest uppercase font-black rounded box-glow-purple hover:bg-[#bc13fe]/10 transition-all">Initialize Strategy</button>
                </div>
             ) : (
                <>
@@ -474,7 +552,7 @@ export const BotPanel: React.FC = () => {
                {/* Terminal Event Log */}
                <div className="bg-black/40 border border-[var(--holo-cyan)]/20 rounded-xl p-4 relative overflow-hidden h-40 flex flex-col pointer-events-none">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--holo-cyan)]/5 blur-3xl rounded-full" />
-                 <h4 className="flex items-center gap-2 text-[10px] font-mono text-[var(--holo-cyan)] uppercase tracking-[0.2em] mb-3 shrink-0"><Terminal className="w-3.5 h-3.5" /> Neural Execution Feed</h4>
+                 <h4 className="flex items-center gap-2 text-[10px] font-mono text-[var(--holo-cyan)] uppercase tracking-[0.2em] mb-3 shrink-0"><Terminal className="w-3.5 h-3.5" /> Structure Analysis Feed</h4>
                  <div className="flex-1 overflow-hidden relative flex flex-col justify-end">
                     <div className="absolute inset-0 bg-gradient-to-b from-[#05070a] via-transparent to-transparent z-10 pointer-events-none" />
                     <div className="space-y-1 font-mono text-[10px] sm:text-[11px] font-bold text-[#848e9c]">
@@ -482,7 +560,7 @@ export const BotPanel: React.FC = () => {
                         <div key={i} className="flex gap-4">
                           <span className="text-[#5e6673]">[{new Date(Date.now() - i * 15000).toISOString().split('T')[1].slice(0,8)}]</span>
                           <span className={`${i === 0 ? 'text-[var(--holo-cyan)]' : i === 1 ? 'text-[var(--holo-cyan)]' : ''}`}>
-                            {i % 3 === 0 ? '> SYNC_PING OK: LATENCY 14ms (OPTIMAL)' : i % 2 === 0 ? '> ARRAY_SWEEP: 0 ANOMALIES DETECTED' : '> ANALYZING MARKET DEVIATION VECTORS...'}
+                            {i % 3 === 0 ? '> SMC_ALIGNMENT: TREND CONFIRMED HH/HL' : i % 2 === 0 ? '> STRUCTURE_SCAN: RANGE BOUNDARY IDENTIFIED' : '> ANALYZING TOP-DOWN BIAS CONFLUENCE...'}
                           </span>
                         </div>
                       ))}

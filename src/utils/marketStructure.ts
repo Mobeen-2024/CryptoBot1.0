@@ -8,6 +8,7 @@ export interface MarketNode {
   isExternal: boolean;
   strength: 'STRONG' | 'WEAK' | 'NEUTRAL';
   index: number;
+  cvd_delta?: number; // Institutional Alpha Addition
 }
 
 export interface StructuralLevel {
@@ -21,6 +22,8 @@ export interface StructuralLevel {
   brokenAtIdx?: number;
   intent: 'Stop Run / Sweep' | 'Aggressive Accumulation' | 'Standard Rejection';
   strengthScore: number; // 0-100
+  cvd_signature?: number; // Institutional Alpha: Buy-Sell Pressure at level
+  entryProxy?: number; // Institutional Alpha: Suggested Entry (e.g. Mean Threshold)
 }
 
 export interface Trendline {
@@ -46,6 +49,7 @@ export interface Imbalance {
   startTime: number | string;
   type: 'BULLISH_FVG' | 'BEARISH_FVG';
   isMitigated: boolean;
+  isFullyFilled: boolean; // Institutional Alpha: FVG is fully closed
   mitigatedAtIdx?: number;
   strength: number; // 0-100 based on expansion size
 }
@@ -57,6 +61,7 @@ export interface OrderBlock {
   startTime: number | string;
   type: 'BULLISH_OB' | 'BEARISH_OB';
   isMitigated: boolean;
+  isInvalidated: boolean; // Institutional Alpha: Price closed beyond the OB
   mitigatedAtIdx?: number;
   strength: number;
 }
@@ -68,11 +73,21 @@ export interface MarketStructureAnalysis {
   trendlines: Trendline[];
   grabs: LiquidityGrab[];
   imbalances: Imbalance[];
-  orderBlocks: OrderBlock[]; // Master 2100 Edition Addition
+  orderBlocks: OrderBlock[]; 
   currentTrend: 'BULLISH' | 'BEARISH';
   lastActionType: 'CHoCH' | 'BOS' | 'NONE';
   atr: number;
   isNewsProtection: boolean;
+  adaptiveLb: number; // Institutional Alpha Addition
+}
+
+export interface FractalAnalysis {
+  m15: MarketStructureAnalysis;
+  h1: MarketStructureAnalysis;
+  h4: MarketStructureAnalysis;
+  alignment: 'BULLISH' | 'BEARISH' | 'MIXED' | 'CHOP';
+  goStatus: boolean;
+  score: number; // 0-100 institutional conviction
 }
 
 function calculateATR(data: any[], period: number = 14): number {
@@ -88,7 +103,10 @@ function calculateATR(data: any[], period: number = 14): number {
 }
 
 function getSessionWeight(time: number | string, currentVol?: number, avgVol?: number): number {
-  const date = new Date(typeof time === 'string' ? time : (time * 1000));
+  let ts = typeof time === 'string' ? Date.parse(time) : time;
+  // Fallback for CCXT seconds vs milliseconds
+  if (typeof ts === 'number' && ts < 10000000000) ts *= 1000; 
+  const date = new Date(ts);
   const hour = date.getUTCHours();
 
   // 2100 Master Edition: Dynamic Liquidity Time Warping
@@ -111,8 +129,16 @@ function getSessionWeight(time: number | string, currentVol?: number, avgVol?: n
 export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStructureAnalysis {
   if (!data || data.length < lb * 2 + 1) return {
     nodes: [], internalNodes: [], levels: [], trendlines: [], grabs: [], imbalances: [], orderBlocks: [],
-    currentTrend: 'BULLISH', lastActionType: 'NONE', atr: 0, isNewsProtection: false
+    currentTrend: 'BULLISH', lastActionType: 'NONE', atr: 0, isNewsProtection: false, adaptiveLb: lb
   };
+
+  // --- 2100 MASTER EDITION: Adaptive Pivot Engine ---
+  const currentAtr = calculateATR(data.slice(-20));
+  const fullAtr = calculateATR(data);
+  const vao = currentAtr / (fullAtr || 1); // Volatility Alpha Oscillator
+  const adaptiveLb = Math.max(3, Math.min(12, Math.round(lb / (vao || 1))));
+  const lookback = adaptiveLb; 
+  const internalLookback = Math.max(2, Math.floor(lookback / 2));
 
   const nodes: MarketNode[] = [];
   const internalNodes: MarketNode[] = [];
@@ -141,7 +167,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
   const volBuffer = data.slice(-20).map(d => d.volume);
   const avgVol = (volBuffer.reduce((a, b) => a + b, 0) / (volBuffer.length || 1)) || 1;
 
-  for (let i = lb; i < data.length - lb; i++) {
+  for (let i = lookback; i < data.length - lookback; i++) {
     const currentClose = data[i].close;
     const currentHigh = data[i].high;
     const currentLow = data[i].low;
@@ -193,6 +219,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           startTime: cur.time,
           type: 'BULLISH_FVG',
           isMitigated: false,
+          isFullyFilled: false,
           strength: Math.min(100, Math.round(((cur.low - p2.high) / (currentAtr || 1)) * 100))
         });
       }
@@ -205,6 +232,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           startTime: cur.time,
           type: 'BEARISH_FVG',
           isMitigated: false,
+          isFullyFilled: false,
           strength: Math.min(100, Math.round(((p2.low - cur.high) / (currentAtr || 1)) * 100))
         });
       }
@@ -219,6 +247,7 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           startTime: p2.time,
           type: 'BULLISH_OB',
           isMitigated: false,
+          isInvalidated: false,
           strength: 100
         });
       }
@@ -231,30 +260,49 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
           startTime: p2.time,
           type: 'BEARISH_OB',
           isMitigated: false,
+          isInvalidated: false,
           strength: 100
         });
       }
     }
 
-    // --- FVG Mitigation Logic ---
+    // --- FVG Mitigation Logic (Master 2100 Alpha Refinement) ---
     imbalances.forEach(fvg => {
-      if (!fvg.isMitigated) {
-        if (fvg.type === 'BULLISH_FVG' && data[i].low <= fvg.bottom) {
-          fvg.isMitigated = true;
-          fvg.mitigatedAtIdx = i;
+      if (!fvg.isFullyFilled) {
+        if (fvg.type === 'BULLISH_FVG') {
+          if (data[i].low <= fvg.top) { // Tapped the gap
+            fvg.isMitigated = true;
+            if (!fvg.mitigatedAtIdx) fvg.mitigatedAtIdx = i;
+          }
+          if (data[i].low <= fvg.bottom) fvg.isFullyFilled = true; // Gap fully closed
         }
-        if (fvg.type === 'BEARISH_FVG' && data[i].high >= fvg.top) {
-          fvg.isMitigated = true;
-          fvg.mitigatedAtIdx = i;
+        if (fvg.type === 'BEARISH_FVG') {
+          if (data[i].high >= fvg.bottom) { // Tapped the gap
+            fvg.isMitigated = true;
+            if (!fvg.mitigatedAtIdx) fvg.mitigatedAtIdx = i;
+          }
+          if (data[i].high >= fvg.top) fvg.isFullyFilled = true; // Gap fully closed
         }
       }
     });
 
-    // --- OB Mitigation Logic (Master 2100) ---
+    // --- OB Mitigation Logic (Master 2100 Alpha Refinement) ---
     orderBlocks.forEach(ob => {
-      if (!ob.isMitigated) {
-        if (ob.type === 'BULLISH_OB' && data[i].low <= ob.bottom) ob.isMitigated = true;
-        if (ob.type === 'BEARISH_OB' && data[i].high >= ob.top) ob.isMitigated = true;
+      if (!ob.isInvalidated) {
+        if (ob.type === 'BULLISH_OB') {
+          if (data[i].low <= ob.top) { // Price enters sensitive zone
+            ob.isMitigated = true;
+            if (!ob.mitigatedAtIdx) ob.mitigatedAtIdx = i;
+          }
+          if (data[i].close < ob.bottom) ob.isInvalidated = true; // Decisive close below OB
+        }
+        if (ob.type === 'BEARISH_OB') {
+          if (data[i].high >= ob.bottom) { // Price enters sensitive zone
+            ob.isMitigated = true;
+            if (!ob.mitigatedAtIdx) ob.mitigatedAtIdx = i;
+          }
+          if (data[i].close > ob.top) ob.isInvalidated = true; // Decisive close above OB
+        }
       }
     });
 
@@ -277,10 +325,10 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
       return true;
     };
 
-    const isPH_Ext = checkPH(i, lb * 3);
-    const isPH_Int = checkPH(i, lb);
-    const isPL_Ext = checkPL(i, lb * 3);
-    const isPL_Int = checkPL(i, lb);
+    const isPH_Ext = checkPH(i, lookback * 3);
+    const isPH_Int = checkPH(i, lookback);
+    const isPL_Ext = checkPL(i, lookback * 3);
+    const isPL_Int = checkPL(i, lookback);
 
     if (isPH_Int) {
       const price = data[i].high;
@@ -306,7 +354,8 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
         type: 'resistance',
         isBroken: false,
         intent: isWickPOC ? 'Stop Run / Sweep' : 'Aggressive Accumulation',
-        strengthScore
+        strengthScore,
+        entryProxy: pricePOC, // Use POC as the institutional entry magnet
       });
 
       // --- Phase 1: Inside Bar Filter (Institutional Noise Rejection) ---
@@ -358,7 +407,8 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
         type: 'support',
         isBroken: false,
         intent: isWickPOC ? 'Stop Run / Sweep' : 'Aggressive Accumulation',
-        strengthScore
+        strengthScore,
+        entryProxy: pricePOC, // Use POC as the institutional entry magnet
       });
 
       // --- Phase 1: Inside Bar Filter (Institutional Noise Rejection) ---
@@ -485,12 +535,13 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
         }
 
         if (!isBroken) {
-          // 3. Ray Extrapolation (Project 30 days into the future)
-          // Rough estimate: candles * interval = 30 days. 
-          // For simplicity, we just project +500 logical bars
           const futureIndex = data.length + 500;
           const futurePrice = p1.price + slope * (futureIndex - p1.index);
-          const futureTime = (data[data.length - 1].time + (30 * 24 * 60 * 60)) as number; // ~30 days
+          
+          // Time step calculation based on previous candles
+          const sampleSize = Math.min(data.length - 1, 10);
+          const timeStep = (data[data.length - 1].time - data[data.length - 1 - sampleSize].time) / sampleSize;
+          const futureTime = data[data.length - 1].time + (futureIndex - (data.length - 1)) * timeStep;
 
           trendlines.push({
             id: `trnd_${type}_${p1.time}`,
@@ -531,12 +582,39 @@ export function analyzeMarketStructure(data: any[], lb: number = 5): MarketStruc
     levels: filteredLevels.slice(-15),
     trendlines: trendlines.slice(-4),
     grabs: grabs.slice(-10),
-    imbalances: imbalances.filter(f => !f.isMitigated).slice(-8),
-    orderBlocks: orderBlocks.filter(ob => !ob.isMitigated).slice(-5), // Active OBs (2100)
+    imbalances: imbalances.filter(f => !f.isFullyFilled).slice(-8),
+    orderBlocks: orderBlocks.filter(ob => !ob.isMitigated && !ob.isInvalidated).slice(-5), 
     currentTrend,
     lastActionType,
     atr,
-    isNewsProtection
+    isNewsProtection,
+    adaptiveLb
+  };
+}
+
+export function analyzeFractalMatrix(d15m: any[], d1H: any[], d4H: any[]): FractalAnalysis {
+  const m15 = analyzeMarketStructure(d15m, 5);
+  const h1 = analyzeMarketStructure(d1H, 5);
+  const h4 = analyzeMarketStructure(d4H, 5);
+
+  let score = 0;
+  // Weighting: Higher timeframes have more gravity
+  if (h4.currentTrend === 'BULLISH') score += 40; else score -= 40;
+  if (h1.currentTrend === h4.currentTrend) score += 30; else score -= 20;
+  if (m15.currentTrend === h1.currentTrend) score += 30; else score -= 10;
+
+  // News protection / Volatility Spike filter
+  const isVolatile = m15.isNewsProtection || h1.isNewsProtection || h4.isNewsProtection;
+  if (isVolatile) score = Math.max(0, score - 50);
+
+  const alignment = score >= 60 ? 'BULLISH' : (score <= -60 ? 'BEARISH' : 'MIXED');
+  const goStatus = Math.abs(score) >= 70 && !isVolatile; 
+
+  return { 
+    m15, h1, h4, 
+    alignment: isVolatile ? 'CHOP' : alignment, 
+    goStatus, 
+    score: Math.min(100, Math.max(0, Math.abs(score))) 
   };
 }
 
