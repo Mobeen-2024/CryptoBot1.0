@@ -136,6 +136,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     reasoning?: string[];
     signal?: 'STRONG_BUY' | 'STRONG_SELL' | 'NEUTRAL';
     isNewsProtection?: boolean;
+    adaptiveLb?: number;
     session?: string;
   }>({
     trend: 'BULLISH',
@@ -147,6 +148,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     reasoning: [],
     signal: 'NEUTRAL',
     isNewsProtection: false,
+    adaptiveLb: 5,
     session: 'ASIA'
   });
 
@@ -1459,6 +1461,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         reasoning: strike.reasoning,
         signal: strike.signal,
         isNewsProtection: analysis.isNewsProtection,
+        adaptiveLb: analysis.adaptiveLb,
         session: sessionName
       });
     } catch (e) {
@@ -2154,6 +2157,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
                   <span className="text-[10px] font-mono font-black text-[#FF007F] tracking-tighter">
                     {visibleHighLow.low.low.toFixed(2)}
                   </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-gray-400">Institutional Load:</span>
+                  <span className="text-[#00E5FF] font-medium font-mono">{(hudData.adaptiveLb || 5).toFixed(0)} PIVOT</span>
                 </div>
               </div>
             </div>
