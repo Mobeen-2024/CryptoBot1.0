@@ -1918,83 +1918,133 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           </div>
         </div>
 
-        {/* The Sliding Panel — opacity+scale only for GPU-friendly compositing */}
+        {/* The Sliding Panel — Obsidian Command Center */}
         <div className={cn(
-          "absolute right-0 top-0 bottom-0 w-[340px] glass-panel-modern shadow-[0_0_80px_rgba(0,0,0,0.9)] border-l border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1) will-change-transform",
-          "opacity-0 translate-x-10 scale-[0.98] pointer-events-none group-hover/matrix:opacity-100 group-hover/matrix:translate-x-0 group-hover/matrix:scale-100 group-hover/matrix:pointer-events-auto"
+          "absolute right-0 top-0 bottom-0 w-[320px] flex flex-col pointer-events-auto will-change-transform",
+          "bg-[#080a0e]/95 backdrop-blur-2xl border-l border-white/[0.06] shadow-[-40px_0_120px_rgba(0,0,0,0.95)]",
+          "transition-all duration-500 ease-out",
+          "opacity-0 translate-x-8 pointer-events-none group-hover/matrix:opacity-100 group-hover/matrix:translate-x-0 group-hover/matrix:pointer-events-auto"
         )}>
-          {/* Neural Hex Background Overlay */}
-          <div className="neural-hex-bg" />
 
-          {/* Edge Glowing Handle */}
-          <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-[var(--holo-cyan)] to-transparent opacity-50" />
+          {/* Ambient Atmospheric Orb */}
+          <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-[var(--holo-cyan)]/[0.04] blur-3xl pointer-events-none" />
+          <div className="absolute bottom-20 left-0 w-32 h-32 rounded-full bg-[var(--holo-magenta)]/[0.04] blur-3xl pointer-events-none" />
 
-          {/* Header */}
-          <div className="p-8 border-b border-white/5 bg-gradient-to-br from-[var(--holo-cyan)]/10 to-transparent relative overflow-hidden shrink-0">
-            <div className="absolute -top-2 -right-2 p-1 opacity-10">
-              <Cpu className="w-16 h-16 text-[var(--holo-cyan)] animate-spin-slow" />
+          {/* Subtle grid texture */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(255,255,255,0.5) 24px, rgba(255,255,255,0.5) 25px), repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(255,255,255,0.5) 24px, rgba(255,255,255,0.5) 25px)' }} />
+
+          {/* ── HEADER ─────────────────────────────────────────────── */}
+          <div className="relative shrink-0 px-5 pt-5 pb-4">
+            {/* Top rule */}
+            <div className="absolute top-0 left-5 right-5 h-[1px] bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/30 to-transparent" />
+
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-1.5">
+                {/* System Badge */}
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-[3px] items-center">
+                    <div className="w-[5px] h-[5px] rounded-sm bg-[var(--holo-cyan)] shadow-[0_0_6px_var(--holo-cyan)]" />
+                    <div className="w-[3px] h-[5px] rounded-sm bg-[var(--holo-cyan)]/50" />
+                    <div className="w-[2px] h-[5px] rounded-sm bg-[var(--holo-cyan)]/20" />
+                  </div>
+                  <span className="text-[8px] font-mono text-[var(--holo-cyan)] tracking-[0.5em] uppercase opacity-60">SYS:ONLINE</span>
+                </div>
+
+                {/* Main Title */}
+                <h3 className="text-[15px] font-black uppercase tracking-[0.12em] text-white leading-none">
+                  Tactical
+                  <span className="block text-[10px] tracking-[0.55em] text-white/30 font-bold mt-0.5">MATRIX CONTROL</span>
+                </h3>
+              </div>
+
+              {/* Live Status Indicator */}
+              <div className="flex flex-col items-end gap-1 pt-1">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--holo-cyan)]/[0.08] border border-[var(--holo-cyan)]/20">
+                  <div className="w-1 h-1 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] animate-pulse" />
+                  <span className="text-[7px] font-mono text-emerald-400/80 uppercase tracking-widest">LIVE</span>
+                </div>
+                <span className="text-[7px] font-mono text-white/15 tracking-widest">v4.2.1</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3 mb-2 relative z-10">
-              <div className="w-2 h-2 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_10px_var(--holo-cyan)]" />
-              <h3 className="text-[10px] uppercase tracking-[0.5em] font-black text-white">Tactical Matrix</h3>
+
+            {/* Neural Protocol Row */}
+            <div className="mt-3 flex items-center gap-2 px-0.5">
+              <div className="flex-1 h-[1px] bg-gradient-to-r from-[var(--holo-cyan)]/20 to-transparent" />
+              <span className="text-[7px] font-mono text-white/20 uppercase tracking-[0.3em] whitespace-nowrap">Neural_Protocol_v4.2</span>
+              <div className="flex-1 h-[1px] bg-gradient-to-l from-[var(--holo-cyan)]/20 to-transparent" />
             </div>
-            <p className="text-[8px] text-[var(--holo-cyan)]/40 uppercase tracking-[0.3em] font-mono pl-5 relative z-10">Neural_Protocol_v4.2 // ONLINE</p>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto tactical-scrollbar p-6 space-y-10 relative z-10">
-            <section>
-              <div className="flex items-center justify-between mb-6 px-1">
-                <div className="flex items-center gap-3">
-                  <div className="h-[1px] w-4 bg-[var(--holo-cyan)]/30" />
-                  <p className="text-[9px] text-white/50 uppercase font-black tracking-[0.4em]">Alpha Constraints</p>
+          {/* ── SCROLLABLE BODY ─────────────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto tactical-scrollbar px-3 pb-3 space-y-1 relative z-10">
+
+            {/* ── SECTION: Alpha Constraints ── */}
+            <div className="mt-2 mb-1">
+              <div className="flex items-center gap-2 px-2 py-2">
+                <div className="flex items-center justify-center w-5 h-5 rounded bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/20">
+                  <Zap className="w-2.5 h-2.5 text-[var(--holo-cyan)]" />
                 </div>
-                <span className="text-[8px] font-mono text-[var(--holo-cyan)]/20">0xAF_71</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.45em] text-white/50">Alpha Constraints</span>
+                <div className="flex-1 h-[1px] bg-white/[0.04]" />
+                <span className="text-[7px] font-mono text-[var(--holo-cyan)]/25 tracking-widest">0xAF71</span>
               </div>
-              <div className="space-y-3">
+            </div>
 
-                <TacticalToggle label="Engulfing" icon={<Activity className="w-3.5 h-3.5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" color="var(--holo-cyan)" />
-                <TacticalToggle label="Box Over" icon={<Box className="w-3.5 h-3.5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" color="var(--holo-cyan)" />
-                <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" color="var(--holo-cyan)" />
-                <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-3.5 h-3.5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" color="var(--holo-cyan)" />
-                <TacticalToggle label="Golden Zone" icon={<Zap className="w-3.5 h-3.5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" color="var(--holo-cyan)" />
-                <TacticalToggle label="Order Blocks" icon={<Database className="w-3.5 h-3.5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" color="var(--holo-cyan)" />
-                <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" color="var(--holo-cyan)" />
-              </div>
-            </section>
+            <div className="space-y-[2px]">
+              <TacticalToggle label="Engulfing" icon={<Activity className="w-3.5 h-3.5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" color="var(--holo-cyan)" />
+              <TacticalToggle label="Box Over" icon={<Box className="w-3.5 h-3.5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" color="var(--holo-cyan)" />
+              <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" color="var(--holo-cyan)" />
+              <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-3.5 h-3.5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" color="var(--holo-cyan)" />
+              <TacticalToggle label="Golden Zone" icon={<Zap className="w-3.5 h-3.5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" color="var(--holo-cyan)" />
+              <TacticalToggle label="Order Blocks" icon={<Database className="w-3.5 h-3.5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" color="var(--holo-cyan)" />
+              <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" color="var(--holo-cyan)" />
+            </div>
 
-            <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+            {/* ── SECTION DIVIDER ── */}
+            <div className="py-3 px-2">
+              <div className="h-[1px] bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+            </div>
 
-            <section>
-              <div className="flex items-center justify-between mb-6 px-1">
-                <div className="flex items-center gap-3">
-                  <div className="h-[1px] w-4 bg-[var(--holo-magenta)]/30" />
-                  <p className="text-[9px] text-white/50 uppercase font-black tracking-[0.4em]">Market Topology</p>
+            {/* ── SECTION: Market Topology ── */}
+            <div className="mb-1">
+              <div className="flex items-center gap-2 px-2 py-2">
+                <div className="flex items-center justify-center w-5 h-5 rounded bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/20">
+                  <Network className="w-2.5 h-2.5 text-[var(--holo-magenta)]" />
                 </div>
-                <span className="text-[8px] font-mono text-[var(--holo-magenta)]/20">0xFE_12</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.45em] text-white/50">Market Topology</span>
+                <div className="flex-1 h-[1px] bg-white/[0.04]" />
+                <span className="text-[7px] font-mono text-[var(--holo-magenta)]/25 tracking-widest">0xFE12</span>
               </div>
-              <div className="space-y-3">
+            </div>
 
-                <TacticalToggle label="Nodes" icon={<Cpu className="w-3.5 h-3.5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" color="var(--holo-magenta)" />
-                <TacticalToggle label="Internal" icon={<Network className="w-3.5 h-3.5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" color="var(--holo-magenta)" />
-              </div>
-            </section>
+            <div className="space-y-[2px]">
+              <TacticalToggle label="Nodes" icon={<Cpu className="w-3.5 h-3.5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" color="var(--holo-magenta)" />
+              <TacticalToggle label="Internal" icon={<Network className="w-3.5 h-3.5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" color="var(--holo-magenta)" />
+            </div>
+
           </div>
 
-          {/* Status Diagnostic Footer */}
-          <div className="p-6 bg-black/40 border-t border-white/5">
-            <div className="flex items-center justify-between mb-3">
+          {/* ── FOOTER ─────────────────────────────────────────────── */}
+          <div className="shrink-0 px-5 py-4 border-t border-white/[0.05] bg-black/20">
+            <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--holo-cyan)] animate-ping" />
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Neural Link</span>
+                <div className="flex gap-0.5">
+                  {[4, 3, 4, 3, 4, 2, 3, 4, 4, 3].map((h, i) => (
+                    <div key={i} className="w-[3px] rounded-full bg-[var(--holo-cyan)]/50" style={{ height: `${h * 2}px` }} />
+                  ))}
+                </div>
+                <span className="text-[7px] font-mono text-white/30 uppercase tracking-widest">Signal</span>
               </div>
-              <span className="text-[9px] font-mono text-[var(--holo-cyan)]">99%</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[7px] font-mono text-white/20">BW: 1.2ms</span>
+                <span className="text-[7px] font-mono text-[var(--holo-cyan)]/60">●&nbsp;99%</span>
+              </div>
             </div>
-            <div className="flex gap-1">
-              {[1, 1, 1, 1, 1, 1, 1, 1, 1, 0].map((v, i) => (
+            <div className="flex gap-[2px]">
+              {[1,1,1,1,1,1,1,1,1,0].map((v, i) => (
                 <div key={i} className={cn(
-                  "h-1 flex-1 rounded-full transition-all duration-1000",
-                  v ? "bg-[var(--holo-cyan)]/40 shadow-[0_0_5px_var(--holo-cyan-glow)]" : "bg-white/5"
+                  "h-[3px] flex-1 rounded-full transition-all duration-1000",
+                  v ? "bg-[var(--holo-cyan)]/35" : "bg-white/5"
                 )} />
               ))}
             </div>
@@ -2048,11 +2098,14 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           <div className="relative w-full glass-panel-modern rounded-t-[3rem] overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-700 pb-12 border-t border-white/10 shadow-[0_-20px_60px_rgba(0,0,0,0.8)]">
             <div className="neural-hex-bg" />
             <div className="w-16 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2" />
-            
-            <div className="p-8 border-b border-white/5 flex items-center justify-between relative z-10">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-sm uppercase tracking-[0.4em] font-black text-white">Tactical Matrix</h3>
-                <p className="text-[9px] text-[var(--holo-cyan)] font-mono tracking-[0.2em] uppercase opacity-60">System_Neural_Matrix_Override</p>
+
+            <div className="pt-12 pb-10 px-8 border-b border-white/5 flex items-center justify-between relative z-10 group/modal">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_15px_var(--holo-cyan)] animate-pulse" />
+                  <h3 className="text-lg uppercase tracking-[0.6em] font-black text-white glitch-text">Tactical Matrix</h3>
+                </div>
+                <p className="text-[11px] text-[var(--holo-cyan)] font-mono tracking-[0.4em] uppercase opacity-60">System_Neural_Matrix_Override</p>
               </div>
               <button
                 onClick={() => setIsMobileMatrixOpen(false)}
@@ -2063,10 +2116,16 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-12 tactical-scrollbar pb-24 relative z-10">
-              <section>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1 h-3 bg-[var(--holo-cyan)] rounded-full shadow-[0_0_10px_var(--holo-cyan)]" />
-                  <p className="text-[11px] text-white/40 uppercase font-black tracking-[0.3em]">Alpha Constraints</p>
+              <section className="relative">
+                <div className="tech-bracket" />
+                <div className="tech-bracket-tr" />
+
+                <div className="flex items-center gap-4 mb-12 mt-4 px-1">
+                  <div className="w-2 h-5 bg-gradient-to-b from-[var(--holo-cyan)] to-transparent rounded-full shadow-[0_0_20px_var(--holo-cyan)]" />
+                  <div className="flex flex-col">
+                    <p className="text-[13px] text-white/80 uppercase font-black tracking-[0.5em]">Alpha Constraints</p>
+                    <span className="text-[8px] font-mono text-[var(--holo-cyan)]/40 tracking-[0.3em] uppercase">Node_Id: 0xAF_71</span>
+                  </div>
                 </div>
                 <div className="space-y-4">
 
@@ -2105,7 +2164,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           <div className="relative w-full glass-panel-modern rounded-t-[2.5rem] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-400 pb-20">
             {/* Pull Handle */}
             <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1" />
-            
+
             {/* Header */}
             <div className="px-6 pt-4 pb-3 border-b border-white/5 flex items-center justify-between">
               <div>
@@ -2120,12 +2179,12 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             {/* Tool Selection Matrix */}
             <div className="grid grid-cols-3 gap-3 p-6">
               {[
-                { id: 'none',           name: 'Move',    icon: <Target className="w-5 h-5" />,   color: 'var(--holo-gold)' },
-                { id: 'trendline',      name: 'Trend',   icon: <TrendingUp className="w-5 h-5" />, color: 'var(--holo-cyan)' },
-                { id: 'horizontal',     name: 'Level',   icon: <Layers className="w-5 h-5" />,   color: 'var(--holo-gold)' },
-                { id: 'long_position',  name: 'Long',    icon: <Box className="w-5 h-5" />,      color: '#00FF9D' },
-                { id: 'short_position', name: 'Short',   icon: <Box className="w-5 h-5" />,      color: '#FF007F' },
-                { id: 'annotation',     name: 'Note',    icon: <Cpu className="w-5 h-5" />,      color: '#bc13fe' }
+                { id: 'none', name: 'Move', icon: <Target className="w-5 h-5" />, color: 'var(--holo-gold)' },
+                { id: 'trendline', name: 'Trend', icon: <TrendingUp className="w-5 h-5" />, color: 'var(--holo-cyan)' },
+                { id: 'horizontal', name: 'Level', icon: <Layers className="w-5 h-5" />, color: 'var(--holo-gold)' },
+                { id: 'long_position', name: 'Long', icon: <Box className="w-5 h-5" />, color: '#00FF9D' },
+                { id: 'short_position', name: 'Short', icon: <Box className="w-5 h-5" />, color: '#FF007F' },
+                { id: 'annotation', name: 'Note', icon: <Cpu className="w-5 h-5" />, color: '#bc13fe' }
               ].map(t => (
                 <button
                   key={t.id}

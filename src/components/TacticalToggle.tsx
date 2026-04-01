@@ -10,57 +10,71 @@ interface TacticalToggleProps {
 }
 
 const TacticalToggle: React.FC<TacticalToggleProps> = ({ label, active, onToggle, icon, subtitle, color = 'var(--holo-cyan)' }) => {
+  const isMagenta = color?.toLowerCase().includes('magenta') || color?.toLowerCase().includes('ff007f');
+  const accentColor = isMagenta ? '#FF007F' : '#00E5FF';
+
   return (
     <button
       onClick={() => onToggle(!active)}
       className={`
-        w-full flex items-center justify-between py-4 px-6 lg:py-3 lg:px-5 rounded-2xl lg:rounded-xl transition-all duration-500
-        ${active ? 'bg-[var(--holo-cyan)]/[0.07] border-y border-white/5 shadow-[0_0_30px_rgba(0,229,255,0.05)]' : 'bg-transparent border-y border-transparent'}
-        hover:bg-white/[0.03] active:scale-[0.98] group/toggle relative overflow-hidden
+        w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300
+        ${active
+          ? 'bg-white/[0.05] border border-white/[0.08]'
+          : 'bg-transparent border border-transparent hover:bg-white/[0.03] hover:border-white/[0.04]'
+        }
+        active:scale-[0.98] group/toggle relative overflow-hidden
       `}
     >
-      {/* Side Spectral Glow Indicator */}
-      <div className={`
-        absolute left-0 top-0 bottom-0 w-[4px] transition-all duration-500
-        ${active ? (color?.toLowerCase().includes('magenta') || color?.toLowerCase().includes('ff007f') ? 'spectral-glow-magenta' : 'spectral-glow-cyan') : 'bg-transparent'}
-      `} />
+      {/* Active Left Bar */}
+      {active && (
+        <div
+          className="absolute left-0 top-2 bottom-2 w-[2px] rounded-full"
+          style={{ backgroundColor: accentColor, boxShadow: `0 0 8px ${accentColor}` }}
+        />
+      )}
 
-      {/* Hover Shimmer */}
-      <div className="absolute inset-0 opacity-0 group-hover/toggle:opacity-100 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full group-hover/toggle:translate-x-full transition-all duration-1000 pointer-events-none" />
-
-      <div className="flex items-center gap-4 lg:gap-3 flex-1 min-w-0 relative z-10">
-        <div className={`
-          flex-shrink-0 p-2.5 lg:p-2 rounded-xl transition-all duration-500 
-          ${active ? 'text-white scale-110' : 'text-[#5e6673] group-hover/toggle:text-white/60'}
-        `}
-        style={active ? { filter: `drop-shadow(0 0 8px ${color})` } : {}}
-        >
-          {icon}
-        </div>
-        <div className="flex flex-col items-start translate-y-[1px] flex-1 min-w-0 overflow-hidden">
-          <span className={`w-full text-[12px] lg:text-[11px] font-black uppercase tracking-[0.15em] leading-none ${active ? 'text-white' : 'text-[#5e6673] group-hover/toggle:text-white/40'} transition-colors truncate`}>
-            {label}
-          </span>
-          {subtitle && (
-            <span className="w-full text-[9px] lg:text-[8px] font-mono uppercase tracking-[0.2em] text-[#5e6673]/60 mt-1.5 truncate">
-              {subtitle}
-            </span>
-          )}
-        </div>
+      {/* Icon */}
+      <div
+        className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition-all duration-300 ${
+          active ? 'text-white' : 'text-white/25 group-hover/toggle:text-white/40'
+        }`}
+        style={active ? {
+          backgroundColor: `${accentColor}18`,
+          border: `1px solid ${accentColor}30`,
+          filter: `drop-shadow(0 0 6px ${accentColor}60)`,
+        } : { backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        {icon}
       </div>
-      
-      {/* Neural Protocol Switch */}
-      <div className={`
-        flex-shrink-0 w-9 h-4.5 lg:w-8 lg:h-4 rounded-full relative transition-all duration-500 ring-1 ring-inset p-0.5
-        ${active ? 'bg-black/40 ring-[var(--holo-cyan)]/30 holo-switch-active' : 'bg-white/5 ring-white/10'}
-      `}>
-        <div className={`
-          h-full aspect-square rounded-full transition-all duration-500 ease-out
-          ${active ? 'translate-x-4.5 lg:translate-x-4 bg-white shadow-[0_0_12px_#fff]' : 'translate-x-0 bg-white/20'}
-        `} 
-        style={{ 
-          backgroundColor: active ? (color?.includes('#FF007F') || color?.includes('magenta') ? '#FF007F' : '#00E5FF') : undefined
-        }}
+
+      {/* Text */}
+      <div className="flex flex-col items-start flex-1 min-w-0 overflow-hidden">
+        <span
+          className={`text-[11px] font-bold uppercase tracking-[0.12em] leading-none truncate transition-colors duration-300 ${
+            active ? 'text-white' : 'text-white/30 group-hover/toggle:text-white/50'
+          }`}
+        >
+          {label}
+        </span>
+        {subtitle && (
+          <span className="text-[8px] font-mono text-white/15 mt-[3px] truncate tracking-[0.15em] uppercase">
+            {subtitle}
+          </span>
+        )}
+      </div>
+
+      {/* Toggle Pill */}
+      <div
+        className={`flex-shrink-0 relative w-8 h-4 rounded-full transition-all duration-400 ${
+          active ? 'bg-white/10' : 'bg-white/[0.04]'
+        }`}
+        style={active ? { boxShadow: `inset 0 0 6px ${accentColor}20, 0 0 0 1px ${accentColor}30` } : {}}
+      >
+        <div
+          className={`absolute top-[3px] w-[10px] h-[10px] rounded-full transition-all duration-300 ease-out ${
+            active ? 'left-[18px]' : 'left-[3px] bg-white/20'
+          }`}
+          style={active ? { backgroundColor: accentColor, boxShadow: `0 0 8px ${accentColor}` } : {}}
         />
       </div>
     </button>

@@ -911,4 +911,81 @@ input[type="number"] {
   background: rgba(255, 255, 255, 0.1);
   box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.2), 0 0 15px rgba(0, 229, 255, 0.1);
 }
+
+/* ─── Quantum Terminal Animations ────────────────────────────── */
+@keyframes glitch-hologram {
+  0% { transform: translate(0); text-shadow: 0 0 0 transparent; }
+  1% { transform: translate(-1px, 1px); text-shadow: 1px 0 #00E5FF, -1px 0 #FF007F; }
+  2% { transform: translate(1px, -1px); text-shadow: -1px 0 #00E5FF, 1px 0 #FF007F; }
+  3% { transform: translate(0); text-shadow: 0 0 0 transparent; }
+  100% { transform: translate(0); }
+}
+
+.glitch-text {
+  animation: glitch-hologram 4s infinite linear alternate-reverse;
+}
+
+@keyframes data-corridor {
+  0% { background-position: -200% 0; opacity: 0; }
+  10% { opacity: 0.15; }
+  60% { opacity: 0.15; }
+  70% { background-position: 200% 0; opacity: 0; }
+  100% { background-position: 200% 0; opacity: 0; }
+}
+
+.neural-hex-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: data-corridor 3s infinite linear;
+  pointer-events: none;
+}
+
+@keyframes corner-pulse {
+  0%, 100% { border-color: rgba(255, 255, 255, 0.1); }
+  50% { border-color: rgba(0, 229, 255, 0.4); }
+}
+
+.tech-bracket {
+  position: relative;
+}
+
+.tech-bracket::after {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px;
+  width: 12px; height: 12px;
+  border-top: 2px solid var(--holo-cyan);
+  border-left: 2px solid var(--holo-cyan);
+  animation: corner-pulse 2s infinite ease-in-out;
+}
+
+.tech-bracket-tr::after {
+  content: '';
+  position: absolute;
+  top: -4px; right: -4px;
+  width: 12px; height: 12px; 
+  border-top: 2px solid var(--holo-cyan);
+  border-right: 2px solid var(--holo-cyan);
+  animation: corner-pulse 2s infinite ease-in-out;
+}
+
+/* ─── Holographic Projector (Projection Glow) ──────────────────── */
+.hologram-projection {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.15) 0%, transparent 80%);
+  filter: blur(20px);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.active-projection {
+  opacity: 1;
+}
+
 
