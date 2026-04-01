@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Shield, Target, Activity, Zap, X, Cpu, Globe, BarChart3, Fingerprint } from 'lucide-react';
+import { Shield, Target, Activity, Zap, X, Cpu, Globe, BarChart3, Fingerprint, Clock } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -37,8 +37,36 @@ export const ChartHUD: React.FC<ChartHUDProps> = ({
   session = 'SCANNING'
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [sessionTimeLeft, setSessionTimeLeft] = useState('');
   const isBullish = trend === 'BULLISH';
   const isStrong = signal !== 'NEUTRAL';
+
+  // ── Session Countdown Timer Logic ───
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const currentHour = now.getUTCHours();
+      let nextSessionHour = 8; // Default to London open
+
+      if (currentHour >= 8 && currentHour < 14) nextSessionHour = 14; 
+      else if (currentHour >= 14 && currentHour < 21) nextSessionHour = 21;
+      else if (currentHour >= 21 || currentHour < 8) nextSessionHour = 8;
+
+      const target = new Date(now);
+      if (currentHour >= 21 && nextSessionHour === 8) {
+        target.setUTCDate(target.getUTCDate() + 1);
+      }
+      target.setUTCHours(nextSessionHour, 0, 0, 0);
+      
+      const diff = target.getTime() - now.getTime();
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setSessionTimeLeft(`${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
 
   return (
     <>
@@ -209,16 +237,20 @@ export const ChartHUD: React.FC<ChartHUDProps> = ({
             <div className="h-8 bg-white/10 mx-2" />
 
             {/* Col 3: Session + Confluence dot */}
-            <div className="flex flex-col items-center pl-2">
+            <div className="flex flex-col items-center pl-2 relative">
               <div className="flex items-center gap-1 mb-0.5">
-                <Globe className="w-2 h-2 text-white/20 shrink-0" />
+                <Clock className="w-2 h-2 text-white/20 shrink-0" />
                 <p className="text-[6px] text-white/20 font-black uppercase tracking-widest leading-none whitespace-nowrap">Session</p>
               </div>
-              <p className="text-[9px] font-black text-white/60 uppercase tracking-tight leading-none truncate w-full text-center">{session}</p>
-              {isConfluence && (
-                <div className="mt-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_#22d3ee] mx-auto" title="Confluence Active" />
-              )}
+              <p className="text-[9px] font-black text-white/60 uppercase tracking-tight leading-none truncate w-full text-center mb-1">{session}</p>
+              <div className="flex items-center gap-1">
+                <span className="text-[7px] font-mono text-[var(--holo-gold)]/60 tabular-nums">{sessionTimeLeft}</span>
+                {isConfluence && (
+                  <div className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_#22d3ee]" title="Confluence Active" />
+                )}
+              </div>
             </div>
+
 
           </div>
         </div>

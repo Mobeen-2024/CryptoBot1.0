@@ -138,6 +138,22 @@ export const ChartDrawingLayer: React.FC<Props> = ({
     return () => window.removeEventListener('clearDrawings', handler);
   }, [storageKey, setDrawings]);
 
+  // Handle Lock/Unlock global shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'l' && selectedId) {
+        setDrawings(prev => prev.map(d => 
+          (d.id === selectedId && (d.type === 'long_position' || d.type === 'short_position'))
+          ? { ...d, isLocked: !d.isLocked } 
+          : d
+        ));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedId, setDrawings]);
+
+
   // ── Coordinate bridge ──────────────────────────────────────────────────────
 
   const priceToY = useCallback((price: number): number | null => {
@@ -355,16 +371,21 @@ export const ChartDrawingLayer: React.FC<Props> = ({
 
       if (d.type === 'long_position' || d.type === 'short_position') {
         const xE = timeToX(d.entryTime);
-        const xT_raw = d.targetTime ? timeToX(d.targetTime) : null;
         const yE = priceToY(d.entryPrice);
         const yTP = priceToY(d.tpPrice);
         const ySL = priceToY(d.slPrice);
 
         if (xE != null && yE != null && yTP != null && ySL != null) {
-          // If xT is null (future/off-screen), default to 140px width
+          // --- Intelligent Cross-Timeframe Logic ---
+          // Use stored widthInCandles to calculate current xT position
+          const intervalMsVal = getIntervalMs(interval) / 1000;
+          const currentTargetTime = d.entryTime + (d.widthInCandles || 10) * intervalMsVal;
+          const xT_raw = timeToX(currentTargetTime);
+          
           const xT = xT_raw ?? (xE + 140);
           const isLong = d.type === 'long_position';
-          const boxWidth = Math.max(80, xT - xE);
+          const boxWidth = Math.max(40, xT - xE);
+
           
           // --- TP Box (Success Zone) with Modern Vertical Gradient ---
           const tpRectY = Math.min(yE, yTP);
@@ -571,14 +592,17 @@ export const ChartDrawingLayer: React.FC<Props> = ({
         const ySL = priceToY(d.slPrice);
 
         if (dx != null && yE != null && yTP != null && ySL != null) {
-          const dxT = d.targetTime ? timeToX(d.targetTime) : null;
-          const boxWidth = dxT !== null ? Math.max(80, dxT - dx) : 140;
+          const intervalMsVal = getIntervalMs(interval) / 1000;
+          const currentTargetTime = d.entryTime + (d.widthInCandles || 10) * intervalMsVal;
+          const dxT = timeToX(currentTargetTime);
+          const boxWidth = dxT !== null ? Math.max(40, dxT - dx) : 140;
 
-          // Right-edge grip zone for width dragging
+          // Right-edge grip zone for width dragging (Grip Priority)
           const rEdgeX = dx + boxWidth;
-          if (Math.abs(x - rEdgeX) < 10 && y >= Math.min(yTP, ySL) - 10 && y <= Math.max(yTP, ySL) + 10) {
+          if (Math.abs(x - rEdgeX) < 12 && y >= Math.min(yTP, ySL) - 10 && y <= Math.max(yTP, ySL) + 10) {
             return { id: d.id, part: 'right_edge' as const };
           }
+
 
           // Check handles at the right edge of the box
           const hX = dx + boxWidth;

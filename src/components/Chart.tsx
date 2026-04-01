@@ -11,6 +11,8 @@ import { calculateTacticalConfluence } from '../utils/tacticalConfluence';
 import { ChartHUD } from './ChartHUD';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import toast from 'react-hot-toast';
+
 
 /** Utility for Tailwind class merging */
 function cn(...inputs: ClassValue[]) {
@@ -2082,73 +2084,51 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           <div className="relative w-full glass-panel-modern rounded-t-[2.5rem] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-400 pb-20">
             {/* Pull Handle */}
             <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1" />
+            
             {/* Header */}
             <div className="px-6 pt-4 pb-3 border-b border-white/5 flex items-center justify-between">
               <div>
-                <h3 className="text-xs uppercase tracking-[0.3em] font-black text-white">Drawing Tools</h3>
+                <h3 className="text-xs uppercase tracking-[0.3em] font-black text-white">Tactical Tools</h3>
                 <p className="text-[8px] text-[var(--holo-cyan)] font-mono mt-1 tracking-widest uppercase">
-                  {activeTool === 'none' ? 'Select a tool' : activeTool.replace('_', ' ').toUpperCase() + ' — Active'}
+                  {activeTool === 'none' ? 'SELECT_MODULE' : `ACTIVE: ${activeTool.toUpperCase()}`}
                 </p>
               </div>
-              <button
-                onClick={() => setIsMobileDrawingOpen(false)}
-                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 active:scale-95 transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setIsMobileDrawingOpen(false)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40"><X className="w-5 h-5" /></button>
             </div>
-            {/* Tool Grid */}
+
+            {/* Tool Selection Matrix */}
             <div className="grid grid-cols-3 gap-3 p-6">
-              {([
-                { id: 'none',           label: 'Select',   icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5',                                                     color: '#ffffff' },
-                { id: 'trendline',      label: 'Trendline',icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',                                                           color: '#00E5FF' },
-                { id: 'horizontal',     label: 'H-Line',   icon: 'M5 12h14',                                                                                 color: '#fcd535' },
-                { id: 'long_position',  label: 'Long',     icon: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7 M12 18v-6 M9 15h6', color: '#00FF9D' },
-                { id: 'short_position', label: 'Short',    icon: 'M13 18v-6 M9 15h6 M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7',  color: '#FF007F' },
-                { id: 'annotation',     label: 'Note',     icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',                           color: '#bc13fe' },
-              ] as { id: DrawingTool; label: string; icon: string; color: string }[]).map(tool => {
-                const isActive = activeTool === tool.id;
-                return (
-                  <button
-                    key={tool.id}
-                    onClick={() => {
-                      setActiveTool(isActive ? 'none' : tool.id);
-                      setIsMobileDrawingOpen(false);
-                    }}
-                    className={cn(
-                      "flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all active:scale-95",
-                      isActive
-                        ? "bg-white/10 border-white/20 shadow-lg"
-                        : "bg-white/[0.03] border-white/5 hover:bg-white/8"
-                    )}
-                    style={isActive ? { boxShadow: `0 0 16px ${tool.color}40`, borderColor: `${tool.color}60` } : {}}
-                  >
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-                      stroke={isActive ? tool.color : 'rgba(255,255,255,0.4)'}
-                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    >
-                      <path d={tool.icon} />
-                    </svg>
-                    <span
-                      className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: isActive ? tool.color : 'rgba(255,255,255,0.4)' }}
-                    >
-                      {tool.label}
-                    </span>
-                  </button>
-                );
-              })}
+              {[
+                { id: 'none',           name: 'Move',    icon: <Target className="w-5 h-5" />,   color: 'var(--holo-gold)' },
+                { id: 'trendline',      name: 'Trend',   icon: <TrendingUp className="w-5 h-5" />, color: 'var(--holo-cyan)' },
+                { id: 'horizontal',     name: 'Level',   icon: <Layers className="w-5 h-5" />,   color: 'var(--holo-gold)' },
+                { id: 'long_position',  name: 'Long',    icon: <Box className="w-5 h-5" />,      color: '#00FF9D' },
+                { id: 'short_position', name: 'Short',   icon: <Box className="w-5 h-5" />,      color: '#FF007F' },
+                { id: 'annotation',     name: 'Note',    icon: <Cpu className="w-5 h-5" />,      color: '#bc13fe' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { setActiveTool(t.id as DrawingTool); setIsMobileDrawingOpen(false); }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all active:scale-95",
+                    activeTool === t.id ? "bg-white/10 border-white/30 text-white" : "bg-white/[0.02] border-white/5 text-white/30"
+                  )}
+                >
+                  <div style={{ color: t.color }}>{t.icon}</div>
+                  <span className="text-[8px] font-black uppercase tracking-widest">{t.name}</span>
+                </button>
+              ))}
             </div>
-            {/* Clear Button */}
-            <div className="px-6 pb-4">
+
+            {/* Clear Utilities */}
+            <div className="px-6 pb-6 pt-2">
               <button
                 onClick={() => {
-                  localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
-                  setActiveTool('none');
                   window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
                   setIsMobileDrawingOpen(false);
+                  toast.success('Matrix Cleared');
                 }}
-                className="w-full py-3 rounded-2xl bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)] text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
+                className="w-full py-4 bg-white/[0.02] hover:bg-[var(--holo-magenta)]/10 border border-white/5 hover:border-[var(--holo-magenta)]/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] text-white/30 hover:text-[var(--holo-magenta)] transition-all flex items-center justify-center gap-2"
               >
                 <Trash2 className="w-4 h-4" /> Clear All Drawings
               </button>
@@ -2157,6 +2137,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
         </div>,
         document.body
       )}
+
+
 
 
       {/* ═══════════════ PHANTOM MAGNETIC DRAWING DOCK (Desktop Stealth) ═══════════════ */}

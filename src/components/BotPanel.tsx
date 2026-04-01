@@ -443,12 +443,22 @@ const BotCard: React.FC<{
           <span className={`px-2 py-0.5 rounded-md border text-[8px] font-mono font-bold uppercase ${bot.dailyBias === 'BULLISH' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' : bot.dailyBias === 'BEARISH' ? 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>D:{bot.dailyBias}</span>
         </div>
 
-        {/* Data Grid */}
+        {/* Data Grid with Terminal Ticker Effect */}
         <div className="grid grid-cols-3 gap-2 mb-3">
-          <Stat label="NET YIELD" value={`${bot.realizedProfit >= 0 ? '+' : ''}${bot.realizedProfit.toFixed(2)}`} color={bot.realizedProfit > 0 ? 'var(--holo-cyan)' : bot.realizedProfit < 0 ? 'var(--holo-magenta)' : '#848e9c'} sub="USDT" />
-          <Stat label="PHASE" value={bot.marketCondition} color="#bc13fe" sub="CONDITION" />
-          <Stat label="TRADES" value={bot.tradesCount} color="var(--holo-gold)" sub="EXECUTED" />
+          <div className="bg-black/40 backdrop-blur-sm border border-white/[0.05] rounded-xl p-2.5 relative overflow-hidden group">
+            <span className="text-[7px] text-gray-500 uppercase tracking-widest font-black block mb-1">Yield_Extract</span>
+            <div className="flex items-baseline gap-1">
+              <span className={cn("text-[13px] font-black font-mono tracking-tighter", bot.realizedProfit >= 0 ? "text-[var(--holo-cyan)]" : "text-[var(--holo-magenta)]")}>
+                {bot.realizedProfit >= 0 ? 'â–²' : 'â–¼'} {Math.abs(bot.realizedProfit).toFixed(2)}
+              </span>
+              <span className="text-[8px] text-white/20 font-mono">USDT</span>
+            </div>
+            <div className="absolute bottom-0 left-0 h-[1px] bg-[var(--holo-cyan)]/30 w-full scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+          </div>
+          <Stat label="Neural_State" value={bot.marketCondition} color="#bc13fe" sub="CONDITION" />
+          <Stat label="Matrix_Hits" value={bot.tradesCount} color="var(--holo-gold)" sub="EXECUTED" />
         </div>
+
 
         {/* Signal sparkline */}
         <div className="h-8 mb-3 bg-black/50 rounded-lg border border-white/[0.02] overflow-hidden relative">
@@ -656,53 +666,64 @@ export const BotPanel: React.FC = () => {
                 const latencyMs = Math.floor(Math.random() * 20 + 5);
                 return (
                   <div key={ap.id} className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#06090e]/90 backdrop-blur-md transition-all hover:border-[var(--holo-cyan)]/20 node-scan">
-                    {/* top accent line */}
-                    <div className={`h-[2px] w-full ${
-                      isConnected ? 'bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/60 to-transparent'
-                      : 'bg-gradient-to-r from-transparent via-[var(--holo-magenta)]/40 to-transparent'
-                    }`} />
-
-                    <div className="p-4">
-                      {/* Header row */}
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-3">
-                          {/* Exchange circle */}
-                          <div className={`relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center border font-black text-sm ${
-                            isConnected
-                              ? 'border-[var(--holo-cyan)]/40 text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 ap-ring-pulse'
-                              : 'border-white/10 text-white/30 bg-white/5'
-                          }`}>
-                            {exchangeInitial}
+                    <div className="p-5">
+                      {/* Gateway Header */}
+                      <div className="flex justify-between items-start mb-5">
+                        <div className="flex items-center gap-4">
+                          {/* Connection Strength Indicator (Animated Ring) */}
+                          <div className="relative shrink-0">
+                            <div className={cn(
+                              "w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-[10px] tracking-tighter transition-all duration-700",
+                              isConnected 
+                                ? "border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/5 shadow-[0_0_20px_rgba(0,229,255,0.1)]" 
+                                : "border-white/10 text-white/20 bg-white/5"
+                            )}>
+                              {exchangeInitial}
+                              {isConnected && (
+                                <div className="absolute inset-[-4px] border border-[var(--holo-cyan)]/20 rounded-full animate-[ping_3s_infinite]" />
+                              )}
+                            </div>
                           </div>
                           <div>
-                            <h3 className="text-white font-black text-[11px] uppercase tracking-widest">{ap.name}</h3>
-                            <p className="text-[var(--holo-cyan)]/50 text-[8px] font-mono tracking-widest mt-0.5">EXT_NET // {ap.exchange.toUpperCase()}</p>
+                            <h3 className="text-white font-black text-xs uppercase tracking-[0.2em]">{ap.name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[var(--holo-cyan)]/40 text-[7px] font-mono tracking-widest uppercase">{ap.exchange} // UPLINK_STABLE</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={ap.status} />
-                          <button onClick={() => setAccessPoints(p => p.filter(x => x.id !== ap.id))} className="p-1 hover:bg-white/[0.1] rounded text-gray-500 hover:text-[var(--holo-magenta)] transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="flex flex-col items-end gap-2">
+                           <StatusBadge status={ap.status} />
+                           <span className="text-[7px] font-mono text-white/20 uppercase tracking-widest">v2.10.4</span>
                         </div>
                       </div>
 
-                      {/* Stats grid */}
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-black/40 border border-white/[0.04] rounded-lg p-2">
-                          <p className="text-[7px] text-gray-500 font-mono uppercase tracking-widest mb-1">API KEY</p>
-                          <p className="text-[9px] font-black text-white/60 font-mono tracking-wider">{ap.apiKey}</p>
+                      {/* Technical Specs Grid */}
+                      <div className="grid grid-cols-2 gap-3 mb-5">
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 flex flex-col gap-1">
+                          <span className="text-[7px] text-white/20 font-black uppercase tracking-widest">Public_Key</span>
+                          <span className="text-[10px] font-mono text-white/60 truncate">{ap.apiKey}</span>
                         </div>
-                        <div className="bg-black/40 border border-white/[0.04] rounded-lg p-2">
-                          <p className="text-[7px] text-gray-500 font-mono uppercase tracking-widest mb-1">NODES</p>
-                          <p className={`text-sm font-black font-mono ${ assignedNodes > 0 ? 'text-[var(--holo-cyan)]' : 'text-white/30'}`}>{assignedNodes}</p>
-                        </div>
-                        <div className="bg-black/40 border border-white/[0.04] rounded-lg p-2">
-                          <p className="text-[7px] text-gray-500 font-mono uppercase tracking-widest mb-1">LATENCY</p>
-                          <p className={`text-[10px] font-black font-mono ${ isConnected ? 'text-emerald-400' : 'text-white/20'}`}>{isConnected ? `${latencyMs}ms` : '—'}</p>
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 flex flex-col gap-1">
+                          <span className="text-[7px] text-white/20 font-black uppercase tracking-widest">Node_Latency</span>
+                          <span className={cn("text-[10px] font-mono font-black", isConnected ? "text-emerald-400" : "text-white/20")}>
+                            {isConnected ? `${latencyMs}ms` : '---'}
+                          </span>
                         </div>
                       </div>
+
+                      {/* Control Strip */}
+                      <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-emerald-400 animate-pulse" : "bg-gray-700")} />
+                          <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{assignedNodes} ACTIVE_NODES</span>
+                        </div>
+                        <button onClick={() => { if(confirm('TERMINATE_UPLINK?')) setAccessPoints(p => p.filter(x => x.id !== ap.id)); }} 
+                                className="p-2 text-white/20 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 rounded-lg transition-all">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
+
                   </div>
                 );
               })}

@@ -120,7 +120,36 @@ body {
   background: var(--border-hover);
 }
 
-/* ─── Trade Flash Animations ───────────────────────────────────── */
+/* ─── Tactical Scrollbar (Square Thumb) ────────────────────────── */
+.tactical-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.tactical-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.tactical-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.15);
+  border-radius: 2px;
+  border: 1px solid rgba(0, 229, 255, 0.2);
+}
+.tactical-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.4);
+}
+
+/* ─── Vertical Fullscreen Fallback ────────────────────────────── */
+.vertical-chart-mode {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vh !important;
+  height: 100vw !important;
+  transform: rotate(90deg) !important;
+  transform-origin: top left !important;
+  translate: 100vw 0;
+  z-index: 1000 !important;
+  background: #000 !important;
+}
+
 @keyframes flash-buy {
   0% {
     background-color: rgba(0, 229, 255, 0.25);

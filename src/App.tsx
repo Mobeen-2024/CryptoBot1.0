@@ -829,7 +829,8 @@ export default function App() {
             {/* Main Content: Chart or Depth */}
             <div className="flex-1 relative">
               {chartView === 'price' ? (
-                <div className="absolute inset-1.5">
+                <div className={cn("absolute inset-1.5 transition-all duration-500", isVerticalChart && "vertical-chart-mode")}>
+
                   {marketData.length > 0 ? (
                     <Chart
                       data={marketData}
