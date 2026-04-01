@@ -14,41 +14,58 @@ const TacticalToggle: React.FC<TacticalToggleProps> = ({ label, active, onToggle
     <button
       onClick={() => onToggle(!active)}
       className={`
-        w-full flex items-center justify-between p-2.5 lg:p-1.5 rounded-xl lg:rounded-lg transition-all duration-200
-        ${active ? 'bg-[var(--holo-cyan)]/10 lg:bg-[var(--holo-cyan)]/5 border border-[var(--holo-cyan)]/30 lg:border-[var(--holo-cyan)]/15 shadow-[0_0_15px_rgba(0,255,242,0.1)] lg:shadow-[0_0_10px_rgba(0,255,242,0.03)]' : 'bg-transparent border border-transparent'}
-        hover:bg-white/[0.03] active:bg-white/10 group/toggle touch-manipulation
+        w-full flex items-center justify-between py-4 px-6 lg:py-3 lg:px-5 rounded-2xl lg:rounded-xl transition-all duration-500
+        ${active ? 'bg-[var(--holo-cyan)]/[0.07] border-y border-white/5 shadow-[0_0_30px_rgba(0,229,255,0.05)]' : 'bg-transparent border-y border-transparent'}
+        hover:bg-white/[0.03] active:scale-[0.98] group/toggle relative overflow-hidden
       `}
     >
-      <div className="flex items-center gap-3 lg:gap-2 flex-1 min-w-0">
-        <div className={`flex-shrink-0 p-2 lg:p-1.5 rounded-lg transition-colors ${active ? 'bg-white/10 lg:bg-white/5 text-white' : 'text-[#5e6673]'}`}>
+      {/* Side Spectral Glow Indicator */}
+      <div className={`
+        absolute left-0 top-0 bottom-0 w-[4px] transition-all duration-500
+        ${active ? (color?.toLowerCase().includes('magenta') || color?.toLowerCase().includes('ff007f') ? 'spectral-glow-magenta' : 'spectral-glow-cyan') : 'bg-transparent'}
+      `} />
+
+      {/* Hover Shimmer */}
+      <div className="absolute inset-0 opacity-0 group-hover/toggle:opacity-100 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full group-hover/toggle:translate-x-full transition-all duration-1000 pointer-events-none" />
+
+      <div className="flex items-center gap-4 lg:gap-3 flex-1 min-w-0 relative z-10">
+        <div className={`
+          flex-shrink-0 p-2.5 lg:p-2 rounded-xl transition-all duration-500 
+          ${active ? 'text-white scale-110' : 'text-[#5e6673] group-hover/toggle:text-white/60'}
+        `}
+        style={active ? { filter: `drop-shadow(0 0 8px ${color})` } : {}}
+        >
           {icon}
         </div>
         <div className="flex flex-col items-start translate-y-[1px] flex-1 min-w-0 overflow-hidden">
-          <span className={`w-full text-[11px] lg:text-[10px] font-black uppercase tracking-tight leading-none ${active ? 'text-white' : 'text-[#5e6673]'} transition-colors truncate`}>
+          <span className={`w-full text-[12px] lg:text-[11px] font-black uppercase tracking-[0.15em] leading-none ${active ? 'text-white' : 'text-[#5e6673] group-hover/toggle:text-white/40'} transition-colors truncate`}>
             {label}
           </span>
           {subtitle && (
-            <span className="w-full text-[8px] lg:text-[7px] font-mono uppercase tracking-widest text-[#5e6673]/60 mt-1 truncate">
+            <span className="w-full text-[9px] lg:text-[8px] font-mono uppercase tracking-[0.2em] text-[#5e6673]/60 mt-1.5 truncate">
               {subtitle}
             </span>
           )}
         </div>
       </div>
       
-      {/* Pill Switch */}
+      {/* Neural Protocol Switch */}
       <div className={`
-        flex-shrink-0 w-8 h-4 lg:w-7 lg:h-3.5 rounded-full relative transition-all duration-300 ring-1 ring-inset
-        ${active ? 'bg-[var(--holo-cyan)]/30 lg:bg-[var(--holo-cyan)]/20 ring-[var(--holo-cyan)]/40 lg:ring-[var(--holo-cyan)]/30' : 'bg-white/10 lg:bg-white/5 ring-white/20 lg:ring-white/10'}
+        flex-shrink-0 w-9 h-4.5 lg:w-8 lg:h-4 rounded-full relative transition-all duration-500 ring-1 ring-inset p-0.5
+        ${active ? 'bg-black/40 ring-[var(--holo-cyan)]/30 holo-switch-active' : 'bg-white/5 ring-white/10'}
       `}>
         <div className={`
-          absolute top-0.5 w-3 h-3 lg:w-2.5 lg:h-2.5 rounded-full transition-all duration-300
-          ${active ? 'left-4.5 lg:left-4 shadow-[0_0_8px_white]' : 'left-0.5'}
+          h-full aspect-square rounded-full transition-all duration-500 ease-out
+          ${active ? 'translate-x-4.5 lg:translate-x-4 bg-white shadow-[0_0_12px_#fff]' : 'translate-x-0 bg-white/20'}
         `} 
-        style={{ backgroundColor: active ? color : 'rgba(255,255,255,0.2)' }}
+        style={{ 
+          backgroundColor: active ? (color?.includes('#FF007F') || color?.includes('magenta') ? '#FF007F' : '#00E5FF') : undefined
+        }}
         />
       </div>
     </button>
   );
+
 };
 
 export default TacticalToggle;

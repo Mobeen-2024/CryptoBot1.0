@@ -1920,52 +1920,63 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
         {/* The Sliding Panel — opacity+scale only for GPU-friendly compositing */}
         <div className={cn(
-          "absolute right-0 top-0 bottom-0 w-80 glass-panel-modern shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-500 ease-out will-change-transform",
-          "opacity-0 scale-[0.97] pointer-events-none group-hover/matrix:opacity-100 group-hover/matrix:scale-100 group-hover/matrix:pointer-events-auto"
+          "absolute right-0 top-0 bottom-0 w-[340px] glass-panel-modern shadow-[0_0_80px_rgba(0,0,0,0.9)] border-l border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-700 cubic-bezier(0.19, 1, 0.22, 1) will-change-transform",
+          "opacity-0 translate-x-10 scale-[0.98] pointer-events-none group-hover/matrix:opacity-100 group-hover/matrix:translate-x-0 group-hover/matrix:scale-100 group-hover/matrix:pointer-events-auto"
         )}>
+          {/* Neural Hex Background Overlay */}
+          <div className="neural-hex-bg" />
+
           {/* Edge Glowing Handle */}
-          <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/30 to-transparent" />
+          <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-[var(--holo-cyan)] to-transparent opacity-50" />
 
           {/* Header */}
-          <div className="p-6 border-b border-white/5 bg-[var(--holo-cyan)]/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-1 opacity-20">
-              <Cpu className="w-12 h-12 text-[var(--holo-cyan)]" />
+          <div className="p-8 border-b border-white/5 bg-gradient-to-br from-[var(--holo-cyan)]/10 to-transparent relative overflow-hidden shrink-0">
+            <div className="absolute -top-2 -right-2 p-1 opacity-10">
+              <Cpu className="w-16 h-16 text-[var(--holo-cyan)] animate-spin-slow" />
             </div>
-            <h3 className="text-xs uppercase tracking-[0.4em] font-black text-white flex items-center gap-3 relative z-10">
-              <Activity className="w-4 h-4 text-[var(--holo-cyan)]" />
-              Tactical Matrix
-            </h3>
-            <p className="text-[9px] text-[var(--holo-cyan)]/50 uppercase tracking-[0.3em] font-mono mt-2 pl-7 relative z-10">Neural_Link // Active</p>
+            <div className="flex items-center gap-3 mb-2 relative z-10">
+              <div className="w-2 h-2 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_10px_var(--holo-cyan)]" />
+              <h3 className="text-[10px] uppercase tracking-[0.5em] font-black text-white">Tactical Matrix</h3>
+            </div>
+            <p className="text-[8px] text-[var(--holo-cyan)]/40 uppercase tracking-[0.3em] font-mono pl-5 relative z-10">Neural_Protocol_v4.2 // ONLINE</p>
           </div>
 
-          {/* Scrollable Content — tactical-scrollbar gives square thumb + GPU-isolated scroll */}
-          <div className="flex-1 overflow-y-auto tactical-scrollbar p-6 space-y-8">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto tactical-scrollbar p-6 space-y-10 relative z-10">
             <section>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1 h-1 rounded-full bg-[var(--holo-cyan)]" />
-                <p className="text-[10px] text-white/30 uppercase font-black tracking-[0.2em]">Alpha Constraints</p>
+              <div className="flex items-center justify-between mb-6 px-1">
+                <div className="flex items-center gap-3">
+                  <div className="h-[1px] w-4 bg-[var(--holo-cyan)]/30" />
+                  <p className="text-[9px] text-white/50 uppercase font-black tracking-[0.4em]">Alpha Constraints</p>
+                </div>
+                <span className="text-[8px] font-mono text-[var(--holo-cyan)]/20">0xAF_71</span>
               </div>
-              <div className="space-y-1">
-                <TacticalToggle label="Engulfing" icon={<Activity className="w-3.5 h-3.5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" />
-                <TacticalToggle label="Box Over" icon={<Box className="w-3.5 h-3.5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" />
-                <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
-                <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-3.5 h-3.5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
-                <TacticalToggle label="Golden Zone" icon={<Zap className="w-3.5 h-3.5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
-                <TacticalToggle label="Order Blocks" icon={<Database className="w-3.5 h-3.5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" />
-                <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" />
+              <div className="space-y-3">
+
+                <TacticalToggle label="Engulfing" icon={<Activity className="w-3.5 h-3.5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" color="var(--holo-cyan)" />
+                <TacticalToggle label="Box Over" icon={<Box className="w-3.5 h-3.5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" color="var(--holo-cyan)" />
+                <TacticalToggle label="S-Levels" icon={<Layers className="w-3.5 h-3.5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" color="var(--holo-cyan)" />
+                <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-3.5 h-3.5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" color="var(--holo-cyan)" />
+                <TacticalToggle label="Golden Zone" icon={<Zap className="w-3.5 h-3.5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" color="var(--holo-cyan)" />
+                <TacticalToggle label="Order Blocks" icon={<Database className="w-3.5 h-3.5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" color="var(--holo-cyan)" />
+                <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-3.5 h-3.5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" color="var(--holo-cyan)" />
               </div>
             </section>
 
             <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
             <section>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1 h-1 rounded-full bg-[var(--holo-magenta)]" />
-                <p className="text-[10px] text-white/30 uppercase font-black tracking-[0.2em]">Market Topology</p>
+              <div className="flex items-center justify-between mb-6 px-1">
+                <div className="flex items-center gap-3">
+                  <div className="h-[1px] w-4 bg-[var(--holo-magenta)]/30" />
+                  <p className="text-[9px] text-white/50 uppercase font-black tracking-[0.4em]">Market Topology</p>
+                </div>
+                <span className="text-[8px] font-mono text-[var(--holo-magenta)]/20">0xFE_12</span>
               </div>
-              <div className="space-y-1">
-                <TacticalToggle label="Nodes" icon={<Cpu className="w-3.5 h-3.5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" />
-                <TacticalToggle label="Internal" icon={<Network className="w-3.5 h-3.5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" />
+              <div className="space-y-3">
+
+                <TacticalToggle label="Nodes" icon={<Cpu className="w-3.5 h-3.5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" color="var(--holo-magenta)" />
+                <TacticalToggle label="Internal" icon={<Network className="w-3.5 h-3.5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" color="var(--holo-magenta)" />
               </div>
             </section>
           </div>
@@ -2034,40 +2045,50 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMatrixOpen(false)} />
 
           {/* Bottom Sheet Style Modal */}
-          <div className="relative w-full glass-panel-modern rounded-t-[2.5rem] overflow-hidden flex flex-col max-h-[70vh] animate-in slide-in-from-bottom duration-500 pb-12">
-            <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1" />
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
-              <div className="flex flex-col">
-                <h3 className="text-xs uppercase tracking-[0.3em] font-black text-white">Tactical Matrix</h3>
-                <p className="text-[8px] text-[var(--holo-cyan)] font-mono mt-1 tracking-widest uppercase">System Control Unit</p>
+          <div className="relative w-full glass-panel-modern rounded-t-[3rem] overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-700 pb-12 border-t border-white/10 shadow-[0_-20px_60px_rgba(0,0,0,0.8)]">
+            <div className="neural-hex-bg" />
+            <div className="w-16 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2" />
+            
+            <div className="p-8 border-b border-white/5 flex items-center justify-between relative z-10">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-sm uppercase tracking-[0.4em] font-black text-white">Tactical Matrix</h3>
+                <p className="text-[9px] text-[var(--holo-cyan)] font-mono tracking-[0.2em] uppercase opacity-60">System_Neural_Matrix_Override</p>
               </div>
               <button
                 onClick={() => setIsMobileMatrixOpen(false)}
-                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 active:scale-95 transition-all"
+                className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white/40 active:scale-90 active:bg-[var(--holo-magenta)]/10 transition-all border border-white/5"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-8 tactical-scrollbar pb-16">
+            <div className="flex-1 overflow-y-auto p-8 space-y-12 tactical-scrollbar pb-24 relative z-10">
               <section>
-                <p className="text-[10px] text-white/20 uppercase mb-4 font-black tracking-[0.2em]">Alpha Intelligence</p>
-                <div className="space-y-2">
-                  <TacticalToggle label="Engulfing" icon={<Activity className="w-5 h-5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" />
-                  <TacticalToggle label="Box Over" icon={<Box className="w-5 h-5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" />
-                  <TacticalToggle label="S-Levels" icon={<Layers className="w-5 h-5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" />
-                  <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-5 h-5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" />
-                  <TacticalToggle label="Golden Zone" icon={<Zap className="w-5 h-5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" />
-                  <TacticalToggle label="Order Blocks" icon={<Database className="w-5 h-5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" />
-                  <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-5 h-5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" />
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-1 h-3 bg-[var(--holo-cyan)] rounded-full shadow-[0_0_10px_var(--holo-cyan)]" />
+                  <p className="text-[11px] text-white/40 uppercase font-black tracking-[0.3em]">Alpha Constraints</p>
+                </div>
+                <div className="space-y-4">
+
+                  <TacticalToggle label="Engulfing" icon={<Activity className="w-5 h-5" />} active={showEngulfing} onToggle={setShowEngulfing} subtitle="Pattern detection" color="var(--holo-cyan)" />
+                  <TacticalToggle label="Box Over" icon={<Box className="w-5 h-5" />} active={showPatternBox} onToggle={setShowPatternBox} subtitle="Price action range" color="var(--holo-cyan)" />
+                  <TacticalToggle label="S-Levels" icon={<Layers className="w-5 h-5" />} active={showStructuralLevels} onToggle={setShowStructuralLevels} subtitle="Inst. levels" color="var(--holo-cyan)" />
+                  <TacticalToggle label="Trendlines" icon={<TrendingUp className="w-5 h-5" />} active={showTrendlines} onToggle={setShowTrendlines} subtitle="Projected flow" color="var(--holo-cyan)" />
+                  <TacticalToggle label="Golden Zone" icon={<Zap className="w-5 h-5" />} active={showGoldenZone} onToggle={setShowGoldenZone} subtitle="Fib anchors" color="var(--holo-cyan)" />
+                  <TacticalToggle label="Order Blocks" icon={<Database className="w-5 h-5" />} active={showOrderBlocks} onToggle={setShowOrderBlocks} subtitle="Inst. Zones" color="var(--holo-cyan)" />
+                  <TacticalToggle label="SL / TP & Orders" icon={<Target className="w-5 h-5" />} active={showAvgLines} onToggle={setShowAvgLines} subtitle="Active execution" color="var(--holo-cyan)" />
                 </div>
               </section>
 
               <section>
-                <p className="text-[10px] text-white/20 uppercase mb-4 font-black tracking-[0.2em]">Topology Engine</p>
-                <div className="space-y-2">
-                  <TacticalToggle label="Nodes" icon={<Cpu className="w-5 h-5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" />
-                  <TacticalToggle label="Internal" icon={<Network className="w-5 h-5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" />
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-1 h-3 bg-[var(--holo-magenta)] rounded-full shadow-[0_0_10px_var(--holo-magenta)]" />
+                  <p className="text-[11px] text-white/40 uppercase font-black tracking-[0.3em]">Market Topology</p>
+                </div>
+                <div className="space-y-4">
+
+                  <TacticalToggle label="Nodes" icon={<Cpu className="w-5 h-5" />} active={showStructure} onToggle={setShowStructure} subtitle="Swing anchors" color="var(--holo-magenta)" />
+                  <TacticalToggle label="Internal" icon={<Network className="w-5 h-5" />} active={showInternalStructure} onToggle={setShowInternalStructure} subtitle="Sub-structure" color="var(--holo-magenta)" />
                 </div>
               </section>
             </div>
