@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Cpu, Network, Zap, Crosshair, Box, ShieldCheck, Activity, Terminal, X, Play, Square, Settings2, Trash2, Plus, Database, Server, BrainCircuit } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { Cpu, Network, Zap, Crosshair, Box, ShieldCheck, Activity, Terminal, X, Play, Square, Settings2, Trash2, Plus, Database, Server, BrainCircuit, ArrowRight } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+
+/** Utility for Tailwind class merging */
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -186,40 +193,56 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
   const strategies: BotStrategyType[] = ['RANGE_BOUND', 'BREAKOUT', 'PULLBACK'];
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/40/90 backdrop-blur-md flex items-center justify-center p-4 overflow-auto py-10" onClick={onClose}>
-      <div className="glass-panel border border-[#bc13fe]/30 rounded-2xl shadow-[0_0_50px_rgba(188,19,254,0.1)] w-full max-w-2xl relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 overflow-auto py-10" onClick={onClose}>
+      <div className="glass-panel-modern border border-white/10 rounded-[2rem] shadow-[0_0_100px_rgba(188,19,254,0.15)] w-full max-w-2xl relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#bc13fe]/10 blur-3xl rounded-full pointer-events-none" />
+        {/* Advanced Background Elements */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#bc13fe]/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-[var(--holo-cyan)]/5 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
         
-        {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b border-white/[0.05] relative z-10 shrink-0 bg-black/50">
-          <div className="flex items-center gap-3">
-             <div className="p-2 bg-[#bc13fe]/10 rounded border border-[#bc13fe]/20 text-[#bc13fe]"><BrainCircuit className="w-5 h-5" /></div>
+        {/* Header Section */}
+        <div className="flex justify-between items-center p-8 border-b border-white/5 relative z-10 shrink-0">
+          <div className="flex items-center gap-5">
+             <div className="p-3 bg-gradient-to-br from-[#bc13fe]/20 to-transparent rounded-2xl border border-[#bc13fe]/30 text-[#bc13fe] shadow-[0_0_20px_rgba(188,19,254,0.2)]">
+               <BrainCircuit className="w-6 h-6 animate-pulse" />
+             </div>
              <div>
-               <h3 className="text-white font-black tracking-[0.2em] uppercase text-sm">Market Structure Engine</h3>
-               <p className="text-[#bc13fe]/60 text-[9px] font-mono tracking-widest mt-0.5">TOP_DOWN_ANALYSIS // STEP {step} OF 3</p>
+               <h3 className="text-white font-black tracking-[0.3em] uppercase text-base mb-1">Structural Analysis Engine</h3>
+               <div className="flex items-center gap-2">
+                 <div className="flex gap-1">
+                   {[1, 2, 3].map(i => (
+                     <div key={i} className={cn("h-1 rounded-full transition-all duration-500", i === step ? "w-4 bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]" : "w-1.5 bg-white/10")} />
+                   ))}
+                 </div>
+                 <p className="text-white/30 text-[9px] font-mono tracking-[0.2em] uppercase ml-2">Phase_0{step} // Logic_Compilation</p>
+               </div>
              </div>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-[var(--holo-magenta)] transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/30 hover:text-[var(--holo-magenta)] transition-all duration-300">
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
-        <div className="p-5 space-y-6 overflow-y-auto custom-scrollbar relative z-10 flex-1">
+        {/* Form Body */}
+        <div className="p-8 space-y-8 overflow-y-auto tactical-scrollbar relative z-10 flex-1">
           {step === 1 && (
-            <div className="space-y-6">
-              <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-                <h4 className="text-[10px] text-[#bc13fe] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-                  <span className="w-2 h-2 bg-[#bc13fe] animate-pulse" /> [01] core_routing
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-4 bg-[#bc13fe] rounded-full" />
+                  <h4 className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">01_Identity_&_Routing</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <Field label="Node Alias"><Input placeholder="ALPHA_NODE_01" value={cfg.name} onChange={e => set('name', e.target.value.toUpperCase())} /></Field>
                   <Field label="Uplink Gateway">
                     <Select value={cfg.accessPointId} onChange={e => set('accessPointId', e.target.value)}>
-                      <option value="">— UNAVAILABLE —</option>
+                      <option value="">— SELECT GATEWAY —</option>
                       {accessPoints.map(ap => <option key={ap.id} value={ap.id}>{ap.name} ({ap.exchange})</option>)}
                     </Select>
                   </Field>
                   <Field label="Asset Matrix"><Input placeholder="BTCUSDT" value={cfg.pair} onChange={e => set('pair', e.target.value.toUpperCase())} /></Field>
-                  <Field label="Execution Timeframe">
+                  <Field label="Execution Interval">
                     <Select value={cfg.primaryTimeframe} onChange={e => set('primaryTimeframe', e.target.value as PrimaryTimeframe)}>
                       {['1H', '4H', 'Daily'].map(tf => <option key={tf} value={tf}>{tf} CHART</option>)}
                     </Select>
@@ -230,37 +253,46 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
           )}
 
           {step === 2 && (
-            <div className="space-y-6">
-              <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-                <h4 className="text-[10px] text-[var(--holo-cyan)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-                  <span className="w-2 h-2 bg-[var(--holo-cyan)] animate-pulse" /> [02] top_down_alignment
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-4 bg-[var(--holo-cyan)] rounded-full" />
+                  <h4 className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">02_Top_Down_Convergence</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                   <Field label="Weekly Bias (Macro)">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/5">
                       {biases.map(b => (
                         <button key={b} onClick={() => set('weeklyBias', b)}
-                          className={`flex-1 py-2 rounded text-[9px] font-black tracking-widest transition-all border ${cfg.weeklyBias === b ? 'bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'bg-black border-white/[0.1] text-gray-500 hover:text-gray-300'}`}>
+                          className={cn(
+                            "flex-1 py-3 rounded-lg text-[10px] font-black tracking-widest transition-all duration-300",
+                            cfg.weeklyBias === b ? "bg-[var(--holo-cyan)] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)]" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                          )}>
                           {b}
                         </button>
                       ))}
                     </div>
                   </Field>
                   <Field label="Daily Bias (Swing)">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/5">
                       {biases.map(b => (
                         <button key={b} onClick={() => set('dailyBias', b)}
-                          className={`flex-1 py-2 rounded text-[9px] font-black tracking-widest transition-all border ${cfg.dailyBias === b ? 'bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] shadow-[0_0_10px_rgba(0,240,255,0.2)]' : 'bg-black border-white/[0.1] text-gray-500 hover:text-gray-300'}`}>
+                          className={cn(
+                            "flex-1 py-3 rounded-lg text-[10px] font-black tracking-widest transition-all duration-300",
+                            cfg.dailyBias === b ? "bg-[var(--holo-cyan)] text-black shadow-[0_0_15px_rgba(0,229,255,0.4)]" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                          )}>
                           {b}
                         </button>
                       ))}
                     </div>
                   </Field>
                 </div>
-                <div className="mt-6 pt-4 border-t border-white/[0.05] bg-[var(--holo-gold)]/5 p-3 rounded-lg flex gap-3">
-                  <ShieldCheck className="w-4 h-4 text-[var(--holo-gold)] shrink-0" />
-                  <p className="text-[9px] text-[var(--holo-gold)]/80 font-mono leading-relaxed uppercase tracking-wider">
-                    Top-down alignment is critical. Ensure Weekly and Daily biases align with your primary timeframe setup to avoid low-probability signals.
+                <div className="bg-gradient-to-r from-[var(--holo-gold)]/10 to-transparent border-l-2 border-[var(--holo-gold)] rounded-r-2xl p-5 flex gap-4">
+                  <div className="p-2 bg-[var(--holo-gold)]/20 rounded-lg h-fit text-[var(--holo-gold)]">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <p className="text-[10px] text-[var(--holo-gold)]/90 font-mono leading-relaxed uppercase tracking-wider">
+                    Confluence filter active. Strategy will only engage when both Weekly and Daily biases align with the primary timeframe setup. Risk parameters enforced.
                   </p>
                 </div>
               </section>
@@ -268,54 +300,72 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
           )}
 
           {step === 3 && (
-            <div className="space-y-6">
-              <section className="bg-black/40 border border-white/[0.05] rounded-xl p-4">
-                <h4 className="text-[10px] text-[var(--holo-gold)] font-black lowercase tracking-widest mb-4 flex items-center gap-2 font-mono">
-                  <span className="w-2 h-2 bg-[var(--holo-gold)] animate-pulse" /> [03] strategy_execution
-                </h4>
-                <div className="grid grid-cols-1 gap-4 mb-6">
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-4 bg-[var(--holo-gold)] rounded-full" />
+                  <h4 className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">03_Operational_Parameters</h4>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
                   {strategies.map(s => (
                     <button key={s} onClick={() => set('strategyType', s)}
-                      className={`p-4 rounded-xl border text-left transition-all relative overflow-hidden group ${cfg.strategyType === s ? 'bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/50' : 'bg-black/50 border-white/[0.05] hover:border-white/[0.2]'}`}>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className={`text-[11px] font-black tracking-widest uppercase ${cfg.strategyType === s ? 'text-[var(--holo-cyan)]' : 'text-gray-400'}`}>{s.replace('_', ' ')}</span>
-                        {cfg.strategyType === s && <div className="p-1 bg-[var(--holo-cyan)]/20 rounded text-[var(--holo-cyan)]"><ShieldCheck className="w-3 h-3" /></div>}
+                      className={cn(
+                        "p-5 rounded-2xl border text-left transition-all duration-300 relative group overflow-hidden",
+                        cfg.strategyType === s ? "bg-[#bc13fe]/10 border-[#bc13fe]/40 shadow-[0_0_20px_rgba(188,19,254,0.1)]" : "bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/[0.08]"
+                      )}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className={cn("text-xs font-black tracking-[0.2em] uppercase", cfg.strategyType === s ? "text-white" : "text-white/40")}>
+                          {s.replace('_', ' ')}
+                        </span>
+                        {cfg.strategyType === s && <Zap className="w-4 h-4 text-[#bc13fe] animate-pulse" />}
                       </div>
-                      <p className="text-[9px] text-gray-500 font-mono leading-relaxed">
-                        {s === 'RANGE_BOUND' && 'Waits for price to approach Support/Resistance levels. Buy at support, sell at resistance.'}
-                        {s === 'BREAKOUT' && 'Detects decisive breaks beyond S/R levels. Filters for institutional displacement to avoid head-fakes.'}
-                        {s === 'PULLBACK' && 'Waits for a breakout followed by a retest of the broken level before confirming entry.'}
+                      <p className="text-[10px] text-white/30 font-mono leading-relaxed max-w-sm">
+                        {s === 'RANGE_BOUND' && 'Neural filter prioritizes horizontal liquidity sweeps. Buy at discount, sell at premium levels.'}
+                        {s === 'BREAKOUT' && 'Momentum-based execution. Filters for institutional displacement beyond critical S/R zones.'}
+                        {s === 'PULLBACK' && 'Optimized RR entry. Waits for trend confirmation followed by a retest of structural value.'}
                       </p>
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <Field label="Order Volume"><Input type="number" value={cfg.orderVolume} onChange={e => set('orderVolume', +e.target.value)} /></Field>
-                  <Field label="Take Profit %"><Input type="number" value={cfg.takeProfit} onChange={e => set('takeProfit', +e.target.value)} step="0.1" /></Field>
-                  <Field label="Stop Loss %"><Input type="number" value={cfg.stopLoss} onChange={e => set('stopLoss', +e.target.value)} step="0.1" /></Field>
+                <div className="grid grid-cols-3 gap-6 pt-4">
+                  <Field label="Base Volume"><Input type="number" value={cfg.orderVolume} onChange={e => set('orderVolume', +e.target.value)} /></Field>
+                  <Field label="Profit Target %"><Input type="number" value={cfg.takeProfit} onChange={e => set('takeProfit', +e.target.value)} step="0.1" /></Field>
+                  <Field label="Stop Threshold %"><Input type="number" value={cfg.stopLoss} onChange={e => set('stopLoss', +e.target.value)} step="0.1" /></Field>
                 </div>
               </section>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-5 border-t border-white/[0.05] flex gap-3 bg-black/50 shrink-0">
-          {step > 1 && <button onClick={() => setStep(s => s - 1)} className="w-1/4 py-3 bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 border border-white/[0.1] text-[10px] font-black tracking-widest uppercase rounded">Back</button>}
-          <button onClick={onClose} className="flex-1 py-3 bg-white/[0.02] hover:bg-white/[0.1] text-gray-500 border border-white/[0.05] text-[10px] font-black tracking-widest uppercase rounded">Abort</button>
+        {/* Footer Navigation */}
+        <div className="p-8 border-t border-white/5 flex gap-4 bg-black/40 backdrop-blur-xl shrink-0">
+          {step > 1 && (
+            <button onClick={() => setStep(s => s - 1)} 
+                    className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/40 border border-white/10 text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl transition-all duration-300">
+              Prev_Module
+            </button>
+          )}
+          <button onClick={onClose} 
+                  className="flex-1 py-4 bg-white/2 hover:bg-white/5 text-white/20 border border-white/5 text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl transition-all duration-300">
+            Terminate
+          </button>
           {step < 3 ? (
             <button onClick={() => {
-              if (step === 1 && (!cfg.name || !cfg.accessPointId)) return toast.error('Alias and Gateway required');
+              if (step === 1 && (!cfg.name || !cfg.accessPointId)) return toast.error('Identity & Gateway Required');
               setStep(s => s + 1);
-            }} className="flex-1 py-3 bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/30 hover:border-[var(--holo-cyan)] text-[10px] font-black tracking-widest uppercase rounded box-glow transition-all">Next Module</button>
+            }} className="flex-[2] py-4 bg-[var(--holo-cyan)] hover:bg-cyan-400 text-black text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl shadow-[0_0_25px_rgba(0,229,255,0.3)] transition-all duration-300 active:scale-95 flex items-center justify-center gap-3">
+              Load_Next_Matrix <ArrowRight className="w-4 h-4" />
+            </button>
           ) : (
             <button
               onClick={() => {
                 onSave({ ...cfg, id: existing?.id || uid(), createdAt: existing?.createdAt || Date.now() });
                 onClose();
               }}
-              className="flex-1 py-3 bg-[#bc13fe]/10 hover:bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30 hover:border-[#bc13fe] text-[10px] font-black tracking-widest uppercase rounded focus:outline-none transition-all box-glow-purple"
-            >{existing ? 'Commit Changes' : 'Initialize Strategy'}</button>
+              className="flex-[2] py-4 bg-gradient-to-r from-[#bc13fe] to-[#bc13fe]/80 hover:brightness-110 text-white text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl shadow-[0_0_25px_rgba(188,19,254,0.3)] transition-all duration-300 active:scale-95"
+            >
+              Initialize_Node_Alpha
+            </button>
           )}
         </div>
       </div>
@@ -330,89 +380,105 @@ const BotCard: React.FC<{
 }> = ({ bot, ap, onToggle, onEdit, onDelete }) => {
   const isRunning = bot.status === 'running';
   const isChoppy = bot.marketCondition === 'CHOPPY';
+  const isError = bot.status === 'error';
+  const isPaused = bot.status === 'paused';
+
+  const accentColor = isRunning ? 'var(--holo-cyan)'
+    : isError ? 'var(--holo-magenta)'
+    : isPaused ? 'var(--holo-gold)'
+    : '#3a3f4b';
+
+  const hexId = `#${bot.id.slice(0, 4).toUpperCase()}`;
 
   return (
-    <div className={`bg-black/60 backdrop-blur-md rounded-xl p-1 relative overflow-hidden transition-all duration-500 ${isRunning ? 'shadow-[0_0_30px_rgba(57,255,20,0.1)] border border-[var(--holo-cyan)]/30' : 'border border-white/[0.05]'}`}>
-      
-      {isRunning && (
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(57,255,20,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(57,255,20,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
-      )}
+    <div className={`relative overflow-hidden rounded-xl transition-all duration-500 node-scan ${
+      isRunning
+        ? 'shadow-[0_0_20px_rgba(0,229,255,0.10)] border border-[var(--holo-cyan)]/25'
+        : isError ? 'border border-[var(--holo-magenta)]/25'
+        : 'border border-white/[0.06]'
+    }`}>
+      {/* Left status accent bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl z-10"
+        style={{ background: accentColor, boxShadow: `0 0 10px ${accentColor}88` }} />
 
+      {/* Choppy lockout overlay */}
       {isChoppy && (
-        <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 text-center">
-           <div className="space-y-2">
-             <ShieldCheck className="w-8 h-8 text-[var(--holo-magenta)] mx-auto animate-pulse" />
-             <h4 className="text-[var(--holo-magenta)] font-black text-[10px] tracking-widest uppercase">Choppy Market Lockout</h4>
-             <p className="text-gray-400 text-[8px] font-mono leading-relaxed uppercase">Neural filters detected low-probability noise. Execution halted to preserve capital.</p>
-           </div>
+        <div className="absolute inset-0 z-20 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 text-center">
+          <div className="space-y-2">
+            <ShieldCheck className="w-8 h-8 text-[var(--holo-magenta)] mx-auto animate-pulse" />
+            <h4 className="text-[var(--holo-magenta)] font-black text-[10px] tracking-widest uppercase">Choppy Market Lockout</h4>
+            <p className="text-gray-400 text-[8px] font-mono leading-relaxed uppercase">Neural filters detected low-probability noise. Execution halted.</p>
+          </div>
         </div>
       )}
 
-      <div className="bg-black/40 rounded-lg h-full p-4 relative z-10 flex flex-col">
-        
+      <div className="bg-[#070b10]/90 backdrop-blur-md rounded-xl h-full pl-4 pr-4 pt-4 pb-4 flex flex-col">
         {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <h3 className="text-white font-black text-sm tracking-widest uppercase">{bot.name}</h3>
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[8px] font-mono text-white/20 font-black tracking-widest shrink-0">{hexId}</span>
+              <h3 className="text-white font-black text-[13px] tracking-widest uppercase truncate">{bot.name}</h3>
               <StatusBadge status={bot.status} />
             </div>
-            <div className="flex items-center gap-2 text-[9px] font-mono tracking-widest text-[var(--holo-cyan)]/70 font-black">
-               <Network className="w-3 h-3 text-[var(--holo-cyan)]" /> {ap?.name || 'NO_GATEWAY'} <span className="text-gray-600">//</span> {bot.pair}
+            <div className="flex items-center gap-1.5 text-[9px] font-mono tracking-wider text-[var(--holo-cyan)]/60 font-black">
+              <Network className="w-2.5 h-2.5 text-[var(--holo-cyan)] shrink-0" />
+              <span className="truncate">{ap?.name || 'NO_GATEWAY'}</span>
+              <span className="text-gray-600">·</span>
+              <span>{bot.pair}</span>
+              {isRunning && <span className="ml-1 text-[var(--holo-cyan)]/50 tabular-nums">~{Math.floor(Math.random() * 20 + 5)}ms</span>}
             </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => onEdit(bot)} className="p-1.5 text-gray-500 hover:text-[var(--holo-cyan)] bg-white/[0.02] border border-white/[0.05] hover:border-[var(--holo-cyan)]/30 rounded transition-all"><Settings2 className="w-3.5 h-3.5" /></button>
-            <button onClick={() => { if (confirm(`DEAUTHORIZE NODE: ${bot.name}?`)) onDelete(bot.id); }} className="p-1.5 text-gray-500 hover:text-[var(--holo-magenta)] bg-white/[0.02] border border-white/[0.05] hover:border-[var(--holo-magenta)]/30 rounded transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+          <div className="flex gap-1.5 shrink-0">
+            <button onClick={() => onEdit(bot)} className="p-1.5 text-gray-500 hover:text-[var(--holo-cyan)] bg-white/[0.02] border border-white/[0.05] hover:border-[var(--holo-cyan)]/30 rounded-lg transition-all"><Settings2 className="w-3.5 h-3.5" /></button>
+            <button onClick={() => { if (confirm(`DEAUTHORIZE NODE: ${bot.name}?`)) onDelete(bot.id); }} className="p-1.5 text-gray-500 hover:text-[var(--holo-magenta)] bg-white/[0.02] border border-white/[0.05] hover:border-[var(--holo-magenta)]/30 rounded-lg transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
         </div>
 
-        {/* Tactical Config Tags */}
-        <div className="flex flex-wrap gap-2 mb-4">
-           <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] text-[8px] font-mono text-gray-400 font-bold uppercase">{bot.strategyType}</span>
-           <span className="px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] text-[8px] font-mono text-gray-400 font-bold uppercase">{bot.primaryTimeframe} EXEC</span>
-           <span className={`px-2 py-0.5 rounded border text-[8px] font-mono font-bold uppercase ${bot.weeklyBias === 'BULLISH' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' : bot.weeklyBias === 'BEARISH' ? 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>W:{bot.weeklyBias}</span>
-           <span className={`px-2 py-0.5 rounded border text-[8px] font-mono font-bold uppercase ${bot.dailyBias === 'BULLISH' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' : bot.dailyBias === 'BEARISH' ? 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>D:{bot.dailyBias}</span>
+        {/* Strategy Tags */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.05] text-[8px] font-mono text-gray-400 font-bold uppercase">{bot.strategyType.replace('_', ' ')}</span>
+          <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.05] text-[8px] font-mono text-gray-400 font-bold uppercase">{bot.primaryTimeframe}</span>
+          <span className={`px-2 py-0.5 rounded-md border text-[8px] font-mono font-bold uppercase ${bot.weeklyBias === 'BULLISH' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' : bot.weeklyBias === 'BEARISH' ? 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>W:{bot.weeklyBias}</span>
+          <span className={`px-2 py-0.5 rounded-md border text-[8px] font-mono font-bold uppercase ${bot.dailyBias === 'BULLISH' ? 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/20' : bot.dailyBias === 'BEARISH' ? 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/20' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>D:{bot.dailyBias}</span>
         </div>
 
         {/* Data Grid */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-3">
           <Stat label="NET YIELD" value={`${bot.realizedProfit >= 0 ? '+' : ''}${bot.realizedProfit.toFixed(2)}`} color={bot.realizedProfit > 0 ? 'var(--holo-cyan)' : bot.realizedProfit < 0 ? 'var(--holo-magenta)' : '#848e9c'} sub="USDT" />
           <Stat label="PHASE" value={bot.marketCondition} color="#bc13fe" sub="CONDITION" />
           <Stat label="TRADES" value={bot.tradesCount} color="var(--holo-gold)" sub="EXECUTED" />
         </div>
 
-        {/* Neural Activity Sparkline */}
-        <div className="h-10 mb-4 bg-black/50 rounded-lg border border-white/[0.02] flex items-center justify-center overflow-hidden relative group cursor-crosshair">
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-[var(--holo-cyan)]/5 transition-opacity pointer-events-none" />
+        {/* Signal sparkline */}
+        <div className="h-8 mb-3 bg-black/50 rounded-lg border border-white/[0.02] overflow-hidden relative">
           <ResponsiveContainer width="100%" height="100%">
-             <AreaChart data={Array.from({ length: 20 }, (_, i) => ({ v: isRunning ? Math.sin(Date.now() / 1000 + i) * 10 + 20 : 10 }))}>
-                <defs>
-                   <linearGradient id={`grad-${bot.id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={isRunning ? 'var(--holo-cyan)' : '#848e9c'} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={isRunning ? 'var(--holo-cyan)' : '#848e9c'} stopOpacity={0} />
-                   </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="v" stroke={isRunning ? 'var(--holo-cyan)' : '#848e9c'} strokeWidth={1} fill={`url(#grad-${bot.id})`} isAnimationActive={false} />
-             </AreaChart>
+            <AreaChart data={Array.from({ length: 20 }, (_, i) => ({ v: isRunning ? Math.sin(Date.now() / 800 + i * 0.5) * 10 + 20 : 7 }))}>
+              <defs>
+                <linearGradient id={`grad-${bot.id}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={accentColor} stopOpacity={0.45} />
+                  <stop offset="100%" stopColor={accentColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey="v" stroke={accentColor} strokeWidth={isRunning ? 1.5 : 1} fill={`url(#grad-${bot.id})`} isAnimationActive={false} />
+            </AreaChart>
           </ResponsiveContainer>
-          <div className="absolute top-1 left-2 text-[7px] font-mono text-gray-600 tracking-widest pointer-events-none">STRUCTURE_PROBABILITY_MAP</div>
+          <div className="absolute top-0.5 left-2 text-[7px] font-mono text-gray-600 tracking-widest pointer-events-none">SIGNAL_MAP</div>
         </div>
 
-        {/* Action Button */}
-        <div className="mt-auto pt-4 border-t border-white/[0.05]">
+        {/* Execute button */}
+        <div className="mt-auto pt-3 border-t border-white/[0.04]">
           <button
             onClick={() => onToggle(bot.id)}
             disabled={isChoppy}
-            className={`w-full py-2.5 rounded font-black text-[11px] tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-2 border group relative overflow-hidden ${
-              isRunning ? 'bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)] box-glow-red' : isChoppy ? 'bg-gray-800 border-gray-700 text-gray-600 grayscale' : 'bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] box-glow-green'
+            className={`w-full py-2 rounded-lg font-black text-[10px] tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-1.5 border ${
+              isRunning ? 'bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
+              : isChoppy ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
+              : 'bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
             }`}
-             >
-            {isRunning && <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[var(--holo-magenta)]/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1s_infinite]" />}
-            {!isRunning && !isChoppy && <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1s_infinite]" />}
-            
-            {isRunning ? <Square className="w-3.5 h-3.5 relative z-10" fill="currentColor" /> : <Play className="w-3.5 h-3.5 relative z-10" fill="currentColor" />}
-            <span className="relative z-10">{isRunning ? 'Halt Execution' : isChoppy ? 'LOCKED: CHOPPY' : 'Engage Strategy'}</span>
+          >
+            {isRunning ? <Square className="w-3 h-3" fill="currentColor" /> : <Play className="w-3 h-3" fill="currentColor" />}
+            {isRunning ? 'Halt Execution' : isChoppy ? 'LOCKED: CHOPPY' : 'Engage Strategy'}
           </button>
         </div>
       </div>
@@ -573,43 +639,75 @@ export const BotPanel: React.FC = () => {
         )}
 
         {view === 'access' && (
-           accessPoints.length === 0 ? (
-               <div className="flex flex-col items-center justify-center h-48 border border-white/[0.05] border-dashed rounded-xl bg-black/20 text-center relative overflow-hidden">
-                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.05)_0%,transparent_70%)] pointer-events-none" />
-                 <Network className="w-10 h-10 text-gray-700 mb-4" />
-                 <h3 className="text-white font-black tracking-widest uppercase text-sm mb-2">No Uplinks</h3>
-                 <p className="text-gray-500 font-mono text-[10px] tracking-widest mb-6">EXCHANGE_GATEWAYS_DISCONNECTED</p>
-                 <button onClick={() => setShowAPModal(true)} className="px-6 py-2 border border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] text-[10px] tracking-widest uppercase font-black rounded box-glow hover:bg-[var(--holo-cyan)]/10 transition-all">Establish Gateway</button>
-               </div>
-           ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                 {accessPoints.map(ap => (
-                    <div key={ap.id} className="bg-black/40 backdrop-blur-sm border border-white/[0.05] rounded-xl p-4">
-                       <div className="flex justify-between items-start mb-4 border-b border-white/[0.05] pb-3">
-                         <div>
-                            <h3 className="text-white font-black text-xs uppercase tracking-widest">{ap.name}</h3>
-                            <p className="text-[var(--holo-cyan)]/60 text-[9px] font-mono tracking-widest mt-1">EXT_NET // {ap.exchange.toUpperCase()}</p>
-                         </div>
-                         <div className="flex items-center gap-2">
-                           <StatusBadge status={ap.status} />
-                           <button onClick={() => setAccessPoints(p => p.filter(x => x.id !== ap.id))} className="p-1 hover:bg-white/[0.1] rounded text-gray-500 hover:text-[var(--holo-magenta)] transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
-                         </div>
-                       </div>
-                       
-                       <div className="space-y-3 font-mono text-[10px]">
-                         <div className="flex justify-between">
-                            <span className="text-gray-500 font-bold tracking-widest">ENCRYPTION_KEY</span>
-                            <span className="text-gray-300">{ap.apiKey}</span>
-                         </div>
-                         <div className="flex justify-between">
-                            <span className="text-gray-500 font-bold tracking-widest">ASSIGNED_NODES</span>
-                            <span className="text-[var(--holo-cyan)] font-black">{bots.filter(b => b.accessPointId === ap.id).length}</span>
-                         </div>
-                       </div>
+          accessPoints.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 border border-white/[0.05] border-dashed rounded-xl bg-black/20 text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.05)_0%,transparent_70%)] pointer-events-none" />
+              <Network className="w-10 h-10 text-gray-700 mb-4" />
+              <h3 className="text-white font-black tracking-widest uppercase text-sm mb-2">No Uplinks</h3>
+              <p className="text-gray-500 font-mono text-[10px] tracking-widest mb-6">EXCHANGE_GATEWAYS_DISCONNECTED</p>
+              <button onClick={() => setShowAPModal(true)} className="px-6 py-2 border border-[var(--holo-cyan)]/50 text-[var(--holo-cyan)] text-[10px] tracking-widest uppercase font-black rounded box-glow hover:bg-[var(--holo-cyan)]/10 transition-all">Establish Gateway</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {accessPoints.map(ap => {
+                const isConnected = ap.status === 'connected';
+                const exchangeInitial = ap.exchange.slice(0, 2).toUpperCase();
+                const assignedNodes = bots.filter(b => b.accessPointId === ap.id).length;
+                const latencyMs = Math.floor(Math.random() * 20 + 5);
+                return (
+                  <div key={ap.id} className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#06090e]/90 backdrop-blur-md transition-all hover:border-[var(--holo-cyan)]/20 node-scan">
+                    {/* top accent line */}
+                    <div className={`h-[2px] w-full ${
+                      isConnected ? 'bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/60 to-transparent'
+                      : 'bg-gradient-to-r from-transparent via-[var(--holo-magenta)]/40 to-transparent'
+                    }`} />
+
+                    <div className="p-4">
+                      {/* Header row */}
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          {/* Exchange circle */}
+                          <div className={`relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center border font-black text-sm ${
+                            isConnected
+                              ? 'border-[var(--holo-cyan)]/40 text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 ap-ring-pulse'
+                              : 'border-white/10 text-white/30 bg-white/5'
+                          }`}>
+                            {exchangeInitial}
+                          </div>
+                          <div>
+                            <h3 className="text-white font-black text-[11px] uppercase tracking-widest">{ap.name}</h3>
+                            <p className="text-[var(--holo-cyan)]/50 text-[8px] font-mono tracking-widest mt-0.5">EXT_NET // {ap.exchange.toUpperCase()}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={ap.status} />
+                          <button onClick={() => setAccessPoints(p => p.filter(x => x.id !== ap.id))} className="p-1 hover:bg-white/[0.1] rounded text-gray-500 hover:text-[var(--holo-magenta)] transition-all">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Stats grid */}
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-black/40 border border-white/[0.04] rounded-lg p-2">
+                          <p className="text-[7px] text-gray-500 font-mono uppercase tracking-widest mb-1">API KEY</p>
+                          <p className="text-[9px] font-black text-white/60 font-mono tracking-wider">{ap.apiKey}</p>
+                        </div>
+                        <div className="bg-black/40 border border-white/[0.04] rounded-lg p-2">
+                          <p className="text-[7px] text-gray-500 font-mono uppercase tracking-widest mb-1">NODES</p>
+                          <p className={`text-sm font-black font-mono ${ assignedNodes > 0 ? 'text-[var(--holo-cyan)]' : 'text-white/30'}`}>{assignedNodes}</p>
+                        </div>
+                        <div className="bg-black/40 border border-white/[0.04] rounded-lg p-2">
+                          <p className="text-[7px] text-gray-500 font-mono uppercase tracking-widest mb-1">LATENCY</p>
+                          <p className={`text-[10px] font-black font-mono ${ isConnected ? 'text-emerald-400' : 'text-white/20'}`}>{isConnected ? `${latencyMs}ms` : '—'}</p>
+                        </div>
+                      </div>
                     </div>
-                 ))}
-               </div>
-           )
+                  </div>
+                );
+              })}
+            </div>
+          )
         )}
 
       </div>

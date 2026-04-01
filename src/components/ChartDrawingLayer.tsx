@@ -31,7 +31,9 @@ export interface PositionDrawing {
   tpPrice: number;
   slPrice: number;
   targetTime: number; // For dynamic width/duration
+  widthInCandles?: number; // Cross-timeframe persistence: stored as candle count
   riskAmount: number; // Mocked risk in USD
+  isLocked?: boolean; // When true, blocks all drag interactions
 }
 
 export type Drawing = TrendLineDrawing | HorizontalDrawing | AnnotationDrawing | PositionDrawing;
@@ -115,7 +117,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [draggingPart, setDraggingPart] = useState<'entry' | 'tp' | 'sl' | 'p1' | 'p2' | 'duration' | null>(null);
+  const [draggingPart, setDraggingPart] = useState<'entry' | 'tp' | 'sl' | 'p1' | 'p2' | 'duration' | 'right_edge' | null>(null);
   const [isHoveringShape, setIsHoveringShape] = useState(false);
   const [annotationDraft, setAnnotationDraft] = useState<{ price: number; time: number } | null>(null);
   const [annotationText, setAnnotationText] = useState('');
@@ -443,11 +445,45 @@ export const ChartDrawingLayer: React.FC<Props> = ({
             });
             ctx.shadowBlur = 0;
           }
+
+          // Lock icon overlay (renders on all locked positions)
+          if ((d as PositionDrawing).isLocked) {
+            ctx.save();
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#fcd535';
+            ctx.strokeStyle = '#fcd535';
+            ctx.fillStyle = '#fcd535';
+            ctx.lineWidth = 1.5;
+            const lx = xE + boxWidth - 20;
+            const ly = Math.min(yTP, yE) + 4;
+            // Padlock body
+            ctx.beginPath();
+            drawRoundRect(ctx, lx, ly + 6, 12, 9, 2);
+            ctx.fill();
+            // Padlock shackle arc
+            ctx.fillStyle = 'rgba(0,0,0,0)';
+            ctx.beginPath();
+            ctx.arc(lx + 6, ly + 7, 4.5, Math.PI, 2 * Math.PI);
+            ctx.stroke();
+            ctx.restore();
+          } else if (isSelected) {
+            // Right-edge width grip bar (only when selected and not locked)
+            const gx = xE + boxWidth + 2;
+            const gyCentre = (Math.min(yTP, yE) + Math.max(ySL, yE)) / 2;
+            ctx.save();
+            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = 'rgba(255,255,255,0.6)';
+            drawRoundRect(ctx, gx, gyCentre - 20, 4, 40, 2);
+            ctx.fill();
+            ctx.restore();
+          }
         }
       }
 
       ctx.restore();
     }
+
 
     // Draft preview (trendline rubber-band)
     if (activeTool === 'trendline' && draftStart && mousePos) {
@@ -533,11 +569,16 @@ export const ChartDrawingLayer: React.FC<Props> = ({
         const yE = priceToY(d.entryPrice);
         const yTP = priceToY(d.tpPrice);
         const ySL = priceToY(d.slPrice);
-        const boxWidth = 140;
 
         if (dx != null && yE != null && yTP != null && ySL != null) {
           const dxT = d.targetTime ? timeToX(d.targetTime) : null;
           const boxWidth = dxT !== null ? Math.max(80, dxT - dx) : 140;
+
+          // Right-edge grip zone for width dragging
+          const rEdgeX = dx + boxWidth;
+          if (Math.abs(x - rEdgeX) < 10 && y >= Math.min(yTP, ySL) - 10 && y <= Math.max(yTP, ySL) + 10) {
+            return { id: d.id, part: 'right_edge' as const };
+          }
 
           // Check handles at the right edge of the box
           const hX = dx + boxWidth;
@@ -549,7 +590,7 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           if (x >= dx && x <= dx + boxWidth) {
             const minY = Math.min(yTP, ySL, yE);
             const maxY = Math.max(yTP, ySL, yE);
-            if (y >= minY && y <= maxY) return { id: d.id, part: 'entry' as const }; // Drag whole box via entry
+            if (y >= minY && y <= maxY) return { id: d.id, part: 'entry' as const };
           }
         }
       }
@@ -598,6 +639,8 @@ export const ChartDrawingLayer: React.FC<Props> = ({
 
       setDrawings(prev => prev.map(d => {
         if (d.id !== draggingId) return d;
+        // Locked drawings cannot be moved
+        if ((d as PositionDrawing).isLocked) return d;
         if (d.type === 'trendline') {
           if (draggingPart === 'p1') return { ...d, p1: { price, time: time ?? d.p1.time } };
           if (draggingPart === 'p2') return { ...d, p2: { price, time: time ?? d.p2.time } };
@@ -606,7 +649,14 @@ export const ChartDrawingLayer: React.FC<Props> = ({
           if (draggingPart === 'entry') return { ...d, entryPrice: price, entryTime: time ?? d.entryTime };
           if (draggingPart === 'tp') return { ...d, tpPrice: price };
           if (draggingPart === 'sl') return { ...d, slPrice: price };
-          if (draggingPart === 'duration' && time !== null) return { ...d, targetTime: time };
+          if (draggingPart === 'duration' && time !== null) {
+            const newWidthInCandles = Math.round((time - d.entryTime) / (getIntervalMs(interval) / 1000));
+            return { ...d, targetTime: time, widthInCandles: Math.max(1, newWidthInCandles) };
+          }
+          if (draggingPart === 'right_edge' && time !== null) {
+            const newWidthInCandles = Math.round((time - d.entryTime) / (getIntervalMs(interval) / 1000));
+            return { ...d, targetTime: time, widthInCandles: Math.max(1, newWidthInCandles) };
+          }
         }
         return d;
       }));
@@ -626,6 +676,9 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       const hit = hitTest(px, py);
       setSelectedId(hit?.id ?? null);
       if (hit?.id && hit?.part) {
+        // Block drag on locked drawings
+        const drawing = drawings.find(d => d.id === hit.id);
+        if ((drawing as PositionDrawing)?.isLocked) return;
         setDraggingId(hit.id);
         setDraggingPart(hit.part);
       }
@@ -682,8 +735,10 @@ export const ChartDrawingLayer: React.FC<Props> = ({
         entryTime: time,
         slPrice: isLong ? price - slDist : price + slDist,
         tpPrice: isLong ? price + tpDist : price - tpDist,
-        targetTime: time + (getIntervalMs(interval) * 10 / 1000), // Smart width based on actual interval
-        riskAmount: 100, // Mock $100 risk
+        targetTime: time + (getIntervalMs(interval) * 10 / 1000),
+        widthInCandles: 10, // Default 10 candles wide — scales across timeframes
+        riskAmount: 100,
+        isLocked: false,
       };
       setDrawings(prev => [...prev, p]);
       onToolChange('none');
@@ -800,7 +855,13 @@ export const ChartDrawingLayer: React.FC<Props> = ({
 
   const cursor =
     draggingId ? 'grabbing' :
-    activeTool === 'none' ? (hitTest(mousePos?.x ?? 0, mousePos?.y ?? 0) ? 'pointer' : 'default') :
+    draggingPart === 'right_edge' ? 'ew-resize' :
+    activeTool === 'none' ? (() => {
+      const hit = hitTest(mousePos?.x ?? 0, mousePos?.y ?? 0);
+      if (!hit) return 'default';
+      if (hit.part === 'right_edge') return 'ew-resize';
+      return 'pointer';
+    })() :
     activeTool === 'horizontal' ? 'row-resize' :
     activeTool === 'trendline' ? 'crosshair' :
     activeTool === 'long_position' || activeTool === 'short_position' ? 'crosshair' :
@@ -854,6 +915,40 @@ export const ChartDrawingLayer: React.FC<Props> = ({
       {selectedId && (
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 glass-panel rounded-full px-4 py-2 font-sans shadow-[0_10px_30px_rgba(0,0,0,0.8)] border border-[var(--holo-cyan)]/20">
           <span className="text-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan)] text-[9px] uppercase tracking-[0.2em] font-black mr-2">Target Lock</span>
+
+          {/* Lock / Unlock toggle for position drawings */}
+          {(drawings.find(d => d.id === selectedId)?.type === 'long_position' || drawings.find(d => d.id === selectedId)?.type === 'short_position') && (() => {
+            const pos = drawings.find(d => d.id === selectedId) as PositionDrawing;
+            return (
+              <button
+                onClick={() => setDrawings(prev => prev.map(d =>
+                  d.id === selectedId && (d.type === 'long_position' || d.type === 'short_position')
+                    ? { ...d, isLocked: !(d as PositionDrawing).isLocked }
+                    : d
+                ))}
+                className={`flex items-center gap-1.5 border text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full transition-all hover-lift ${
+                  pos?.isLocked
+                    ? 'bg-[var(--holo-gold)]/20 border-[var(--holo-gold)]/60 text-[var(--holo-gold)] shadow-[0_0_8px_rgba(252,213,53,0.4)]'
+                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-white/60'
+                }`}
+                title={pos?.isLocked ? 'Unlock position' : 'Lock position'}
+              >
+                {pos?.isLocked ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                  </svg>
+                )}
+                {pos?.isLocked ? 'Locked' : 'Lock'}
+              </button>
+            );
+          })()}
+
           {/* Toggle extend for trendlines */}
           {drawings.find(d => d.id === selectedId)?.type === 'trendline' && (
             <button

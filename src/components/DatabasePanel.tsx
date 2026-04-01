@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Database, Download, FileText, Calendar, Hash, RefreshCw, 
-  Search, ShieldAlert, Activity, BarChart3, Clock, CheckCircle2 
+  Search, ShieldAlert, Activity, BarChart3, Clock, CheckCircle2, Zap
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface TradeRecord {
   slave_id: string;
@@ -106,13 +107,31 @@ export const DatabasePanel: React.FC = () => {
       if (res.ok) {
         await fetchTradesManual();
         setShowWipeConfirm(false);
+        toast.success('Trade ledger wiped successfully');
       }
     } catch (err) {
       console.error('Failed to wipe database:', err);
+      toast.error('Failed to wipe database');
     } finally {
       setIsWiping(false);
     }
   };
+
+  const resetShadowBalance = async () => {
+    try {
+      const res = await fetch('/api/backend/shadow/reset', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(data.message || 'Shadow balances reset');
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Reset failed');
+      }
+    } catch {
+      toast.error('Failed to reset shadow balance');
+    }
+  };
+
 
   const dateRange = trades.length > 0
     ? `${new Date(trades[trades.length - 1].timestamp).toLocaleDateString()} — ${new Date(trades[0].timestamp).toLocaleDateString()}`
@@ -185,6 +204,16 @@ export const DatabasePanel: React.FC = () => {
                 <span className="hidden sm:inline">FORMAT DB</span>
               </button>
             )}
+
+            {/* Shadow Balance Reset Button */}
+            <button 
+              onClick={resetShadowBalance}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-transparent hover:bg-[var(--holo-gold)]/10 border border-[var(--holo-gold)]/30 text-[var(--holo-gold)]/70 hover:text-[var(--holo-gold)] rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all"
+              title="Reset virtual paper trading balances to starting value"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">RESET PAPER</span>
+            </button>
 
             {/* Download Button */}
             <button 

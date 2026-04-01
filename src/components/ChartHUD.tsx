@@ -152,45 +152,74 @@ export const ChartHUD: React.FC<ChartHUDProps> = ({
 
       {/* 💎 DESKTOP HOLOGRAPHIC HUD 💎 */}
       <div className="hidden md:flex absolute top-4 left-4 z-[105] flex-col gap-2 pointer-events-auto select-none group/hud scale-90 origin-top-left hover:scale-100 transition-transform duration-500">
-        {/* Main Pill Row */}
-        <div className={cn(
-          "backdrop-blur-xl bg-black/40 border border-white/10 p-2.5 rounded-2xl shadow-2xl transition-all duration-500 hover:bg-black/60",
-          isStrong && "ring-1 ring-cyan-500/30 border-cyan-400/40 shadow-[0_0_30px_rgba(34,211,238,0.1)]"
-        )}>
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col min-w-[85px]">
+        {/* Main Pill Row — FIXED WIDTH prevents layout shifts on BULLISH/BEARISH change */}
+        <div
+          className={cn(
+            "backdrop-blur-xl bg-black/40 border border-white/10 p-2.5 rounded-2xl shadow-2xl transition-colors duration-500 hover:bg-black/60 w-[330px] shrink-0",
+            isStrong && "ring-1 ring-cyan-500/30 border-cyan-400/40 shadow-[0_0_30px_rgba(34,211,238,0.1)]"
+          )}
+        >
+          <div className="grid grid-cols-[120px_1px_90px_1px_80px] items-center gap-0">
+
+            {/* Col 1: Brand + Trend */}
+            <div className="flex flex-col pr-3">
               <div className="flex items-center gap-2 mb-1">
                 <div className={cn(
-                  "w-1.5 h-1.5 rounded-full",
+                  "w-1.5 h-1.5 rounded-full shrink-0",
                   isBullish ? "bg-emerald-400 shadow-[0_0_8px_#34d399]" : "bg-rose-400 shadow-[0_0_8px_#f43f5e]",
                   isStrong && "bg-cyan-400 shadow-[0_0_10px_#22d3ee] animate-pulse"
                 )} />
-                   <h3 className="text-white/20 font-black tracking-[0.4em] text-[7px] uppercase leading-none">AI-ALPHA // 2100</h3>
+                <h3 className="text-white/20 font-black tracking-[0.3em] text-[7px] uppercase leading-none whitespace-nowrap">AI-ALPHA // 2100</h3>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={cn("text-xs font-black italic tracking-tighter uppercase", isBullish ? "text-emerald-400" : "text-rose-400")}>
-                  {trend} <span className="text-[8px] text-white/20 ml-1 font-mono">{symbol}</span>
-                </span>
+              {/* Trend text — fixed width + truncate prevents overflow */}
+              <span className={cn("text-xs font-black italic tracking-tight uppercase truncate", isBullish ? "text-emerald-400" : "text-rose-400")}>
+                {trend}
+                <span className="text-[8px] text-white/20 ml-1 font-mono not-italic">{symbol}</span>
+              </span>
+              {/* Trend Strength Micro Bar */}
+              <div className="mt-1.5 h-[3px] w-full bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${strikeProbability}%`,
+                    background: isBullish
+                      ? 'linear-gradient(90deg, #34d399, #00E5FF)'
+                      : 'linear-gradient(90deg, #FF007F, #f43f5e)',
+                    boxShadow: isBullish ? '0 0 6px rgba(52,211,153,0.6)' : '0 0 6px rgba(255,0,127,0.6)',
+                  }}
+                />
               </div>
             </div>
 
-            <div className="pl-4 border-l border-white/10 min-w-[75px] flex flex-col justify-center">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <Target className="w-2 h-2 text-white/20" />
-                <p className="text-[6px] text-white/20 font-black uppercase tracking-widest leading-none">Strike</p>
+            {/* Divider */}
+            <div className="h-8 bg-white/10 mx-2" />
+
+            {/* Col 2: Strike */}
+            <div className="flex flex-col items-center px-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <Target className="w-2 h-2 text-white/20 shrink-0" />
+                <p className="text-[6px] text-white/20 font-black uppercase tracking-widest leading-none whitespace-nowrap">Strike</p>
               </div>
               <p className={cn("text-sm font-black italic leading-none", strikeProbability >= 85 ? "text-cyan-400" : "text-white/80")}>
                 {strikeProbability > 0 ? `${strikeProbability}%` : '---'}
               </p>
             </div>
 
-            <div className="pl-4 border-l border-white/10 min-w-[65px] flex flex-col justify-center">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <Globe className="w-2 h-2 text-white/20" />
-                <p className="text-[6px] text-white/20 font-black uppercase tracking-widest leading-none">Session</p>
+            {/* Divider */}
+            <div className="h-8 bg-white/10 mx-2" />
+
+            {/* Col 3: Session + Confluence dot */}
+            <div className="flex flex-col items-center pl-2">
+              <div className="flex items-center gap-1 mb-0.5">
+                <Globe className="w-2 h-2 text-white/20 shrink-0" />
+                <p className="text-[6px] text-white/20 font-black uppercase tracking-widest leading-none whitespace-nowrap">Session</p>
               </div>
-              <p className="text-[9px] font-black text-white/60 uppercase tracking-tighter leading-none">{session}</p>
+              <p className="text-[9px] font-black text-white/60 uppercase tracking-tight leading-none truncate w-full text-center">{session}</p>
+              {isConfluence && (
+                <div className="mt-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_#22d3ee] mx-auto" title="Confluence Active" />
+              )}
             </div>
+
           </div>
         </div>
 

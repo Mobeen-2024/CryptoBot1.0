@@ -308,12 +308,15 @@ export class TradeCopier {
     const value = quantity * price;
 
     if (side === 'buy') {
-       baseQty += quantity;     // Acquire Base (e.g. BTC)
-       quoteQty -= value;       // Spend Quote (e.g. USDT)
+       baseQty += quantity;            // Acquire Base (e.g. BTC)
+       quoteQty -= value;              // Spend Quote (e.g. USDT)
     } else {
-       baseQty -= quantity;     // Sell Base
-       quoteQty += value;       // Acquire Quote
+       baseQty -= quantity;            // Sell Base
+       quoteQty += value;              // Acquire Quote
     }
+    // Floor balances at 0 to prevent negative display (over-trading simulation artifact)
+    baseQty = Math.max(0, baseQty);
+    quoteQty = Math.max(0, quoteQty);
 
     // Upsert Back to Database
     const upsert = this.db.prepare(`

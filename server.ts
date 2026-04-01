@@ -906,7 +906,28 @@ async function startServer() {
     }
   });
 
-  // Analytics Endpoint (PnL Equity Curve Data)
+  // ─── Shadow Balance Reset Endpoint ─────────────────────────────
+  // Resets the virtual paper trading balance back to the starting amount.
+  app.post('/api/backend/shadow/reset', (req, res) => {
+    try {
+      const isShadow = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
+      if (!isShadow) {
+        return res.status(400).json({ error: 'Not in shadow mode. Live account balances cannot be reset here.' });
+      }
+      const startingBalance = parseFloat(process.env.BINANCE_SHADOW_STARTING_BALANCE || '10000');
+      const db = new Database('trades.db');
+      // Clear all existing shadow balances — they will be re-seeded on next getBalance call
+      db.prepare('DELETE FROM shadow_balances').run();
+      db.close();
+      Logger.info(`[SHADOW] Balances reset. All accounts will re-seed to $${startingBalance} on next access.`);
+      res.json({ message: `Shadow balances reset to $${startingBalance.toLocaleString()}`, startingBalance });
+    } catch (error: any) {
+      Logger.error('Failed to reset shadow balances:', error);
+      res.status(500).json({ error: 'Failed to reset shadow balances' });
+    }
+  });
+
+
   app.get('/api/backend/trades', (req, res) => {
     try {
       // Create a temporary db connection just for this query to keep it clean

@@ -751,3 +751,90 @@ input[type="number"] {
   box-shadow: 0 0 20px rgba(0, 229, 255, 0.3), inset 0 0 10px rgba(0, 229, 255, 0.1);
   color: var(--holo-cyan);
 }
+
+/* ─── Tactical Matrix: Square Scroll Thumb ─────────────────────── */
+.tactical-scrollbar {
+  contain: strict;
+  will-change: scroll-position;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 255, 0.35) transparent;
+}
+
+.tactical-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.tactical-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tactical-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.3);
+  border-radius: 2px; /* purposely square */
+  border: none;
+}
+
+.tactical-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--holo-cyan);
+  box-shadow: 0 0 6px var(--holo-cyan);
+}
+
+/* ─── Vertical Full-Screen Chart Mode ──────────────────────────── */
+.vertical-chart-mode {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  transform: rotate(90deg) !important;
+  transform-origin: center center !important;
+  width: 100vh !important;
+  height: 100vw !important;
+  left: 50% !important;
+  top: 50% !important;
+  margin-left: -50vh !important;
+  margin-top: -50vw !important;
+  border-radius: 0 !important;
+}
+
+/* ─── Bot Node Card Scan Effect ─────────────────────────────────── */
+@keyframes node-scan {
+  0% { transform: translateX(-100%); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+.node-scan::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.06), transparent);
+  animation: node-scan 3s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ─── Access Point Connection Rings ─────────────────────────────── */
+@keyframes ring-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.ap-ring-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--holo-cyan);
+  animation: ring-pulse 1.8s ease-out infinite;
+}
+
+/* ─── Drawing Lock Icon Pulse ────────────────────────────────────── */
+@keyframes lock-pulse {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(252,213,53,0.6)); }
+  50% { filter: drop-shadow(0 0 8px rgba(252,213,53,1)); }
+}
+
+.drawing-locked-icon {
+  animation: lock-pulse 2s ease-in-out infinite;
+}

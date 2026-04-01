@@ -15,7 +15,7 @@ import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
 import { BotPanel } from './components/BotPanel';
 import { MarketWatchlist } from './components/MarketWatchlist';
 import { OpenOrdersPanel } from './components/OpenOrdersPanel';
-import { Menu, X, Bell, User, Search, LayoutGrid, ChevronDown, ChevronRight, Globe, Settings, Wallet, LineChart, CandlestickChart, Layout, Play, History, Shield, TrendingUp, TrendingDown, Clock, Maximize2, Palette, Eye, EyeOff, Trash2, SlidersHorizontal, RefreshCw, Briefcase, Bot, Database } from 'lucide-react';
+import { Menu, X, Bell, User, Search, LayoutGrid, ChevronDown, ChevronRight, Globe, Settings, Wallet, LineChart, CandlestickChart, Layout, Play, History, Shield, TrendingUp, TrendingDown, Clock, Maximize2, Minimize2, Palette, Eye, EyeOff, Trash2, SlidersHorizontal, RefreshCw, Briefcase, Bot, Database, Smartphone } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api';
@@ -220,6 +220,7 @@ export default function App() {
   const [visibleTimeframes, setVisibleTimeframes] = useState(['5m', '15m', '30m', '1h', '8h']);
   const [isTimeSelectorOpen, setIsTimeSelectorOpen] = useState(false);
   const [isIndicatorLegendVisible, setIsIndicatorLegendVisible] = useState(true);
+  const [isVerticalChart, setIsVerticalChart] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -581,9 +582,20 @@ export default function App() {
           )}
 
           {/* Wallet Balance Pill */}
-          <div className="hidden md:flex items-center gap-2 bg-[#0b0e11] border border-[#2b3139] rounded-lg px-2 sm:px-3 py-1.5">
-            <Wallet className="w-3.5 h-3.5 text-[var(--holo-gold)]" />
-            <span className="text-[10px] sm:text-xs font-mono font-bold text-[#eaecef]">${parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          <div className={`hidden md:flex items-center gap-2 bg-[#0b0e11] rounded-lg px-2 sm:px-3 py-1.5 border transition-colors ${
+            parseFloat(balance) < 0
+              ? 'border-[var(--holo-magenta)]/50 shadow-[0_0_10px_rgba(255,0,127,0.15)]'
+              : 'border-[#2b3139]'
+          }`}>
+            <Wallet className={`w-3.5 h-3.5 ${parseFloat(balance) < 0 ? 'text-[var(--holo-magenta)]' : 'text-[var(--holo-gold)]'}`} />
+            <span className={`text-[10px] sm:text-xs font-mono font-bold ${
+              parseFloat(balance) < 0 ? 'text-[var(--holo-magenta)]' : 'text-[#eaecef]'
+            }`}>
+              ${Math.max(0, parseFloat(balance)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
+            {parseFloat(balance) < 0 && (
+              <span className="text-[8px] font-black text-[var(--holo-magenta)] tracking-widest uppercase animate-pulse">RST</span>
+            )}
           </div>
 
           {/* §9.1 Nav Action Buttons (Delta Master Context) */}
@@ -659,8 +671,8 @@ export default function App() {
 
           {/* Chart Panel */}
           <div
-            id="crypto-terminal-chart-wrapper"
-            className="h-[450px] sm:h-[550px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300 bg-black/90"
+          id="crypto-terminal-chart-wrapper"
+            className={`h-[450px] sm:h-[550px] lg:h-auto lg:flex-[3] glass-panel flex flex-col relative overflow-hidden shrink-0 w-full z-0 transition-colors duration-300 bg-black/90${isVerticalChart ? ' vertical-chart-mode' : ''}`}
           >
             {/* Chart Toolbar: Command Center Strip */}
             <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between shrink-0 glass-panel z-20">
@@ -750,17 +762,31 @@ export default function App() {
                     className="p-1.5 text-white/40 hover:text-[var(--holo-gold)] hover:bg-white/5 rounded-full transition-all" title="Advanced Tools">
                     <LayoutGrid className="w-3.5 h-3.5" />
                   </button>
+                  {/* Vertical / Fullscreen Toggle */}
                   <button
                     onClick={() => {
-                      const chartEl = document.getElementById('crypto-terminal-chart-wrapper');
-                      if (!document.fullscreenElement && chartEl) {
-                        chartEl.requestFullscreen().catch(err => console.error(err));
-                      } else if (document.fullscreenElement) {
-                        if (document.exitFullscreen) document.exitFullscreen();
+                      if (isVerticalChart) {
+                        setIsVerticalChart(false);
+                        try { (screen.orientation as any).unlock?.(); } catch {}
+                      } else {
+                        setIsVerticalChart(true);
+                        // Attempt native portrait lock on mobile
+                        try {
+                          (screen.orientation as any).lock?.('portrait-primary').catch?.(() => {});
+                        } catch {}
                       }
                     }}
-                    className="p-1.5 text-white/40 hover:text-[var(--holo-cyan)] hover:bg-white/5 rounded-full transition-all" title="Toggle Fullscreen">
-                    <Maximize2 className="w-3.5 h-3.5" />
+                    className={`p-1.5 rounded-full transition-all hover:bg-white/5 ${
+                      isVerticalChart
+                        ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 shadow-[0_0_10px_rgba(0,229,255,0.3)]'
+                        : 'text-white/40 hover:text-[var(--holo-cyan)]'
+                    }`}
+                    title={isVerticalChart ? 'Exit Vertical Mode' : 'Vertical Full Screen'}
+                  >
+                    {isVerticalChart
+                      ? <Minimize2 className="w-3.5 h-3.5" />
+                      : <Smartphone className="w-3.5 h-3.5" />
+                    }
                   </button>
                 </div>
               </div>
@@ -879,7 +905,7 @@ export default function App() {
                   <div className="flex items-center justify-center gap-2 bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] drop-shadow-[0_0_8px_var(--holo-cyan-glow)] text-[9px] sm:text-[10px] font-bold uppercase tracking-widest py-1 sm:py-1.5 rounded-lg shadow-[0_4px_20px_var(--holo-cyan-glow)] backdrop-blur-md">
                     <div className="glow-dot-sm bg-[var(--holo-cyan)]" /> Bullish Hand
                   </div>
-                  <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(balance)} baseBalance={parseFloat(baseBalance)} onPlaceOrder={handlePlaceOrder} />
+                  <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={Math.max(0, parseFloat(balance))} baseBalance={Math.max(0, parseFloat(baseBalance))} onPlaceOrder={handlePlaceOrder} />
                 </div>
 
                 {/* Bearish Account */}

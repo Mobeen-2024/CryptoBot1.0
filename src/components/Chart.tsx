@@ -153,6 +153,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
   });
 
   const [isMobileMatrixOpen, setIsMobileMatrixOpen] = useState(false);
+  const [isMobileDrawingOpen, setIsMobileDrawingOpen] = useState(false);
 
   const [htmlMarkers, setHtmlMarkers] = useState<any[]>([]);
   const htmlMarkersRef = useRef<any[]>([]);
@@ -1633,6 +1634,9 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
 
           // Supply/Demand Clouds
           if (showStructuralLevels) {
+            const timeStep = data.length > 1 ? (data[data.length - 1].time as number - (data[data.length - 2].time as number)) : 60;
+            const futureExtension = timeStep * 50;
+
             levels.forEach((lvl, idx) => {
               const poolIdx = idx * 2;
               if (poolIdx + 1 >= backgroundPoolRef.current.length) return;
@@ -1643,14 +1647,14 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               shell.applyOptions({ visible: true, topColor: `rgba(${baseColor}, ${lvl.isBroken ? 0.04 : 0.08})`, bottomColor: `rgba(${baseColor}, 0.01)` });
               const historicalPoints = data.filter(d => d.time >= lvl.startTime).map(d => ({ time: d.time, value: Math.max(lvl.priceWick, lvl.priceBody) }));
               if (historicalPoints.length > 0) {
-                historicalPoints.push({ time: (historicalPoints[historicalPoints.length - 1].time + 31536000) as UTCTimestamp, value: Math.max(lvl.priceWick, lvl.priceBody) });
+                historicalPoints.push({ time: (historicalPoints[historicalPoints.length - 1].time + futureExtension) as UTCTimestamp, value: Math.max(lvl.priceWick, lvl.priceBody) });
                 shell.setData(historicalPoints);
               }
               core.applyOptions({ visible: true, topColor: `rgba(${baseColor}, ${lvl.isBroken ? 0.06 : 0.2})`, bottomColor: `rgba(${baseColor}, 0.1)` });
               const coreHeight = Math.abs(lvl.priceWick - lvl.priceBody) * 0.4;
               const corePoints = data.filter(d => d.time >= lvl.startTime).map(d => ({ time: d.time, value: lvl.pricePOC + coreHeight / 2 }));
               if (corePoints.length > 0) {
-                corePoints.push({ time: (corePoints[corePoints.length - 1].time + 31536000) as UTCTimestamp, value: lvl.pricePOC + coreHeight / 2 });
+                corePoints.push({ time: (corePoints[corePoints.length - 1].time + futureExtension) as UTCTimestamp, value: lvl.pricePOC + coreHeight / 2 });
                 core.setData(corePoints);
               }
               const labelPrefix = lvl.isBroken ? `BREAKER ${lvl.type === 'support' ? 'RES' : 'SUP'}` : lvl.type.toUpperCase();
@@ -1703,6 +1707,20 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
     }
   }, [symbol]);
 
+  // Cross-Timeframe Fix: Recalculate targetTime from widthInCandles when interval changes
+  useEffect(() => {
+    setDrawings(prev => prev.map((d: any) => {
+      if ((d.type === 'long_position' || d.type === 'short_position') && d.widthInCandles) {
+        const intervalMs = getIntervalMs(chartInterval);
+        const newTargetTime = d.entryTime + (d.widthInCandles * intervalMs / 1000);
+        return { ...d, targetTime: newTargetTime };
+      }
+      return d;
+    }));
+  }, [chartInterval]);
+
+
+
   // Save drawings on change with small delay (Auto-Save)
   useEffect(() => {
     if (drawings.length === 0 && !localStorage.getItem(`chart_drawings_${storageKey}`)) return;
@@ -1735,7 +1753,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       const slSeries = userPositionsPoolRef.current[slPoolIdx];
 
       const startTime = pos.entryTime as UTCTimestamp;
-      const endTime = (pos.targetTime || (pos.entryTime + 36000)) as UTCTimestamp;
+      const timeStep = data.length > 1 ? (data[data.length - 1].time as number - (data[data.length - 2].time as number)) : 60;
+      const endTime = (pos.targetTime || (pos.entryTime + timeStep * 60)) as UTCTimestamp;
 
       // --- PRO RENDERING FIX: Use synthetic points to ensure future projection works ---
       // AreaSeries needs at least 2 points to render width. 
@@ -1897,10 +1916,10 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
           </div>
         </div>
 
-        {/* The Sliding Panel */}
+        {/* The Sliding Panel — opacity+scale only for GPU-friendly compositing */}
         <div className={cn(
-          "absolute right-0 top-0 bottom-0 w-80 glass-panel-modern shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-700 ease-[cubic-bezier(0.19,1,0.22,1)]",
-          "opacity-0 scale-95 translate-x-10 pointer-events-none group-hover/matrix:opacity-100 group-hover/matrix:scale-100 group-hover/matrix:translate-x-0 group-hover/matrix:pointer-events-auto"
+          "absolute right-0 top-0 bottom-0 w-80 glass-panel-modern shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-[var(--holo-cyan)]/20 flex flex-col pointer-events-auto transition-all duration-500 ease-out will-change-transform",
+          "opacity-0 scale-[0.97] pointer-events-none group-hover/matrix:opacity-100 group-hover/matrix:scale-100 group-hover/matrix:pointer-events-auto"
         )}>
           {/* Edge Glowing Handle */}
           <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/30 to-transparent" />
@@ -1917,8 +1936,8 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
             <p className="text-[9px] text-[var(--holo-cyan)]/50 uppercase tracking-[0.3em] font-mono mt-2 pl-7 relative z-10">Neural_Link // Active</p>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+          {/* Scrollable Content — tactical-scrollbar gives square thumb + GPU-isolated scroll */}
+          <div className="flex-1 overflow-y-auto tactical-scrollbar p-6 space-y-8">
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-1 h-1 rounded-full bg-[var(--holo-cyan)]" />
@@ -1975,8 +1994,11 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[150] h-16 phantom-dock-glass flex items-center justify-around px-4 pb-safe">
         {/* Drawing Tools Trigger */}
         <button
-          onClick={() => setIsMobileMatrixOpen(false)} // Just a placeholder for now, maybe we toggle a sub-strip
-          className="flex flex-col items-center gap-1 text-white/40 active:text-[var(--holo-cyan)] transition-colors"
+          onClick={() => setIsMobileDrawingOpen(prev => !prev)}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-colors",
+            isMobileDrawingOpen ? "text-[var(--holo-cyan)]" : "text-white/40 active:text-[var(--holo-cyan)]"
+          )}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /></svg>
           <span className="text-[8px] font-black uppercase tracking-widest">Tools</span>
@@ -2025,7 +2047,7 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar pb-16">
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 tactical-scrollbar pb-16">
               <section>
                 <p className="text-[10px] text-white/20 uppercase mb-4 font-black tracking-[0.2em]">Alpha Intelligence</p>
                 <div className="space-y-2">
@@ -2053,7 +2075,92 @@ export const Chart: React.FC<ChartProps> = ({ data, symbol, chartInterval, mainI
       )}
 
 
+      {/* ═══════════════ MOBILE DRAWING TOOLS SHEET ═══════════════ */}
+      {isMobileDrawingOpen && createPortal(
+        <div className="md:hidden fixed inset-0 z-[1001] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileDrawingOpen(false)} />
+          <div className="relative w-full glass-panel-modern rounded-t-[2.5rem] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-400 pb-20">
+            {/* Pull Handle */}
+            <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mt-3 mb-1" />
+            {/* Header */}
+            <div className="px-6 pt-4 pb-3 border-b border-white/5 flex items-center justify-between">
+              <div>
+                <h3 className="text-xs uppercase tracking-[0.3em] font-black text-white">Drawing Tools</h3>
+                <p className="text-[8px] text-[var(--holo-cyan)] font-mono mt-1 tracking-widest uppercase">
+                  {activeTool === 'none' ? 'Select a tool' : activeTool.replace('_', ' ').toUpperCase() + ' — Active'}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsMobileDrawingOpen(false)}
+                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 active:scale-95 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Tool Grid */}
+            <div className="grid grid-cols-3 gap-3 p-6">
+              {([
+                { id: 'none',           label: 'Select',   icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5',                                                     color: '#ffffff' },
+                { id: 'trendline',      label: 'Trendline',icon: 'M5 19L19 5M9 19l-4-4M5 15l4-4',                                                           color: '#00E5FF' },
+                { id: 'horizontal',     label: 'H-Line',   icon: 'M5 12h14',                                                                                 color: '#fcd535' },
+                { id: 'long_position',  label: 'Long',     icon: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7 M12 18v-6 M9 15h6', color: '#00FF9D' },
+                { id: 'short_position', label: 'Short',    icon: 'M13 18v-6 M9 15h6 M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7',  color: '#FF007F' },
+                { id: 'annotation',     label: 'Note',     icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',                           color: '#bc13fe' },
+              ] as { id: DrawingTool; label: string; icon: string; color: string }[]).map(tool => {
+                const isActive = activeTool === tool.id;
+                return (
+                  <button
+                    key={tool.id}
+                    onClick={() => {
+                      setActiveTool(isActive ? 'none' : tool.id);
+                      setIsMobileDrawingOpen(false);
+                    }}
+                    className={cn(
+                      "flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all active:scale-95",
+                      isActive
+                        ? "bg-white/10 border-white/20 shadow-lg"
+                        : "bg-white/[0.03] border-white/5 hover:bg-white/8"
+                    )}
+                    style={isActive ? { boxShadow: `0 0 16px ${tool.color}40`, borderColor: `${tool.color}60` } : {}}
+                  >
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                      stroke={isActive ? tool.color : 'rgba(255,255,255,0.4)'}
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <path d={tool.icon} />
+                    </svg>
+                    <span
+                      className="text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: isActive ? tool.color : 'rgba(255,255,255,0.4)' }}
+                    >
+                      {tool.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Clear Button */}
+            <div className="px-6 pb-4">
+              <button
+                onClick={() => {
+                  localStorage.removeItem(`chart_drawings_${symbol.replace('/', '')}`);
+                  setActiveTool('none');
+                  window.dispatchEvent(new CustomEvent('clearDrawings', { detail: { symbol } }));
+                  setIsMobileDrawingOpen(false);
+                }}
+                className="w-full py-3 rounded-2xl bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)] text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <Trash2 className="w-4 h-4" /> Clear All Drawings
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+
       {/* ═══════════════ PHANTOM MAGNETIC DRAWING DOCK (Desktop Stealth) ═══════════════ */}
+
       <div className="hidden md:flex absolute left-0 inset-y-0 w-8 z-[200] group/tools-trigger items-center justify-start pointer-events-auto">
         {/* Visual Edge Handle (Subtle hint) */}
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-24 rounded-r-full bg-gradient-to-b from-transparent via-[var(--holo-cyan)]/20 to-transparent group-hover/tools-trigger:opacity-0 transition-opacity" />

@@ -146,6 +146,25 @@ type OrderState = {
   )};
 
 
+// ─── TPSL Persistence Helpers ──────────────────────────────────────────────
+const TPSL_KEY = 'order_tpsl_v2';
+const loadTPSL = (): { takeProfit: number | ''; slTrigger: number | ''; slLimit: number | '' } => {
+  try {
+    const raw = localStorage.getItem(TPSL_KEY);
+    if (!raw) return { takeProfit: '', slTrigger: '', slLimit: '' };
+    return JSON.parse(raw);
+  } catch {
+    return { takeProfit: '', slTrigger: '', slLimit: '' };
+  }
+};
+
+const saveTPSL = (data: { takeProfit: number | ''; slTrigger: number | ''; slLimit: number | '' }) => {
+  try {
+    localStorage.setItem(TPSL_KEY, JSON.stringify(data));
+  } catch {}
+};
+
+
 export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, balance, baseBalance, onPlaceOrder }) => {
   const baseAsset = symbol.replace('USDT', '');
   const quoteAsset = 'USDT';
@@ -157,6 +176,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
   const [isLeverageModalOpen, setIsLeverageModalOpen] = useState(false);
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [isDraggingSlider, setIsDraggingSlider] = useState(false);
+
+  // Load persisted TPSL on mount
+  const savedTPSL = loadTPSL();
 
   // Unified state object
   const [os, setOs] = useState<OrderState>({
@@ -170,14 +192,27 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
     leverage: 10,
     autoBorrow: false,
     autoRepay: false,
-    showTPSL: false,
-    takeProfit: '',
-    slTrigger: '',
-    slLimit: '',
+    showTPSL: (savedTPSL.takeProfit !== '' || savedTPSL.slTrigger !== ''),
+    takeProfit: savedTPSL.takeProfit,
+    slTrigger: savedTPSL.slTrigger,
+    slLimit: savedTPSL.slLimit,
     isIceberg: false
   });
 
-  const updateOs = (updates: Partial<OrderState>) => setOs(prev => ({ ...prev, ...updates }));
+  const updateOs = (updates: Partial<OrderState>) => {
+    setOs(prev => {
+      const next = { ...prev, ...updates };
+      // Persist TPSL whenever any relevant field changes
+      if ('takeProfit' in updates || 'slTrigger' in updates || 'slLimit' in updates) {
+        saveTPSL({
+          takeProfit: next.takeProfit,
+          slTrigger: next.slTrigger,
+          slLimit: next.slLimit
+        });
+      }
+      return next;
+    });
+  };
 
   // 2035 Cyberpunk Color Palette 
   const activeColor = os.mode === 'BUY' ? 'var(--holo-cyan)' : 'var(--holo-magenta)'; // Emerald / Crimson
@@ -325,15 +360,12 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
       isIceberg: os.isIceberg
     });
     
-    // Clear fields upon submission
+    // Clear quantity/price fields upon submission, but KEEP TP/SL for next order
     updateOs({
       quantity: '',
       total: '',
       stopPrice: '',
       limitPrice: '',
-      takeProfit: '',
-      slTrigger: '',
-      slLimit: ''
     });
 
     setShowConfirmModal(false);
