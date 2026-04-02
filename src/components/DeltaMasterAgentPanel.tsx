@@ -13,12 +13,18 @@ interface DeltaMasterState {
   entryA: number;
   entryB: number;
   symbol: string;
-  liqPriceA: number;
-  hedgeRatio: number;
   availableMarginB: number;
   dmsStatus: string;
   tpTiers: { price: number; qty: number; status: 'waiting' | 'filled'; tier: number }[];
   slOrder: { id: string; price: number; qty: number; status: 'open' | 'filled' | 'closed'; isBreakEven: boolean } | null;
+  hedgeStatus: 'inactive' | 'pending' | 'active';
+  hedgeQty: number;
+  intelligence?: {
+    sentiment: number;
+    regime: string;
+    volatilityScore: number;
+    liquidityScore: number;
+  }
 }
 
 export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) => {
@@ -38,29 +44,75 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
     availableMarginB: 0,
     dmsStatus: 'inactive',
     tpTiers: [],
-    slOrder: null
+    slOrder: null,
+    hedgeStatus: 'inactive',
+    hedgeQty: 0,
+    intelligence: undefined
   });
+
+  // WebSocket Health State
+  const [wsConnected, setWsConnected] = useState(false);
+  const [lastSync, setLastSync] = useState<number>(Date.now());
+  const [latency, setLatency] = useState(0);
 
   // Config State
   const [qtyA, setQtyA] = useState('0.1');
   const [qtyB, setQtyB] = useState('0.1');
   const [leverA, setLeverA] = useState(10);
-  const [leverB, setLeverB] = useState(10);
-  const [entryOffset, setEntryOffset] = useState(100); // USD offset
+  const [leverB, setLeverB] = useState(20);
+  const [entryOffset, setEntryOffset] = useState(5); // Locked 5 USDT Buffer
   const [sideA, setSideA] = useState<'buy' | 'sell'>('buy');
 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
         const res = await fetch('/api/delta-master/status');
-        if (res.ok) setState(await res.json());
+        if (res.ok) {
+          const data = await res.json();
+          setState(data);
+          setLastSync(Date.now());
+        }
       } catch {}
     };
+    
     fetchStatus();
 
     // Listen for WebSocket updates
     if ((window as any).socket) {
-      (window as any).socket.on('delta_master_status', (data: DeltaMasterState) => setState(data));
+      const socket = (window as any).socket;
+      
+      const handleStatusUpdate = (data: DeltaMasterState) => {
+        setState(data);
+        setLastSync(Date.now());
+        setWsConnected(true);
+      };
+
+      socket.on('connect', () => {
+        setWsConnected(true);
+        fetchStatus(); // Auto-resync on reconnection
+      });
+
+      socket.on('disconnect', () => setWsConnected(false));
+      socket.on('connect_error', () => setWsConnected(false));
+      socket.on('delta_master_status', handleStatusUpdate);
+      
+      // Ping mechanism for latency
+      const interval = setInterval(() => {
+        if (socket.connected) {
+          const start = Date.now();
+          socket.emit('ping_telemetry', () => {
+            setLatency(Date.now() - start);
+          });
+        }
+      }, 5000);
+
+      return () => {
+        socket.off('connect');
+        socket.off('disconnect');
+        socket.off('connect_error');
+        socket.off('delta_master_status', handleStatusUpdate);
+        clearInterval(interval);
+      };
     }
   }, []);
 
@@ -122,6 +174,16 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         </div>
         
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-2xl border border-white/5 backdrop-blur-md">
+            <div className={cn(
+              "w-1.5 h-1.5 rounded-full transition-all duration-300",
+              wsConnected ? "bg-emerald-400 shadow-[0_0_8px_#10b981]" : "bg-rose-500 shadow-[0_0_8px_#f43f5e]"
+            )} />
+            <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">
+              {wsConnected ? `SYNCED: ${latency}ms` : 'LINK SEVERED'}
+            </span>
+          </div>
+
           <div className={cn(
             "px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
             state.isActive ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : "bg-gray-500/10 border-gray-500/20 text-gray-400"
@@ -323,25 +385,27 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
           </div>
 
           <div className="glass-panel p-6 rounded-3xl border-white/5 flex flex-col justify-between">
-             <div className="space-y-4">
-                <div className="space-y-1.5">
-                   <div className="flex justify-between items-center px-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Insurance Entry Offset (USD)</label>
-                      <span className="text-[10px] font-mono text-amber-400 font-bold">${entryOffset}</span>
-                   </div>
-                   <input 
-                     type="range" min="0" max="1000" step="10" 
-                     value={entryOffset} onChange={(e) => setEntryOffset(Number(e.target.value))} 
-                     className="w-full h-1.5 bg-black/40 rounded-lg appearance-none cursor-pointer accent-amber-500" 
-                   />
-                </div>
-                <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-start gap-3">
-                   <AlertCircle className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                   <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
-                      Account B will sit as a <span className="text-indigo-300 font-bold">Delta-Neutral Offset</span> to Account A. In the event of a catastrophic reversal, Account B's liquidation profit is mathematically synchronized to cover Account A's principal drawdown.
-                   </p>
-                </div>
-             </div>
+              <div className="space-y-4">
+                 <div className="flex justify-between items-center px-1">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tighter">Insurance Buffer Zone</span>
+                    <span className="text-[10px] font-mono text-amber-400 font-bold">${entryOffset} USDT</span>
+                 </div>
+                 <input 
+                    type="range" min="5" max="50" step="5" 
+                    value={entryOffset} onChange={(e) => setEntryOffset(Number(e.target.value))} 
+                    className="w-full h-1.5 bg-black/40 rounded-lg appearance-none cursor-pointer accent-amber-500" 
+                 />
+
+                 <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-start gap-3">
+                    <Shield className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                       <span className="text-[10px] font-black uppercase text-amber-400 tracking-widest">Recursive Shield Engine</span>
+                       <p className="text-[9px] text-gray-400 leading-relaxed font-medium">
+                         Account B size is mathematically solved to ensure <span className="text-amber-300 font-bold">Delta Neutrality</span>. System includes automated break-even recovery and recursive re-entry.
+                       </p>
+                    </div>
+                 </div>
+              </div>
 
              <button 
                onClick={handleStart} 
@@ -363,19 +427,24 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
               </div>
               
               <div className="flex items-center justify-between mb-6">
-                 <div className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1">Managed Exit Engine</span>
-                    <h3 className="text-lg font-black uppercase tracking-tighter">Tiered Capital Extraction</h3>
+                 <div className="flex gap-2">
+                    <div className={cn(
+                      "px-3 py-1 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center gap-2",
+                      state.hedgeStatus === 'active' ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : 
+                      state.hedgeStatus === 'pending' ? "bg-blue-500/10 border-blue-500/30 text-blue-400 animate-pulse" : 
+                      "bg-gray-500/10 border-gray-500/20 text-gray-500"
+                    )}>
+                       SHIELD: {state.hedgeStatus.toUpperCase()}
+                    </div>
+                    {state.slOrder && (
+                      <div className={cn(
+                        "px-3 py-1 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center gap-2",
+                        state.slOrder.isBreakEven ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                      )}>
+                         SL: {state.slOrder.isBreakEven ? 'B/E' : 'PROT'} (${state.slOrder.price.toLocaleString()})
+                      </div>
+                    )}
                  </div>
-                 {state.slOrder && (
-                   <div className={cn(
-                     "px-4 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
-                     state.slOrder.isBreakEven ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"
-                   )}>
-                      <StopCircle className="w-3 h-3" />
-                      SL: {state.slOrder.isBreakEven ? 'BREAK-EVEN' : 'PROTECTIVE'} (${state.slOrder.price.toLocaleString()})
-                   </div>
-                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -402,7 +471,87 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                     );
                  })}
               </div>
+
+              {state.phase === 'PRINCIPAL_RECOVERY' && (
+                 <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                       <Zap className="w-4 h-4 text-red-400 animate-pulse" />
+                       <span className="text-[10px] font-black text-red-400 uppercase tracking-widest">Shield-Only Mode Active</span>
+                    </div>
+                    <span className="text-[9px] font-medium text-gray-400 italic">Capturing Momentum Recovery</span>
+                 </div>
+              )}
            </div>
+
+           {/* Agentic Reasoning / Bot Pilot HUD */}
+           {state.intelligence && (
+             <div className="glass-panel border-indigo-500/30 bg-indigo-500/5 p-6 rounded-[2rem] mb-6 relative overflow-hidden animate-in fade-in slide-in-from-right-4 duration-700">
+                <div className="flex items-center justify-between mb-6">
+                   <div className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1">Bot Pilot Intelligence</span>
+                      <h3 className="text-lg font-black uppercase tracking-tighter">Operational Reasoning</h3>
+                   </div>
+                   <div className={cn(
+                      "px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
+                      state.intelligence.regime === 'STABLE_TREND' ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+                      state.intelligence.regime === 'HIGH_VOLATILITY' ? "bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse" :
+                      "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                   )}>
+                      Regime: {state.intelligence.regime}
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                   {/* Sentiment Meter */}
+                   <div className="space-y-3">
+                      <div className="flex justify-between items-center px-1">
+                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Market Sentiment</span>
+                         <span className={cn(
+                           "text-[10px] font-mono font-bold",
+                           state.intelligence.sentiment >= 0 ? "text-emerald-400" : "text-rose-400"
+                         )}>
+                            {(state.intelligence.sentiment * 100).toFixed(1)}% {state.intelligence.sentiment >= 0 ? 'BULLISH' : 'BEARISH'}
+                         </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden flex">
+                         <div 
+                           className="h-full bg-rose-500 transition-all duration-1000" 
+                           style={{ width: `${Math.max(0, -state.intelligence.sentiment * 50 + 50)}%` }} 
+                         />
+                         <div 
+                           className="h-full bg-emerald-500 transition-all duration-1000" 
+                           style={{ width: `${Math.max(0, state.intelligence.sentiment * 50 + 50)}%` }} 
+                         />
+                      </div>
+                   </div>
+
+                   {/* Vol_Liq Stats */}
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-black/20 p-4 rounded-2xl border border-white/5 flex flex-col gap-1">
+                         <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">Volatility</span>
+                         <span className={cn(
+                           "text-xl font-black font-mono tracking-tighter",
+                           state.intelligence.volatilityScore > 70 ? "text-rose-400" : "text-white"
+                         )}>
+                            {state.intelligence.volatilityScore.toFixed(1)} <span className="text-[10px] text-gray-600">σ</span>
+                         </span>
+                      </div>
+                      <div className="bg-black/20 p-4 rounded-2xl border border-white/5 flex flex-col gap-1">
+                         <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">Liquidity Score</span>
+                         <span className="text-xl font-black font-mono tracking-tighter text-emerald-400">
+                            {state.intelligence.liquidityScore.toFixed(0)} <span className="text-[10px] text-gray-600">pts</span>
+                         </span>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+                   <p className="text-[10px] text-indigo-300/80 italic font-medium leading-relaxed">
+                      "Agentic Pilot adjusting Entry Offset autonomously to compensate for {state.intelligence.regime.toLowerCase()} and {state.intelligence.sentiment >= 0 ? 'Bullish' : 'Bearish'} sentiment bias. Insurance buffer recalibrated for Anti-Fragility."
+                   </p>
+                </div>
+             </div>
+           )}
 
            <button 
              onClick={handleStop}

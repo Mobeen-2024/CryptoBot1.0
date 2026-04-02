@@ -4,6 +4,11 @@ You are building a **Professional Dual-Account Crypto Copy-Trading Terminal** de
 
 The entire system is styled to match the exact "Dark Theme" aesthetics of the Binance Futures UI, prioritizing real-time data precision, geometric indicators, and ultra-fast trade execution.
 
+- [x] Insurance Engine (5 USDT Offset, Delta-Neutral Sizing)
+- [x] Recursive Vigilance (Break-Even Re-entry, Shield-Only Mode)
+- [x] Advanced HUD Telemetry (State Visualization)
+- [x] Shadow Mode Verification
+
 ---
 
 ### 1. The Real-Time Charting Engine (The Visual Core)
@@ -19,6 +24,22 @@ The centerpiece of the application is a custom-engineered `Lightweight Charts` c
     *   **SuperTrend (Light Version):** A dynamically generated stair-step trend line paired with a 15% opacity shaded "cloud" fill representing the active trend zone.
     *   **Custom Average Price Lines:** User-controlled Buy and Sell dashed entry lines spanning across the chart that terminate in **Floating Edge Pills** on the left axis tracking exact price coordinates.
     *   **Trade History Pills:** Simulated "B" (Buy) and "S" (Sell) marker stamps layered physically onto the candlesticks to visualize historical execution points.
+
+### Phase 5.2 - Recursive Vigilance (Delta)
+- **Break-Even Trend Recovery**: Automated closing of hedge if price reverses, followed by immediate re-arming.
+- **Recursive Re-entry**: Implemented `redeployHedge()` for autonomous trigger restoration.
+- **Shield-Only Momentum Capture**: Integrated `PRINCIPAL_RECOVERY` phase to hold Account B gains.
+
+### Phase 5.3 - Binance Master Parity
+- **Tiered Exit Engine**: 1% SL and tiered TPs (2%, 3%, 4%, 5%) for spot accounts.
+- **Recursive Shielding**: Shared logic with Delta Master to ensure uniform capital protection.
+- **Fuchsia HUD Upgrade**: High-telemetry Managed Exit HUD synchronized with HMAC signature chains.
+- **Spot Alpha Momentum**: Principal recovery mode adapted for spot/margin dual-account mechanics.
+
+### Phase 5.4 - WebSocket Hardening (Stability)
+- **Pulse Heartbeat Responder**: Implemented `ping_telemetry` on server-side for millisecond-precision latency tracking.
+- **Auto-Sync Recovery**: UI now automatically triggers a full state re-fetch upon socket reconnection.
+- **Sync Hub UI**: Integrated high-visibility connection health indicators in all agentic panels.
 
 ---
 

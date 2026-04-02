@@ -87,8 +87,9 @@ export class DeltaExchangeService {
   public async placeOrder(client: any, symbol: string, type: string, side: 'buy' | 'sell', amount: number, price?: number, params: any = {}) {
     if (this.isShadowMode) {
       const simulatedId = `sim_delta_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-      Logger.info(`[DELTA_SHADOW] ${side.toUpperCase()} ${amount} ${symbol} @ ${price || 'MARKET'}`);
-      return { id: simulatedId, symbol, side, amount, price, status: 'closed', simulated: true };
+      const triggerInfo = params.stopPrice ? ` (STOP: ${params.stopPrice})` : '';
+      Logger.info(`[DELTA_SHADOW] ${type.toUpperCase()} ${side.toUpperCase()} ${amount} ${symbol} @ ${price || 'MARKET'}${triggerInfo}`);
+      return { id: simulatedId, symbol, side, amount, price, status: 'open', simulated: true, type, params };
     }
 
     try {
@@ -104,6 +105,27 @@ export class DeltaExchangeService {
       return { last: 65000 + (Math.random() * 100 - 50), info: {}, simulated: true };
     }
     return await this.clientA.fetchTicker(symbol);
+  }
+
+  public async fetchLiquidityMetrics(symbol: string) {
+    if (this.isShadowMode) {
+      return { spread: 0.5, spreadPct: 0.0001, depth1Pct: 10, last: 65000 };
+    }
+    const orderbook = await this.clientA.fetchOrderBook(symbol, 20);
+    const ticker = await this.clientA.fetchTicker(symbol);
+    
+    const bid = orderbook.bids[0][0];
+    const ask = orderbook.asks[0][0];
+    const spread = ask - bid;
+    const spreadPct = (spread / bid) * 100;
+    
+    // Measure 1% Depth (Total Liquidity within 1% of mid)
+    const mid = (bid + ask) / 2;
+    const depth1Pct = orderbook.bids
+      .filter(([p]) => p >= mid * 0.99)
+      .reduce((sum, [_, q]) => sum + q, 0);
+
+    return { spread, spreadPct, depth1Pct, last: ticker.last };
   }
 
   public async fetchBalance(client: any) {

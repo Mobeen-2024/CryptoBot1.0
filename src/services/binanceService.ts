@@ -84,6 +84,24 @@ export class BinanceService {
     return await this.clientA.fetchTicker(symbol);
   }
 
+  public async fetchLiquidityMetrics(symbol: string) {
+    const ticker = await this.clientA.fetchTicker(symbol);
+    const orderbook = await this.clientA.fetchOrderBook(symbol, 20);
+    
+    const bid = orderbook.bids[0][0];
+    const ask = orderbook.asks[0][0];
+    const spread = ask - bid;
+    const spreadPct = (spread / bid) * 100;
+    
+    // Measure 1% Depth (Total Liquidity within 1% of mid)
+    const mid = (bid + ask) / 2;
+    const depth1Pct = orderbook.bids
+      .filter(([p]) => p >= mid * 0.99)
+      .reduce((sum, [_, q]) => sum + q, 0);
+
+    return { spread, spreadPct, depth1Pct, last: ticker.last };
+  }
+
   public async fetchBalance(client: any) {
     if (this.isShadowMode) {
       return { USDT: { free: 10000, total: 10000 }, simulated: true };
@@ -94,5 +112,46 @@ export class BinanceService {
   public async closePosition(client: any, symbol: string, side: 'buy' | 'sell', amount: number) {
     // For Spot, "closing" means selling what you bought or buying what you sold
     return await this.placeOrder(client, symbol, 'market', side === 'buy' ? 'sell' : 'buy', amount);
+  }
+
+  public async cancelOrder(client: any, orderId: string, symbol: string) {
+    if (this.isShadowMode) {
+      Logger.info(`[BINANCE_SHADOW] CANCEL ORDER: ${orderId}`);
+      return { id: orderId, status: 'canceled', simulated: true };
+    }
+    return await client.cancelOrder(orderId, symbol);
+  }
+
+  public async cancelAllOrders(client: any, symbol: string) {
+    if (this.isShadowMode) {
+      Logger.info(`[BINANCE_SHADOW] CANCEL ALL ORDERS: ${symbol}`);
+      return { status: 'success', simulated: true };
+    }
+    try {
+      return await client.cancelAllOrders(symbol);
+    } catch (error) {
+      // Fallback for clients that don't support cancelAllOrders directly
+      const openOrders = await client.fetchOpenOrders(symbol);
+      for (const order of openOrders) {
+        await this.cancelOrder(client, order.id, symbol);
+      }
+      return { status: 'success' };
+    }
+  }
+
+  public async editOrder(client: any, orderId: string, symbol: string, type: 'market' | 'limit', side: 'buy' | 'sell', amount: number, price?: number, params: any = {}) {
+    if (this.isShadowMode) {
+      Logger.info(`[BINANCE_SHADOW] EDIT ORDER ${orderId} -> ${side.toUpperCase()} ${amount} ${symbol} @ ${price || 'MARKET'}`);
+      return { id: orderId, symbol, side, amount, price, status: 'closed', simulated: true };
+    }
+    
+    // For Binance Spot, CCXT editOrder usually cancels and re-places
+    try {
+      await this.cancelOrder(client, orderId, symbol);
+      return await this.placeOrder(client, symbol, type, side, amount, price, params);
+    } catch (error) {
+      Logger.error(`Binance Order Edit Failed (${orderId}):`, error);
+      throw error;
+    }
   }
 }

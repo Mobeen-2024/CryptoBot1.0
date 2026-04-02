@@ -16,6 +16,7 @@ import { TradeCopier } from './tradeCopier';
 import { DeltaNeutralBot } from './src/services/deltaNeutralBot.js';
 import { DeltaMasterBot } from './src/services/deltaMasterBot.js';
 import { BinanceMasterBot } from './src/services/binanceMasterBot.js';
+import { IntelligenceService } from './src/services/intelligenceService.js';
 import { Logger as LoggerJs } from './logger.js';
 
 dotenv.config({ quiet: true });
@@ -83,6 +84,12 @@ async function startServer() {
 
   io.on('connection', (socket) => {
     Logger.info(`New client connected to UI WebSockets: ${socket.id}`);
+    
+    // Heartbeat for frontend telemetry-health tracking
+    socket.on('ping_telemetry', (cb) => {
+      if (typeof cb === 'function') cb();
+    });
+
     socket.on('disconnect', () => {
       Logger.info(`Client disconnected: ${socket.id}`);
     });
@@ -568,6 +575,20 @@ async function startServer() {
 
   app.get('/api/binance-master/status', (req, res) => {
     res.json(binanceMasterBot.getStatus());
+  });
+
+  // ─── Intelligence & Agentic Reasoning Endpoints ───
+  app.post('/api/intelligence/sentiment-override', (req, res) => {
+    try {
+      const { symbol, score } = req.body;
+      if (!symbol || score === undefined) {
+        return res.status(400).json({ error: 'symbol and score (-1 to 1) are required' });
+      }
+      IntelligenceService.getInstance().setSentiment(symbol, score);
+      res.json({ message: `Sentiment for ${symbol} overridden to ${score}` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   const handleBinanceError = (error: any, res: express.Response, defaultMessage: string) => {
