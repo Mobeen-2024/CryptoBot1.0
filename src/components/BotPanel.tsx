@@ -35,70 +35,70 @@ interface TopDownLevel {
 }
 
 interface BotConfig {
-  id: string; 
-  name: string; 
+  id: string;
+  name: string;
   strategyType: BotStrategyType;
   marketCondition: MarketCondition;
   direction: MarketDirection;
-  accessPointId: string; 
-  pair: string; 
+  accessPointId: string;
+  pair: string;
   status: BotStatus;
-  orderVolume: number; 
-  takeProfit: number; 
+  orderVolume: number;
+  takeProfit: number;
   stopLoss: number;
-  
+
   // Top-Down Analysis Data
   weeklyBias: MarketDirection;
   dailyBias: MarketDirection;
   primaryTimeframe: PrimaryTimeframe;
   keyLevels: TopDownLevel[];
-  
-  createdAt: number; 
-  realizedProfit: number; 
-  unrealizedPnl: number; 
+
+  createdAt: number;
+  realizedProfit: number;
+  unrealizedPnl: number;
   tradesCount: number;
 }
 
 const defaultBot = (): Omit<BotConfig, 'id' | 'createdAt'> => ({
-  name: 'Alpha Node', 
+  name: 'Alpha Node',
   strategyType: 'RANGE_BOUND',
   marketCondition: 'RANGING',
   direction: 'SIDEWAYS',
-  accessPointId: '', 
-  pair: 'BTCUSDT', 
+  accessPointId: '',
+  pair: 'BTCUSDT',
   status: 'stopped',
-  orderVolume: 100, 
-  takeProfit: 2, 
+  orderVolume: 100,
+  takeProfit: 2,
   stopLoss: 1,
   weeklyBias: 'SIDEWAYS',
   dailyBias: 'SIDEWAYS',
   primaryTimeframe: '4H',
   keyLevels: [],
-  realizedProfit: 0, 
-  unrealizedPnl: 0, 
+  realizedProfit: 0,
+  unrealizedPnl: 0,
   tradesCount: 0,
 });
 
 // â”€â”€â”€ Storage Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const loadBots = (): BotConfig[] => { try { return JSON.parse(localStorage.getItem('bot_configs') || '[]'); } catch { return []; } };
-const saveBots = (bots: BotConfig[]) => { try { localStorage.setItem('bot_configs', JSON.stringify(bots)); } catch {} };
+const saveBots = (bots: BotConfig[]) => { try { localStorage.setItem('bot_configs', JSON.stringify(bots)); } catch { } };
 const loadAPs = (): AccessPoint[] => { try { return JSON.parse(localStorage.getItem('access_points') || '[]'); } catch { return []; } };
-const saveAPs = (aps: AccessPoint[]) => { try { localStorage.setItem('access_points', JSON.stringify(aps)); } catch {} };
+const saveAPs = (aps: AccessPoint[]) => { try { localStorage.setItem('access_points', JSON.stringify(aps)); } catch { } };
 const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 // â”€â”€â”€ Cyber Status Badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const StatusBadge: React.FC<{ status: BotStatus | 'connected' | 'disconnected' | 'error' | MarketCondition }> = ({ status }) => {
   const map: Record<string, { text: string; cls: string; dot: string }> = {
-    running:      { text: 'ACTIVE',      cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
-    stopped:      { text: 'STANDBY',     cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
-    paused:       { text: 'SUSPENDED',   cls: 'bg-[var(--holo-gold)]/10 text-[var(--holo-gold)] border-[var(--holo-gold)]/30', dot: 'bg-[var(--holo-gold)]' },
-    error:        { text: 'ALERT',       cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
-    connected:    { text: 'LINKED',      cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
-    disconnected: { text: 'OFFLINE',     cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
+    running: { text: 'ACTIVE', cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
+    stopped: { text: 'STANDBY', cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
+    paused: { text: 'SUSPENDED', cls: 'bg-[var(--holo-gold)]/10 text-[var(--holo-gold)] border-[var(--holo-gold)]/30', dot: 'bg-[var(--holo-gold)]' },
+    error: { text: 'ALERT', cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
+    connected: { text: 'LINKED', cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
+    disconnected: { text: 'OFFLINE', cls: 'bg-[#848e9c]/10 text-[#848e9c] border-[#848e9c]/30', dot: 'bg-[#848e9c]' },
     // Market States
-    TRENDING:     { text: 'TRENDING',    cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
-    RANGING:      { text: 'RANGING',     cls: 'bg-[#bc13fe]/10 text-[#bc13fe] border-[#bc13fe]/30', dot: 'bg-[#bc13fe]' },
-    CHOPPY:       { text: 'CHOPPY',      cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
+    TRENDING: { text: 'TRENDING', cls: 'bg-[var(--holo-cyan)]/10 text-[var(--holo-cyan)] border-[var(--holo-cyan)]/30', dot: 'bg-[var(--holo-cyan)] animate-pulse' },
+    RANGING: { text: 'RANGING', cls: 'bg-[#bc13fe]/10 text-[#bc13fe] border-[#bc13fe]/30', dot: 'bg-[#bc13fe]' },
+    CHOPPY: { text: 'CHOPPY', cls: 'bg-[var(--holo-magenta)]/10 text-[var(--holo-magenta)] border-[var(--holo-magenta)]/30', dot: 'bg-[var(--holo-magenta)] animate-pulse' },
   };
   const s = map[status] || map.stopped;
   return (
@@ -109,7 +109,7 @@ const StatusBadge: React.FC<{ status: BotStatus | 'connected' | 'disconnected' |
   );
 };
 
-// â”€â”€â”€ Diagnostics Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//  Diagnostics Card ----------------------------------------------------
 const Stat: React.FC<{ label: string; value: React.ReactNode; sub?: string; color?: string; highlight?: boolean }> = ({ label, value, sub, color = '#eaecef', highlight }) => (
   <div className="bg-black/40 backdrop-blur-sm border border-white/[0.05] rounded-xl p-3 relative overflow-hidden group">
     {highlight && <div className="absolute top-0 right-0 w-16 h-16 bg-[var(--holo-cyan)]/10 blur-2xl rounded-full" />}
@@ -146,8 +146,8 @@ const APModal: React.FC<{ onClose: () => void; onSave: (ap: AccessPoint) => void
         <div className="absolute top-0 right-[-10%] w-40 h-40 bg-[var(--holo-cyan)]/10 blur-3xl rounded-full" />
         <div className="flex justify-between items-center mb-6 relative z-10 border-b border-white/[0.05] pb-4">
           <div className="flex items-center gap-3">
-             <div className="p-2 bg-[var(--holo-cyan)]/10 rounded border border-[var(--holo-cyan)]/20 text-[var(--holo-cyan)]"><Network className="w-5 h-5" /></div>
-             <h3 className="text-white font-black tracking-[0.2em] uppercase text-sm">Uplink Gateway</h3>
+            <div className="p-2 bg-[var(--holo-cyan)]/10 rounded border border-[var(--holo-cyan)]/20 text-[var(--holo-cyan)]"><Network className="w-5 h-5" /></div>
+            <h3 className="text-white font-black tracking-[0.2em] uppercase text-sm">Uplink Gateway</h3>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-[var(--holo-magenta)] transition-colors"><X className="w-5 h-5" /></button>
         </div>
@@ -160,7 +160,7 @@ const APModal: React.FC<{ onClose: () => void; onSave: (ap: AccessPoint) => void
           </Field>
           <Field label="Public Key" icon={Zap}><Input type="password" placeholder="[ENCRYPTED_KEY_STRING]" value={form.apiKey} onChange={e => set('apiKey', e.target.value)} /></Field>
           <Field label="Private Secret" icon={ShieldCheck}><Input type="password" placeholder="[CLASSIFIED_SECRET]" value={form.apiSecret} onChange={e => set('apiSecret', e.target.value)} /></Field>
-          
+
           <div className="bg-[var(--holo-gold)]/10 border border-[var(--holo-gold)]/20 rounded-lg p-3 text-[10px] text-[var(--holo-gold)] flex gap-2 mt-4 font-mono uppercase tracking-widest">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>Restrict API tokens to READ/TRADE execution only. Vault transfers explicitly denied.</span>
@@ -195,29 +195,29 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
   return (
     <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 overflow-auto py-10" onClick={onClose}>
       <div className="glass-panel-modern border border-white/10 rounded-[2rem] shadow-[0_0_100px_rgba(188,19,254,0.15)] w-full max-w-2xl relative overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        
+
         {/* Advanced Background Elements */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#bc13fe]/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-[var(--holo-cyan)]/5 blur-[100px] rounded-full pointer-events-none" />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
-        
+
         {/* Header Section */}
         <div className="flex justify-between items-center p-8 border-b border-white/5 relative z-10 shrink-0">
           <div className="flex items-center gap-5">
-             <div className="p-3 bg-gradient-to-br from-[#bc13fe]/20 to-transparent rounded-2xl border border-[#bc13fe]/30 text-[#bc13fe] shadow-[0_0_20px_rgba(188,19,254,0.2)]">
-               <BrainCircuit className="w-6 h-6 animate-pulse" />
-             </div>
-             <div>
-               <h3 className="text-white font-black tracking-[0.3em] uppercase text-base mb-1">Structural Analysis Engine</h3>
-               <div className="flex items-center gap-2">
-                 <div className="flex gap-1">
-                   {[1, 2, 3].map(i => (
-                     <div key={i} className={cn("h-1 rounded-full transition-all duration-500", i === step ? "w-4 bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]" : "w-1.5 bg-white/10")} />
-                   ))}
-                 </div>
-                 <p className="text-white/30 text-[9px] font-mono tracking-[0.2em] uppercase ml-2">Phase_0{step} // Logic_Compilation</p>
-               </div>
-             </div>
+            <div className="p-3 bg-gradient-to-br from-[#bc13fe]/20 to-transparent rounded-2xl border border-[#bc13fe]/30 text-[#bc13fe] shadow-[0_0_20px_rgba(188,19,254,0.2)]">
+              <BrainCircuit className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-white font-black tracking-[0.3em] uppercase text-base mb-1">Structural Analysis Engine</h3>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className={cn("h-1 rounded-full transition-all duration-500", i === step ? "w-4 bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)]" : "w-1.5 bg-white/10")} />
+                  ))}
+                </div>
+                <p className="text-white/30 text-[9px] font-mono tracking-[0.2em] uppercase ml-2">Phase_0{step} // Logic_Compilation</p>
+              </div>
+            </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-white/30 hover:text-[var(--holo-magenta)] transition-all duration-300">
             <X className="w-6 h-6" />
@@ -340,13 +340,13 @@ const BotModal: React.FC<{ existing?: BotConfig; accessPoints: AccessPoint[]; on
         {/* Footer Navigation */}
         <div className="p-8 border-t border-white/5 flex gap-4 bg-black/40 backdrop-blur-xl shrink-0">
           {step > 1 && (
-            <button onClick={() => setStep(s => s - 1)} 
-                    className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/40 border border-white/10 text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl transition-all duration-300">
+            <button onClick={() => setStep(s => s - 1)}
+              className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/40 border border-white/10 text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl transition-all duration-300">
               Prev_Module
             </button>
           )}
-          <button onClick={onClose} 
-                  className="flex-1 py-4 bg-white/2 hover:bg-white/5 text-white/20 border border-white/5 text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl transition-all duration-300">
+          <button onClick={onClose}
+            className="flex-1 py-4 bg-white/2 hover:bg-white/5 text-white/20 border border-white/5 text-[11px] font-black tracking-[0.2em] uppercase rounded-2xl transition-all duration-300">
             Terminate
           </button>
           {step < 3 ? (
@@ -385,18 +385,17 @@ const BotCard: React.FC<{
 
   const accentColor = isRunning ? 'var(--holo-cyan)'
     : isError ? 'var(--holo-magenta)'
-    : isPaused ? 'var(--holo-gold)'
-    : '#3a3f4b';
+      : isPaused ? 'var(--holo-gold)'
+        : '#3a3f4b';
 
   const hexId = `#${bot.id.slice(0, 4).toUpperCase()}`;
 
   return (
-    <div className={`relative overflow-hidden rounded-xl transition-all duration-500 node-scan ${
-      isRunning
+    <div className={`relative overflow-hidden rounded-xl transition-all duration-500 node-scan ${isRunning
         ? 'shadow-[0_0_20px_rgba(0,229,255,0.10)] border border-[var(--holo-cyan)]/25'
         : isError ? 'border border-[var(--holo-magenta)]/25'
-        : 'border border-white/[0.06]'
-    }`}>
+          : 'border border-white/[0.06]'
+      }`}>
       {/* Left status accent bar */}
       <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl z-10"
         style={{ background: accentColor, boxShadow: `0 0 10px ${accentColor}88` }} />
@@ -481,11 +480,10 @@ const BotCard: React.FC<{
           <button
             onClick={() => onToggle(bot.id)}
             disabled={isChoppy}
-            className={`w-full py-2 rounded-lg font-black text-[10px] tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-1.5 border ${
-              isRunning ? 'bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
-              : isChoppy ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
-              : 'bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
-            }`}
+            className={`w-full py-2 rounded-lg font-black text-[10px] tracking-[0.2em] uppercase transition-all flex items-center justify-center gap-1.5 border ${isRunning ? 'bg-[var(--holo-magenta)]/10 hover:bg-[var(--holo-magenta)]/20 border-[var(--holo-magenta)]/30 text-[var(--holo-magenta)]'
+                : isChoppy ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
+                  : 'bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)]'
+              }`}
           >
             {isRunning ? <Square className="w-3 h-3" fill="currentColor" /> : <Play className="w-3 h-3" fill="currentColor" />}
             {isRunning ? 'Halt Execution' : isChoppy ? 'LOCKED: CHOPPY' : 'Engage Strategy'}
@@ -509,16 +507,16 @@ export const BotPanel: React.FC = () => {
   useEffect(() => { saveAPs(accessPoints); }, [accessPoints]);
 
   const saveBot = (bot: BotConfig) => {
-    setBots(prev => { const idx = prev.findIndex(b => b.id === bot.id); return idx >= 0 ? [ ...prev.slice(0, idx), bot, ...prev.slice(idx+1) ] : [...prev, bot]; });
+    setBots(prev => { const idx = prev.findIndex(b => b.id === bot.id); return idx >= 0 ? [...prev.slice(0, idx), bot, ...prev.slice(idx + 1)] : [...prev, bot]; });
     toast.success('Node Data Compiled', { style: { background: '#0a0d14', color: '#bc13fe', border: '1px solid rgba(188,19,254,0.2)' } });
   };
 
   const toggleBot = (id: string) => {
     setBots(prev => prev.map(b => {
       if (b.id !== id) return b;
-      if (b.status === 'running') { 
-        toast('Strategy Deactivated', { style: { background: '#0a0d14', color: '#fcd535', border: '1px solid rgba(252,213,53,0.2)' } }); 
-        return { ...b, status: 'stopped' }; 
+      if (b.status === 'running') {
+        toast('Strategy Deactivated', { style: { background: '#0a0d14', color: '#fcd535', border: '1px solid rgba(252,213,53,0.2)' } });
+        return { ...b, status: 'stopped' };
       }
       if (b.marketCondition === 'CHOPPY') {
         toast.error('EXECUTION DENIED: High Noise detected.', { style: { background: '#0a0d14', color: 'var(--holo-magenta)', border: '1px solid rgba(255,7,58,0.2)' } });
@@ -528,7 +526,7 @@ export const BotPanel: React.FC = () => {
         toast.error('UPLINK FAILURE: Gateway missing', { style: { background: '#0a0d14', color: 'var(--holo-magenta)', border: '1px solid rgba(255,7,58,0.2)' } });
         return b;
       }
-      toast.success(`${b.name} ENGAGED`, { iconTheme: {primary: 'var(--holo-cyan)', secondary: '#0a0d14'}, style: { background: '#0a0d14', color: 'var(--holo-cyan)', border: '1px solid rgba(57,255,20,0.2)' } });
+      toast.success(`${b.name} ENGAGED`, { iconTheme: { primary: 'var(--holo-cyan)', secondary: '#0a0d14' }, style: { background: '#0a0d14', color: 'var(--holo-cyan)', border: '1px solid rgba(57,255,20,0.2)' } });
       return { ...b, status: 'running' };
     }));
   };
@@ -538,34 +536,34 @@ export const BotPanel: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col pt-4 px-4 overflow-hidden relative">
-      
+
       <div className="absolute top-0 right-0 w-[500px] h-[300px] bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
       {/* CommandCenter Header */}
       <div className="shrink-0 mb-6 relative z-10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-             <div className="relative">
-               <div className="p-3 bg-black border border-[#bc13fe]/30 rounded-xl inner-glow text-[#bc13fe]">
-                 <Terminal className="w-6 h-6" />
-               </div>
-               {runningCount > 0 && <span className="absolute -bottom-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--holo-cyan)] opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--holo-cyan)] border border-black"></span></span>}
-             </div>
-             <div>
-               <h2 className="text-white font-black text-lg tracking-[0.2em] uppercase">Market Structure Engine</h2>
-               <p className="text-[#bc13fe]/60 text-[10px] font-mono tracking-widest mt-1">
-                 MARKET_STATE: <span className="text-[var(--holo-cyan)]">ACTIVE</span> <span className="text-gray-600">//</span> ALIGNMENT: <span className="text-[var(--holo-cyan)]">MULTI-TF</span>
-               </p>
-             </div>
+            <div className="relative">
+              <div className="p-3 bg-black border border-[#bc13fe]/30 rounded-xl inner-glow text-[#bc13fe]">
+                <Terminal className="w-6 h-6" />
+              </div>
+              {runningCount > 0 && <span className="absolute -bottom-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--holo-cyan)] opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--holo-cyan)] border border-black"></span></span>}
+            </div>
+            <div>
+              <h2 className="text-white font-black text-lg tracking-[0.2em] uppercase">Market Structure Engine</h2>
+              <p className="text-[#bc13fe]/60 text-[10px] font-mono tracking-widest mt-1">
+                MARKET_STATE: <span className="text-[var(--holo-cyan)]">ACTIVE</span> <span className="text-gray-600">//</span> ALIGNMENT: <span className="text-[var(--holo-cyan)]">MULTI-TF</span>
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {view === 'bots' ? (
               <div className="flex gap-2">
                 <button onClick={() => {
-                  const genBot: any = { ...defaultBot(), id: uid(), name: 'STRUCT_ALPHA_' + Math.floor(Math.random()*999), strategyType: 'PULLBACK', marketCondition: 'TRENDING', pair: 'ETHUSDT', weeklyBias: 'BULLISH', dailyBias: 'BULLISH', createdAt: Date.now() };
+                  const genBot: any = { ...defaultBot(), id: uid(), name: 'STRUCT_ALPHA_' + Math.floor(Math.random() * 999), strategyType: 'PULLBACK', marketCondition: 'TRENDING', pair: 'ETHUSDT', weeklyBias: 'BULLISH', dailyBias: 'BULLISH', createdAt: Date.now() };
                   if (accessPoints.length > 0) genBot.accessPointId = accessPoints[0].id;
                   setEditingBot(genBot); setShowBotModal(true);
-                  toast.success('Top-Down Analysis Synthesized', { iconTheme: {primary: 'var(--holo-cyan)', secondary: '#0a0d14'}, style: { background: '#0a0d14', color: 'var(--holo-cyan)', border: '1px solid rgba(0,240,255,0.2)' } });
+                  toast.success('Top-Down Analysis Synthesized', { iconTheme: { primary: 'var(--holo-cyan)', secondary: '#0a0d14' }, style: { background: '#0a0d14', color: 'var(--holo-cyan)', border: '1px solid rgba(0,240,255,0.2)' } });
                 }}
                   className="bg-[var(--holo-cyan)]/10 hover:bg-[var(--holo-cyan)]/20 text-[var(--holo-cyan)] border border-[var(--holo-cyan)]/30 hover:border-[var(--holo-cyan)] text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded box-glow flex items-center gap-2 transition-all overflow-hidden group relative">
                   <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-[var(--holo-cyan)]/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
@@ -608,42 +606,42 @@ export const BotPanel: React.FC = () => {
                 <Stat label="Market Condition" value={bots.length > 0 ? bots[0].marketCondition : 'N/A'} color="var(--holo-cyan)" sub="REAL_TIME_STATUS" />
               </div>
             )}
-            
+
             {bots.length === 0 ? (
-               <div className="flex flex-col items-center justify-center h-48 border border-white/[0.05] border-dashed rounded-xl bg-black/20 text-center relative overflow-hidden">
-                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.05)_0%,transparent_70%)] pointer-events-none" />
-                 <BrainCircuit className="w-10 h-10 text-gray-700 mb-4" />
-                 <h3 className="text-white font-black tracking-widest uppercase text-sm mb-2">Engine Offline</h3>
-                 <p className="text-gray-500 font-mono text-[10px] tracking-widest mb-6">AWAITING_INITIAL_STRATEGY_ALIGNMENT</p>
-                 <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }} className="px-6 py-2 border border-[#bc13fe]/50 text-[#bc13fe] text-[10px] tracking-widest uppercase font-black rounded box-glow-purple hover:bg-[#bc13fe]/10 transition-all">Initialize Strategy</button>
-               </div>
+              <div className="flex flex-col items-center justify-center h-48 border border-white/[0.05] border-dashed rounded-xl bg-black/20 text-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.05)_0%,transparent_70%)] pointer-events-none" />
+                <BrainCircuit className="w-10 h-10 text-gray-700 mb-4" />
+                <h3 className="text-white font-black tracking-widest uppercase text-sm mb-2">Engine Offline</h3>
+                <p className="text-gray-500 font-mono text-[10px] tracking-widest mb-6">AWAITING_INITIAL_STRATEGY_ALIGNMENT</p>
+                <button onClick={() => { setEditingBot(undefined); setShowBotModal(true); }} className="px-6 py-2 border border-[#bc13fe]/50 text-[#bc13fe] text-[10px] tracking-widest uppercase font-black rounded box-glow-purple hover:bg-[#bc13fe]/10 transition-all">Initialize Strategy</button>
+              </div>
             ) : (
-               <>
-                 <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 mb-6">
-                   {bots.map(b => (
-                      <BotCard key={b.id} bot={b} ap={accessPoints.find(a => a.id === b.accessPointId)} onToggle={toggleBot} onEdit={b => {setEditingBot(b); setShowBotModal(true)}} onDelete={id => setBots(p => p.filter(x => x.id !== id))} />
-                   ))}
-                 </div>
-               
-               {/* Terminal Event Log */}
-               <div className="bg-black/40 border border-[var(--holo-cyan)]/20 rounded-xl p-4 relative overflow-hidden h-40 flex flex-col pointer-events-none">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--holo-cyan)]/5 blur-3xl rounded-full" />
-                 <h4 className="flex items-center gap-2 text-[10px] font-mono text-[var(--holo-cyan)] uppercase tracking-[0.2em] mb-3 shrink-0"><Terminal className="w-3.5 h-3.5" /> Structure Analysis Feed</h4>
-                 <div className="flex-1 overflow-hidden relative flex flex-col justify-end">
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 mb-6">
+                  {bots.map(b => (
+                    <BotCard key={b.id} bot={b} ap={accessPoints.find(a => a.id === b.accessPointId)} onToggle={toggleBot} onEdit={b => { setEditingBot(b); setShowBotModal(true) }} onDelete={id => setBots(p => p.filter(x => x.id !== id))} />
+                  ))}
+                </div>
+
+                {/* Terminal Event Log */}
+                <div className="bg-black/40 border border-[var(--holo-cyan)]/20 rounded-xl p-4 relative overflow-hidden h-40 flex flex-col pointer-events-none">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--holo-cyan)]/5 blur-3xl rounded-full" />
+                  <h4 className="flex items-center gap-2 text-[10px] font-mono text-[var(--holo-cyan)] uppercase tracking-[0.2em] mb-3 shrink-0"><Terminal className="w-3.5 h-3.5" /> Structure Analysis Feed</h4>
+                  <div className="flex-1 overflow-hidden relative flex flex-col justify-end">
                     <div className="absolute inset-0 bg-gradient-to-b from-[#05070a] via-transparent to-transparent z-10 pointer-events-none" />
                     <div className="space-y-1 font-mono text-[10px] sm:text-[11px] font-bold text-[#848e9c]">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="flex gap-4">
-                          <span className="text-[#5e6673]">[{new Date(Date.now() - i * 15000).toISOString().split('T')[1].slice(0,8)}]</span>
+                          <span className="text-[#5e6673]">[{new Date(Date.now() - i * 15000).toISOString().split('T')[1].slice(0, 8)}]</span>
                           <span className={`${i === 0 ? 'text-[var(--holo-cyan)]' : i === 1 ? 'text-[var(--holo-cyan)]' : ''}`}>
                             {i % 3 === 0 ? '> SMC_ALIGNMENT: TREND CONFIRMED HH/HL' : i % 2 === 0 ? '> STRUCTURE_SCAN: RANGE BOUNDARY IDENTIFIED' : '> ANALYZING TOP-DOWN BIAS CONFLUENCE...'}
                           </span>
                         </div>
                       ))}
                     </div>
-                 </div>
-               </div>
-               </>
+                  </div>
+                </div>
+              </>
             )}
           </>
         )}
@@ -674,8 +672,8 @@ export const BotPanel: React.FC = () => {
                           <div className="relative shrink-0">
                             <div className={cn(
                               "w-12 h-12 rounded-full border-2 flex items-center justify-center font-black text-[10px] tracking-tighter transition-all duration-700",
-                              isConnected 
-                                ? "border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/5 shadow-[0_0_20px_rgba(0,229,255,0.1)]" 
+                              isConnected
+                                ? "border-[var(--holo-cyan)]/30 text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/5 shadow-[0_0_20px_rgba(0,229,255,0.1)]"
                                 : "border-white/10 text-white/20 bg-white/5"
                             )}>
                               {exchangeInitial}
@@ -692,8 +690,8 @@ export const BotPanel: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                           <StatusBadge status={ap.status} />
-                           <span className="text-[7px] font-mono text-white/20 uppercase tracking-widest">v2.10.4</span>
+                          <StatusBadge status={ap.status} />
+                          <span className="text-[7px] font-mono text-white/20 uppercase tracking-widest">v2.10.4</span>
                         </div>
                       </div>
 
@@ -717,8 +715,8 @@ export const BotPanel: React.FC = () => {
                           <div className={cn("w-1.5 h-1.5 rounded-full", isConnected ? "bg-emerald-400 animate-pulse" : "bg-gray-700")} />
                           <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{assignedNodes} ACTIVE_NODES</span>
                         </div>
-                        <button onClick={() => { if(confirm('TERMINATE_UPLINK?')) setAccessPoints(p => p.filter(x => x.id !== ap.id)); }} 
-                                className="p-2 text-white/20 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 rounded-lg transition-all">
+                        <button onClick={() => { if (confirm('TERMINATE_UPLINK?')) setAccessPoints(p => p.filter(x => x.id !== ap.id)); }}
+                          className="p-2 text-white/20 hover:text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)]/10 rounded-lg transition-all">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -732,7 +730,7 @@ export const BotPanel: React.FC = () => {
         )}
 
       </div>
-      
+
       {showAPModal && <APModal onClose={() => setShowAPModal(false)} onSave={ap => setAccessPoints(prev => [...prev, ap])} />}
       {showBotModal && <BotModal existing={editingBot} accessPoints={accessPoints} onClose={() => { setShowBotModal(false); setEditingBot(undefined); }} onSave={saveBot} />}
     </div>
