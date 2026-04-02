@@ -14,6 +14,7 @@ import os from 'os';
 import { EMA, MACD, RSI, BollingerBands, ATR, SMA, PSAR, WilliamsR, OBV, StochasticRSI, Stochastic } from 'technicalindicators';
 import { TradeCopier } from './tradeCopier';
 import { DeltaNeutralBot } from './src/services/deltaNeutralBot.js';
+import { DeltaMasterBot } from './src/services/deltaMasterBot.js';
 
 dotenv.config({ quiet: true });
 
@@ -92,6 +93,9 @@ async function startServer() {
   // Initialize Delta Neutral Bot
   const deltaNeutralBot = new DeltaNeutralBot(io);
   deltaNeutralBot.setTradeCopier(tradeCopier);
+
+  // Initialize Delta Master Bot (Account A/B Insurance System)
+  const deltaMasterBot = new DeltaMasterBot(io);
 
   let isPendingEngineRunning = false;
   // ─── Shadow Pending Order Price-Matching Engine ────────────────────
@@ -507,6 +511,33 @@ async function startServer() {
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // ─── Delta Master (Account A/B Insurance System) Endpoints ───
+  app.post('/api/delta-master/start', async (req, res) => {
+    try {
+      const config = req.body;
+      if (!config.symbol || !config.qtyA) {
+        return res.status(400).json({ error: 'Missing required parameters: symbol, qtyA' });
+      }
+      await deltaMasterBot.start(config);
+      res.json({ message: 'Delta Master Agent Deployed', status: deltaMasterBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to start Delta Master' });
+    }
+  });
+
+  app.post('/api/delta-master/stop', async (req, res) => {
+    try {
+      await deltaMasterBot.stop();
+      res.json({ message: 'Delta Master Agent Stopped', status: deltaMasterBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to stop Delta Master' });
+    }
+  });
+
+  app.get('/api/delta-master/status', (req, res) => {
+    res.json(deltaMasterBot.getStatus());
   });
 
   const handleBinanceError = (error: any, res: express.Response, defaultMessage: string) => {

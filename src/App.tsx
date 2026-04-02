@@ -12,6 +12,7 @@ import { CurrentPositions } from './components/CurrentPositions';
 import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
+import { DeltaMasterAgentPanel } from './components/DeltaMasterAgentPanel';
 import { BotPanel } from './components/BotPanel';
 import { MarketWatchlist } from './components/MarketWatchlist';
 import { OpenOrdersPanel } from './components/OpenOrdersPanel';
@@ -184,7 +185,7 @@ const CandleCountdown: React.FC<{ interval: string; onChange?: (val: string) => 
 
 export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
-  const [activeMode, setActiveMode] = useState<'SPOT' | 'DELTA'>('SPOT');
+  const [activeMode, setActiveMode] = useState<'SPOT' | 'DELTA' | 'DELTA_MASTER'>('SPOT');
   const [chartInterval, setChartInterval] = useState('1h');
   const [marketData, setMarketData] = useState<any[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
@@ -879,9 +880,9 @@ export default function App() {
           <div className="flex flex-col gap-2 w-full lg:w-[650px] shrink-0 z-10">
 
             {/* VOLTRON ARCHITECTURE: PILL SLIDER TOGGLE */}
-            <div className="relative flex bg-[#0A0D14] border border-[#1E293B] rounded-full p-1 mx-auto w-[240px] shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+            <div className="relative flex bg-[#0A0D14] border border-[#1E293B] rounded-full p-1 mx-auto w-[360px] shrink-0 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
               <div
-                className={`absolute top-1 bottom-1 w-[114px] bg-[#1E293B] border border-cyan-500/30 rounded-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_0_15px_rgba(6,182,212,0.15)] z-0 ${activeMode === 'SPOT' ? 'left-1' : 'left-[120px]'}`}
+                className={`absolute top-1 bottom-1 w-[114px] bg-[#1E293B] border border-cyan-500/30 rounded-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_0_15px_rgba(6,182,212,0.15)] z-0 ${activeMode === 'SPOT' ? 'left-1' : activeMode === 'DELTA' ? 'left-[120px]' : 'left-[240px]'}`}
               />
               <button
                 onClick={() => setActiveMode('SPOT')}
@@ -892,8 +893,15 @@ export default function App() {
               </button>
               <button
                 onClick={() => setActiveMode('DELTA')}
-                title="Switch to Delta Master Mode"
+                title="Switch to Delta Neutral Mode"
                 className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'DELTA' ? 'text-cyan-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
+              >
+                Delta Neutral
+              </button>
+              <button
+                onClick={() => setActiveMode('DELTA_MASTER')}
+                title="Switch to Delta Master 2026 Mode"
+                className={`flex-1 text-center py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full z-10 transition-colors duration-300 ${activeMode === 'DELTA_MASTER' ? 'text-indigo-400' : 'text-[#5e6673] hover:text-[#eaecef]'}`}
               >
                 Delta Master
               </button>
@@ -917,9 +925,13 @@ export default function App() {
                   <OrderPanel symbol={symbol} currentPrice={currentPrice} balance={parseFloat(slaveBalance)} baseBalance={parseFloat(slaveBaseBalance)} onPlaceOrder={handlePlaceOrder} />
                 </div>
               </div>
-            ) : (
+            ) : activeMode === 'DELTA' ? (
               <div className="w-full lg:w-[650px] lg:h-[689px] min-h-0 shrink-0 animate-in fade-in slide-in-from-right-4 duration-500 border border-indigo-500/20 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(99,102,241,0.05)] bg-[#0B0E14]/80 backdrop-blur-xl">
                 <DeltaNeutralPanel symbol={symbol} currentPrice={currentPrice} lastClosedCandle={lastClosedCandle} />
+              </div>
+            ) : (
+              <div className="w-full lg:w-[650px] lg:h-[689px] min-h-0 shrink-0 animate-in fade-in slide-in-from-right-4 duration-500 border border-indigo-500/20 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(99,102,241,0.05)] bg-[#0B0E14]/80 backdrop-blur-xl">
+                <DeltaMasterAgentPanel symbol={symbol} />
               </div>
             )}
           </div>
