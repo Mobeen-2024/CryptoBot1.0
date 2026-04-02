@@ -85,6 +85,9 @@ export class BinanceService {
   }
 
   public async fetchLiquidityMetrics(symbol: string) {
+    if (this.isShadowMode) {
+      return { spread: 0.5, spreadPct: 0.001, depth1Pct: 10, last: 65000 };
+    }
     const ticker = await this.clientA.fetchTicker(symbol);
     const orderbook = await this.clientA.fetchOrderBook(symbol, 20);
     
@@ -93,13 +96,23 @@ export class BinanceService {
     const spread = ask - bid;
     const spreadPct = (spread / bid) * 100;
     
-    // Measure 1% Depth (Total Liquidity within 1% of mid)
     const mid = (bid + ask) / 2;
     const depth1Pct = orderbook.bids
       .filter(([p]) => p >= mid * 0.99)
       .reduce((sum, [_, q]) => sum + q, 0);
 
     return { spread, spreadPct, depth1Pct, last: ticker.last };
+  }
+
+  public async fetchOHLCV(symbol: string, timeframe = '1m', limit = 100) {
+    if (this.isShadowMode) {
+      const now = Date.now();
+      return Array.from({ length: limit }, (_, i) => [
+        now - (limit - i) * 60000,
+        65000, 65100, 64900, 65050, 100
+      ]);
+    }
+    return await this.clientA.fetchOHLCV(symbol, timeframe, undefined, limit);
   }
 
   public async fetchBalance(client: any) {
@@ -110,7 +123,6 @@ export class BinanceService {
   }
 
   public async closePosition(client: any, symbol: string, side: 'buy' | 'sell', amount: number) {
-    // For Spot, "closing" means selling what you bought or buying what you sold
     return await this.placeOrder(client, symbol, 'market', side === 'buy' ? 'sell' : 'buy', amount);
   }
 
@@ -130,12 +142,31 @@ export class BinanceService {
     try {
       return await client.cancelAllOrders(symbol);
     } catch (error) {
-      // Fallback for clients that don't support cancelAllOrders directly
       const openOrders = await client.fetchOpenOrders(symbol);
       for (const order of openOrders) {
         await this.cancelOrder(client, order.id, symbol);
       }
       return { status: 'success' };
+    }
+  }
+
+  public async fetchPositions(client: any, symbol: string) {
+    if (this.isShadowMode) {
+      return [{ symbol, contracts: 0.1, entryPrice: 65000, side: 'long', simulated: true }];
+    }
+    try {
+      const parts = symbol.split('/');
+      const baseAsset = parts[0];
+      const balance = await this.fetchBalance(client);
+      const free = balance[baseAsset] ? balance[baseAsset].free : 0;
+      
+      if (free > 0) {
+        return [{ symbol, contracts: free, side: 'long' }];
+      }
+      return [];
+    } catch (error) {
+      Logger.error(`Failed to fetch pseudo-positions for ${symbol}:`, error);
+      return [];
     }
   }
 
@@ -145,7 +176,6 @@ export class BinanceService {
       return { id: orderId, symbol, side, amount, price, status: 'closed', simulated: true };
     }
     
-    // For Binance Spot, CCXT editOrder usually cancels and re-places
     try {
       await this.cancelOrder(client, orderId, symbol);
       return await this.placeOrder(client, symbol, type, side, amount, price, params);

@@ -17,6 +17,7 @@ import { DeltaNeutralBot } from './src/services/deltaNeutralBot.js';
 import { DeltaMasterBot } from './src/services/deltaMasterBot.js';
 import { BinanceMasterBot } from './src/services/binanceMasterBot.js';
 import { IntelligenceService } from './src/services/intelligenceService.js';
+import { SimulationService } from './src/services/simulationService.js';
 import { Logger as LoggerJs } from './logger.js';
 
 dotenv.config({ quiet: true });
@@ -586,6 +587,29 @@ async function startServer() {
       }
       IntelligenceService.getInstance().setSentiment(symbol, score);
       res.json({ message: `Sentiment for ${symbol} overridden to ${score}` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ─── Simulation & Stress Test Endpoints ───
+  app.post('/api/simulation/run', async (req, res) => {
+    try {
+      const { scenario, symbol } = req.body;
+      if (!scenario || !symbol) {
+        return res.status(400).json({ error: 'scenario and symbol are required' });
+      }
+      await SimulationService.getInstance().runScenario(scenario, symbol);
+      res.json({ message: `Simulation ${scenario} started.` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/simulation/stop', (req, res) => {
+    try {
+      SimulationService.getInstance().stopSimulation();
+      res.json({ message: 'Simulation stopped.' });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

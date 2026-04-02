@@ -8,6 +8,7 @@ interface IntelligenceData {
   volatilityScore: number; // 0-100
   liquidityScore: number; // 0-100 (100 = deep books, low spread)
   lastUpdate: number;
+  atr?: number;
 }
 
 export class IntelligenceService {
@@ -93,10 +94,46 @@ export class IntelligenceService {
     return sideA === 'buy' ? entryA - baseOffset : entryA + baseOffset;
   }
 
-  /**
-   * Minimal friction to ensure break-even exits cover fees and capture momentum
-   */
-  public getFrictionOffset(sideA: 'buy' | 'sell'): number {
+  public getFrictionOffset(sideA: 'buy' | 'sell', symbol: string, k: number = 1.0): number {
+    const intel = this.data.get(symbol);
+    if (intel && intel.atr) {
+      const dynamicFriction = intel.atr * k;
+      return sideA === 'buy' ? dynamicFriction : -dynamicFriction;
+    }
     return sideA === 'buy' ? 2 : -2; 
+  }
+
+  /**
+   * Calculates ATR(14) from OHLCV data
+   */
+  public updateATR(symbol: string, ohlcv: number[][]) {
+    if (ohlcv.length < 15) return;
+    
+    let trSum = 0;
+    for (let i = 1; i < ohlcv.length; i++) {
+        const [,, high, low, close] = ohlcv[i];
+        const prevClose = ohlcv[i-1][4];
+        const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+        trSum += tr;
+    }
+    const atr = trSum / (ohlcv.length - 1);
+    const current = this.data.get(symbol) || { sentiment: 0, regime: 'STABLE_TREND', volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
+    this.data.set(symbol, { ...current, atr, lastUpdate: Date.now() });
+    Logger.info(`[INTELLIGENCE] ATR Updated for ${symbol}: ${atr.toFixed(2)}`);
+  }
+
+  /**
+   * Calculates the target hedge exposure based on the current price state.
+   * Mission: Always Protected.
+   */
+  public calculateRequiredHedge(markPrice: number, entryA: number, entryB: number, qtyA: number, sideA: 'buy' | 'sell'): number {
+    const isBuy = sideA === 'buy';
+    const triggerCrossed = isBuy ? markPrice <= entryB : markPrice >= entryB;
+    
+    if (!triggerCrossed) return 0;
+    
+    // Once triggered, we aim for Delta Neutrality (HedgeQty == QtyA)
+    // In more complex scenarios, this can be proportional to the 'Danger Zone' (EntryA to SL_A)
+    return qtyA; 
   }
 }

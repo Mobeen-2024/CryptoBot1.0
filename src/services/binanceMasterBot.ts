@@ -11,6 +11,7 @@ export interface BinanceMasterConfig {
   sideA: 'buy' | 'sell';
   entryOffset: number;
   protectionRatio: number;
+  atrMultiplier?: number;
 }
 
 export interface BinanceMasterState {
@@ -29,12 +30,21 @@ export interface BinanceMasterState {
   slOrder: { id: string; price: number; qty: number; status: 'open' | 'filled' | 'closed'; isBreakEven: boolean } | null;
   hedgeStatus: 'inactive' | 'pending' | 'active';
   hedgeQty: number;
+  netExposureDelta: number;
   intelligence?: {
     sentiment: number;
     regime: string;
     volatilityScore: number;
     liquidityScore: number;
-  }
+    atr?: number;
+    dynamicFriction?: number;
+  };
+  telemetry?: {
+    avgLatency: number;
+    lastSlippage?: number;
+    executionSpeed: number; // ms for order placement
+    heartbeat: number;
+  };
 }
 
 export class BinanceMasterBot extends EventEmitter {
@@ -56,7 +66,8 @@ export class BinanceMasterBot extends EventEmitter {
     tpTiers: [],
     slOrder: null,
     hedgeStatus: 'inactive',
-    hedgeQty: 0
+    hedgeQty: 0,
+    netExposureDelta: 0
   };
   private monitorInterval: NodeJS.Timeout | null = null;
   private config: BinanceMasterConfig | null = null;
@@ -78,6 +89,7 @@ export class BinanceMasterBot extends EventEmitter {
     this.state.phase = 'SYMMETRIC_DEPLOY';
     this.emitStatus();
 
+    const startTime = Date.now();
     try {
       await this.binanceService.initialize();
       const ticker = await this.binanceService.fetchTicker(config.symbol);
@@ -109,9 +121,14 @@ export class BinanceMasterBot extends EventEmitter {
       this.state.hmacStatus = 'active';
       this.state.phase = 'HEDGE_ACTIVE';
       this.startMonitoring();
+      
+      const speed = Date.now() - startTime;
+      if (!this.state.telemetry) this.state.telemetry = { avgLatency: 0, executionSpeed: 0, heartbeat: Date.now() };
+      this.state.telemetry.executionSpeed = speed;
+      
       this.emitStatus();
       
-      Logger.info(`[BINANCE_MASTER] Architecture Deployed! Primary: $${this.state.entryA}, Shield: $${this.state.entryB}`);
+      Logger.info(`[BINANCE_MASTER] Phase 9 Architecture Deployed in ${speed}ms! mission: 'Always Protected'`);
     } catch (error: any) {
       Logger.error('[BINANCE_MASTER] Deployment Failure:', error);
       this.stop();
@@ -185,24 +202,52 @@ export class BinanceMasterBot extends EventEmitter {
       if (!this.state.isActive) return;
       
       try {
+        const t0 = Date.now();
         const ticker = await this.binanceService.fetchTicker(this.state.symbol);
+        const lat = Date.now() - t0;
+        
+        if (this.state.telemetry) {
+          this.state.telemetry.avgLatency = lat;
+        }
+
         const currentPrice = ticker.last;
         this.state.lastPrice = currentPrice;
 
         if (this.config) {
           const isBuy = this.config.sideA === 'buy';
+
+          // 1. ATR Update (Institutional Volatility Adjustment)
+          const clientA = this.binanceService.getClientA();
+          if (clientA && clientA.fetchOHLCV) {
+             const ohlcv = await clientA.fetchOHLCV(this.state.symbol, '1m', undefined, 20);
+             this.intelligenceService.updateATR(this.state.symbol, ohlcv);
+          }
           
-          // 1. Update PnL
+          // 2. Exposure & PnL Tracking
           const diffA = currentPrice - this.state.entryA;
           this.state.pnlA = (isBuy ? diffA : -diffA) * this.config.qtyA;
           
           const sideB = isBuy ? 'sell' : 'buy';
+          const sideBMult = sideB === 'buy' ? 1 : -1;
+          const sideAMult = isBuy ? 1 : -1;
+
+          // Fetch real positions for Account B to calculate Net Exposure
+          const positionsB = await this.binanceService.fetchPositions(this.binanceService.getClientB(), this.state.symbol);
+          const currentQtyB = positionsB.length > 0 ? (positionsB[0] as any).contracts : 0;
+          this.state.netExposureDelta = (this.config.qtyA * sideAMult) + (currentQtyB * sideBMult);
+
           const diffB = currentPrice - this.state.entryB;
-          this.state.pnlB = (sideB === 'buy' ? diffB : -diffB) * this.state.hedgeQty;
-          
+          this.state.pnlB = (sideB === 'buy' ? diffB : -diffB) * currentQtyB;
           this.state.netPnl = this.state.pnlA + this.state.pnlB;
 
-          // 2. Managed Exit Engine (TP/SL Logic)
+          // 3. State-Based Exposure Sync
+          const targetHedge = this.intelligenceService.calculateRequiredHedge(currentPrice, this.state.entryA, this.state.entryB, this.config.qtyA, this.config.sideA);
+          if (targetHedge > 0 && this.state.hedgeStatus !== 'active') {
+             this.state.hedgeStatus = 'active';
+             Logger.info(`[BINANCE_MASTER] Exposure Target Initialized: ${targetHedge} contracts.`);
+          }
+
+          // 4. Managed Exit Engine (TP/SL Logic)
           if (this.state.phase !== 'PRINCIPAL_RECOVERY') {
             // Check SL
             if (this.state.slOrder && ((isBuy && currentPrice <= this.state.slOrder.price) || (!isBuy && currentPrice >= this.state.slOrder.price))) {
@@ -235,22 +280,16 @@ export class BinanceMasterBot extends EventEmitter {
             }
           }
 
-          // 3. Recursive Shield Logic - Symmetrical
-          const triggerCrossed = isBuy ? currentPrice <= this.state.entryB : currentPrice >= this.state.entryB;
-          if (this.state.hedgeStatus === 'pending' && triggerCrossed) {
-            this.state.hedgeStatus = 'active';
-            Logger.info('[BINANCE_MASTER] Recursive Shield ENGAGED');
-          }
-
+          // 5. Recursive Shield Logic with ATR Friction
           if (this.state.hedgeStatus === 'active' && this.state.phase !== 'PRINCIPAL_RECOVERY') {
-            // Phase 8: Friction-aware Trend Recovery (Break-Even Exit)
-            const friction = this.intelligenceService.getFrictionOffset(this.config.sideA);
+            const friction = this.intelligenceService.getFrictionOffset(this.config.sideA, this.state.symbol, this.config.atrMultiplier || 1.0);
             const threshold = this.state.entryB + friction;
             const trendRecovered = isBuy ? currentPrice >= threshold : currentPrice <= threshold;
 
             if (trendRecovered) {
-              Logger.info('[BINANCE_MASTER] Market Recovered. Closing Shield at Break-Even.');
-              await this.binanceService.closePosition(this.binanceService.getClientB(), this.state.symbol, isBuy ? 'sell' : 'buy', this.state.hedgeQty);
+              Logger.info('[BINANCE_MASTER] Market Recovered via ATR Friction. Closing Shield at B/E.');
+              await this.binanceService.closePosition(this.binanceService.getClientB(), this.state.symbol, sideB, currentQtyB);
+              this.state.hedgeStatus = 'pending';
               await this.redeployHedge();
             }
           }
@@ -258,28 +297,23 @@ export class BinanceMasterBot extends EventEmitter {
           const balanceB = await this.binanceService.fetchBalance(this.binanceService.getClientB());
           this.state.availableMarginB = (balanceB as any).USDT?.free || 0;
 
-          // 4. Intelligence Loop
+          // 6. Intelligence Loop
           const metrics = await this.binanceService.fetchLiquidityMetrics(this.state.symbol);
           const intel = await this.intelligenceService.analyzeSymbol(this.state.symbol, currentPrice, metrics.spread);
           this.state.intelligence = {
             sentiment: intel.sentiment,
             regime: intel.regime,
             volatilityScore: intel.volatilityScore,
-            liquidityScore: intel.liquidityScore
+            liquidityScore: intel.liquidityScore,
+            atr: intel.atr,
+            dynamicFriction: intel.atr ? Math.abs(this.intelligenceService.getFrictionOffset(this.config.sideA, this.state.symbol)) : undefined
           };
 
-          // Dynamic Re-calibration if Hedge is Pending
-          if (this.state.hedgeStatus === 'pending') {
-            const recommended = this.intelligenceService.recommendOffset(this.config.entryOffset, intel, this.config.sideA);
-            const currentOffset = Math.abs(this.state.entryB - this.state.entryA);
-            
-            if (Math.abs(recommended - currentOffset) > 0.5) {
-              Logger.info(`[BINANCE_MASTER] Bot Pilot: Recalibrating Offset to ${recommended} due to ${intel.regime}`);
-              await this.binanceService.cancelAllOrders(this.binanceService.getClientB(), this.state.symbol);
-              this.state.entryB = this.state.entryA + (this.config.sideA === 'buy' ? -recommended : recommended);
-              await this.redeployHedge();
-            }
+          // 7. Telemetry Update
+          if (!this.state.telemetry) {
+            this.state.telemetry = { avgLatency: 0, executionSpeed: 0, heartbeat: Date.now() };
           }
+          this.state.telemetry.heartbeat = Date.now();
 
           this.emitStatus();
         }

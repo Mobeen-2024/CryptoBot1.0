@@ -13,6 +13,7 @@ export interface DeltaMasterConfig {
   leverB: number;
   entryOffset: number;
   protectionRatio: number;
+  atrMultiplier?: number;
 }
 
 export interface DeltaMasterState {
@@ -34,11 +35,14 @@ export interface DeltaMasterState {
   hedgeStatus: 'inactive' | 'pending' | 'active';
   hedgeOrderId: string | null;
   hedgeQty: number;
+  netExposureDelta: number;
   intelligence?: {
     sentiment: number;
     regime: string;
     volatilityScore: number;
     liquidityScore: number;
+    atr?: number;
+    dynamicFriction?: number;
   };
   rateLimit?: {
     accountA: { limit: number; remaining: number; reset: number };
@@ -48,7 +52,13 @@ export interface DeltaMasterState {
     freeMargin: number;
     threshold: number;
     lastTransfer?: number;
-  }
+  };
+  telemetry?: {
+    avgLatency: number;
+    lastSlippage?: number;
+    executionSpeed: number; // ms for order placement
+    heartbeat: number;
+  };
 }
 
 export class DeltaMasterBot extends EventEmitter {
@@ -73,7 +83,8 @@ export class DeltaMasterBot extends EventEmitter {
     slOrder: null,
     hedgeStatus: 'inactive',
     hedgeOrderId: null,
-    hedgeQty: 0
+    hedgeQty: 0,
+    netExposureDelta: 0
   };
   private dmsInterval: NodeJS.Timeout | null = null;
   private monitorInterval: NodeJS.Timeout | null = null;
@@ -89,13 +100,14 @@ export class DeltaMasterBot extends EventEmitter {
   public async start(config: DeltaMasterConfig) {
     if (this.state.isActive) throw new Error('Delta Master is already active');
     
-    Logger.info(`[DELTA_MASTER] Initializing Phase 8 Symmetrical Agent for ${config.symbol}...`);
+    Logger.info(`[DELTA_MASTER] Initializing Phase 9 Exposure Orchestrator for ${config.symbol}...`);
     this.config = config;
     this.state.isActive = true;
     this.state.symbol = config.symbol;
     this.state.phase = 'SYMMETRIC_DEPLOY';
     this.emitStatus();
 
+    const startTime = Date.now();
     try {
       await this.deltaService.initialize();
       const ticker = await this.deltaService.fetchTicker(config.symbol);
@@ -105,7 +117,7 @@ export class DeltaMasterBot extends EventEmitter {
       const entryA = currentPrice;
       this.state.entryA = entryA;
       
-      // Phase 8: Calculate Symmetrical Hedge Entry
+      // Phase 8/9: Calculate Symmetrical Hedge Entry
       const offset = config.entryOffset || 5;
       const entryB = this.intelligenceService.calculateSymmetricalOffset(entryA, offset, config.sideA);
       this.state.entryB = entryB;
@@ -133,12 +145,20 @@ export class DeltaMasterBot extends EventEmitter {
       await this.deployManagedExits();
       await this.redeployHedge();
 
+      await this.deployManagedExits();
+      await this.redeployHedge();
+
       this.state.phase = 'HEDGE_ACTIVE';
       this.startMonitoring();
       this.startDMS();
+      
+      const speed = Date.now() - startTime;
+      if (!this.state.telemetry) this.state.telemetry = { avgLatency: 0, executionSpeed: 0, heartbeat: Date.now() };
+      this.state.telemetry.executionSpeed = speed;
+      
       this.emitStatus();
       
-      Logger.info(`[DELTA_MASTER] Phase 8 Architecture Deployed! Primary Entry: $${entryA}`);
+      Logger.info(`[DELTA_MASTER] Phase 9 Architecture Deployed in ${speed}ms! mission: 'Always Protected'`);
     } catch (error: any) {
       Logger.error('[DELTA_MASTER] Deployment Failure:', error);
       this.stop();
@@ -183,20 +203,64 @@ export class DeltaMasterBot extends EventEmitter {
       if (!this.state.isActive) return;
       
       try {
+        const t0 = Date.now();
         const ticker = await this.deltaService.fetchTicker(this.state.symbol);
+        const lat = Date.now() - t0;
+        
+        if (this.state.telemetry) {
+          this.state.telemetry.avgLatency = lat;
+        }
+
         const currentPrice = ticker.last;
         this.state.lastPrice = currentPrice;
 
         if (this.config) {
-          // PnL & Exposure Tracking
+          // 1. ATR Update (Institutional Volatility Adjustment)
+          const client = this.deltaService.getClientA();
+          if (client && client.fetchOHLCV) {
+             const ohlcv = await client.fetchOHLCV(this.state.symbol, '1m', undefined, 20);
+             this.intelligenceService.updateATR(this.state.symbol, ohlcv);
+          }
+
+          // 2. Exposure & PnL Tracking
           const diffA = currentPrice - this.state.entryA;
           this.state.pnlA = (this.config.sideA === 'buy' ? diffA : -diffA) * this.config.qtyA;
+          
           const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
+          const sideBMult = sideB === 'buy' ? 1 : -1;
+          const sideAMult = this.config.sideA === 'buy' ? 1 : -1;
+
+          // Fetch real positions for Account B to calculate Net Exposure
+          const positionsB = await this.deltaService.fetchPositions(this.deltaService.getClientB(), this.state.symbol);
+          const currentQtyB = positionsB.length > 0 ? (positionsB[0] as any).contracts : 0;
+          this.state.netExposureDelta = (this.config.qtyA * sideAMult) + (currentQtyB * sideBMult);
+
           const diffB = currentPrice - this.state.entryB;
-          this.state.pnlB = (sideB === 'buy' ? diffB : -diffB) * this.state.hedgeQty;
+          this.state.pnlB = (sideB === 'buy' ? diffB : -diffB) * currentQtyB;
           this.state.netPnl = this.state.pnlA + this.state.pnlB;
 
-          // Tiered Exit Logic
+          // 3. State-Based Exposure Sync
+          const targetHedge = this.intelligenceService.calculateRequiredHedge(currentPrice, this.state.entryA, this.state.entryB, this.config.qtyA, this.config.sideA);
+          if (targetHedge > 0 && this.state.hedgeStatus !== 'active') {
+             this.state.hedgeStatus = 'active';
+             Logger.info(`[DELTA_MASTER] Exposure Target Initialized: ${targetHedge} contracts.`);
+          }
+
+          // 4. Recursive Trend Recovery with ATR Friction
+          if (this.state.hedgeStatus === 'active' && this.state.phase !== 'PRINCIPAL_RECOVERY') {
+             const friction = this.intelligenceService.getFrictionOffset(this.config.sideA, this.state.symbol, this.config.atrMultiplier || 1.0);
+             const threshold = this.state.entryB + friction;
+             const trendRecovered = this.config.sideA === 'buy' ? currentPrice >= threshold : currentPrice <= threshold;
+
+             if (trendRecovered) {
+                Logger.info(`[DELTA_MASTER] V-Reversal Detected via ATR Friction. Closing Shield at B/E.`);
+                await this.deltaService.closePosition(this.deltaService.getClientB(), this.state.symbol, sideB, currentQtyB);
+                this.state.hedgeStatus = 'pending';
+                await this.redeployHedge();
+             }
+          }
+
+          // 5. Managed Exit Logic
           if (this.state.isActive && this.state.tpTiers.length > 0 && this.state.phase !== 'PRINCIPAL_RECOVERY') {
             for (const tier of this.state.tpTiers) {
               if (tier.status === 'waiting') {
@@ -213,29 +277,17 @@ export class DeltaMasterBot extends EventEmitter {
             }
           }
 
-          // Phase 8: Symmetrical Recursive Vigilance
-          if (this.state.hedgeStatus === 'pending') {
-             const triggerCrossed = this.config.sideA === 'buy' ? currentPrice <= this.state.entryB : currentPrice >= this.state.entryB;
-             if (triggerCrossed) {
-                Logger.info(`[DELTA_MASTER] HEDGE TRIGGERED at $${currentPrice}. Shield Active.`);
-                this.state.hedgeStatus = 'active';
-             }
-          } else if (this.state.hedgeStatus === 'active' && this.state.phase !== 'PRINCIPAL_RECOVERY') {
-             const friction = this.intelligenceService.getFrictionOffset(this.config.sideA);
-             const threshold = this.state.entryB + friction;
-             const trendRecovered = this.config.sideA === 'buy' ? currentPrice >= threshold : currentPrice <= threshold;
-
-             if (trendRecovered) {
-                Logger.info(`[DELTA_MASTER] V-Reversal Detected! Closing B at B/E...`);
-                await this.deltaService.closePosition(this.deltaService.getClientB(), this.state.symbol, sideB, this.state.hedgeQty);
-                await this.redeployHedge();
-             }
-          }
-
-          // Intelligence & Margin Guard
+          // 6. Intelligence & Margin Guard Heartbeat
           const metrics = await this.deltaService.fetchLiquidityMetrics(this.state.symbol);
           const intel = await this.intelligenceService.analyzeSymbol(this.state.symbol, currentPrice, metrics.spread);
-          this.state.intelligence = { sentiment: intel.sentiment, regime: intel.regime, volatilityScore: intel.volatilityScore, liquidityScore: intel.liquidityScore };
+          this.state.intelligence = { 
+            sentiment: intel.sentiment, 
+            regime: intel.regime, 
+            volatilityScore: intel.volatilityScore, 
+            liquidityScore: intel.liquidityScore,
+            atr: intel.atr,
+            dynamicFriction: intel.atr ? Math.abs(this.intelligenceService.getFrictionOffset(this.config.sideA, this.state.symbol)) : undefined
+          };
 
           const balanceB = await this.deltaService.fetchBalance(this.deltaService.getClientB());
           this.state.availableMarginB = (balanceB as any).total || 0;
@@ -247,13 +299,14 @@ export class DeltaMasterBot extends EventEmitter {
              } catch {}
           }
 
-          const positionsA = await this.deltaService.fetchPositions(this.deltaService.getClientA(), this.state.symbol);
-          if (positionsA.length > 0) {
-            this.state.liqPriceA = (positionsA[0] as any).liquidationPrice || 0;
-            if (Math.abs(currentPrice - this.state.liqPriceA) / currentPrice < 0.05) this.state.phase = 'PRINCIPAL_RECOVERY';
-          }
-
           this.state.rateLimit = this.deltaService.getRateLimitStatus();
+          
+          // 7. Telemetry Update
+          if (!this.state.telemetry) {
+            this.state.telemetry = { avgLatency: 0, executionSpeed: 0, heartbeat: Date.now() };
+          }
+          this.state.telemetry.heartbeat = Date.now();
+          
           this.emitStatus();
         }
       } catch (error) {
