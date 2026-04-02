@@ -32,8 +32,8 @@ export class IntelligenceService {
   public setGeminiKey(key: string) {
     try {
       this.genAI = new GoogleGenerativeAI(key);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      Logger.info('[INTELLIGENCE] Gemini Reasoning Kernel Initialized.');
+      this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
+      Logger.info('[INTELLIGENCE] Gemini Reasoning Kernel Initialized (v1).');
     } catch (e) {
       Logger.error('[INTELLIGENCE] Gemini Initialization Failed:', e);
     }

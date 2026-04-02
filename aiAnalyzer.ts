@@ -28,7 +28,8 @@ export async function analyzeTradeAction(
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Try v1 explicitly via RequestOptions
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: "v1" });
 
     const prompt = `Analyze this trade action for institutional-grade risk management:
     Symbol: ${symbol}
@@ -38,7 +39,7 @@ export async function analyzeTradeAction(
     
     Provide a concise assessment of the trade risk and potential outcome.`;
 
-    Logger.info(`Requesting AI Trade Analysis for ${symbol} (${side}) at ${price}...`);
+    Logger.info(`[AI_ANALYZER] Req: ${symbol} @ ${price} via ${model.model}`);
 
     const result = await model.generateContent(prompt);
     const response = await result.response;

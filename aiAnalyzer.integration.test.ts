@@ -7,7 +7,7 @@ dotenv.config({ quiet: true });
 
 // Only run this test suite if a real Gemini API key is available in the environment.
 // Otherwise, it will be skipped automatically.
-const hasApiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'undefined' && process.env.GEMINI_API_KEY !== '';
+const hasApiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_INTEGRATION_TEST === 'true';
 
 describe.runIf(hasApiKey)(
   "analyzeTradeAction (Integration)",

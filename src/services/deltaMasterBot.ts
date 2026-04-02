@@ -88,6 +88,7 @@ export class DeltaMasterBot extends EventEmitter {
   };
   private dmsInterval: NodeJS.Timeout | null = null;
   private monitorInterval: NodeJS.Timeout | null = null;
+  private sentimentInterval: NodeJS.Timeout | null = null;
   private config: DeltaMasterConfig | null = null;
 
   constructor(io?: SocketIOServer) {
@@ -173,6 +174,7 @@ export class DeltaMasterBot extends EventEmitter {
     this.state.isActive = false;
     this.state.phase = 'CLOSED';
     if (this.monitorInterval) clearInterval(this.monitorInterval);
+    if (this.sentimentInterval) clearInterval(this.sentimentInterval);
     if (this.dmsInterval) clearInterval(this.dmsInterval);
     this.state.dmsStatus = 'inactive';
     
@@ -253,8 +255,11 @@ export class DeltaMasterBot extends EventEmitter {
              const trendRecovered = this.config.sideA === 'buy' ? currentPrice >= threshold : currentPrice <= threshold;
 
              if (trendRecovered) {
+                const t0 = Date.now();
                 Logger.info(`[DELTA_MASTER] V-Reversal Detected via ATR Friction. Closing Shield at B/E.`);
                 await this.deltaService.closePosition(this.deltaService.getClientB(), this.state.symbol, sideB, currentQtyB);
+                if (this.state.telemetry) this.state.telemetry.executionSpeed = Date.now() - t0;
+                
                 this.state.hedgeStatus = 'pending';
                 await this.redeployHedge();
              }
@@ -306,6 +311,11 @@ export class DeltaMasterBot extends EventEmitter {
             this.state.telemetry = { avgLatency: 0, executionSpeed: 0, heartbeat: Date.now() };
           }
           this.state.telemetry.heartbeat = Date.now();
+
+          // 8. Agentic Reasoning Cooldown (Run every 5 min if not already started)
+          if (!this.sentimentInterval) {
+            this.startAgenticReasoning();
+          }
           
           this.emitStatus();
         }
@@ -331,13 +341,39 @@ export class DeltaMasterBot extends EventEmitter {
   private async redeployHedge() {
     if (!this.config || !this.state.isActive) return;
     const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
+    const intel = this.intelligenceService.getIntelligence(this.state.symbol);
+    
+    // Dynamic Offset Modulation based on Agentic Sentiment & ATR
+    const baseOffset = this.config.entryOffset || 5;
+    const dynamicOffset = intel ? this.intelligenceService.recommendOffset(baseOffset, intel, this.config.sideA) : baseOffset;
+    
+    this.state.entryB = this.intelligenceService.calculateSymmetricalOffset(this.state.entryA, dynamicOffset, this.config.sideA);
+    
     try {
+      const t0 = Date.now();
       const orderB = await this.deltaService.placeOrder(this.deltaService.getClientB(), this.state.symbol, 'stop_limit', sideB, this.state.hedgeQty, this.state.entryB, { stopPrice: this.state.entryB, leverage: 20 });
+      if (this.state.telemetry) this.state.telemetry.executionSpeed = Date.now() - t0;
+      
       this.state.hedgeStatus = 'pending';
       this.state.hedgeOrderId = orderB.id || 'hedge_reentry';
     } catch (e) {
       Logger.error('[DELTA_MASTER] Shield Redeplyment Failure:', e);
     }
+  }
+
+  private startAgenticReasoning() {
+    const fetchReasoning = async () => {
+      if (!this.state.isActive || !this.state.symbol) return;
+      Logger.info(`[DELTA_MASTER] Seeking Agentic Consensus for ${this.state.symbol}...`);
+      
+      // Phase 11: In a real world scenario, we'd fetch actual news/data here.
+      // For Phase 11, we pass the current price context to Gemini.
+      const context = `Current Price: $${this.state.lastPrice}. Momentum is ${this.state.pnlA >= 0 ? 'Positive' : 'Negative'}. ATR: ${this.state.intelligence?.atr || 'Unknown'}.`;
+      await this.intelligenceService.applyAgenticConsensus(this.state.symbol, context);
+    };
+
+    fetchReasoning();
+    this.sentimentInterval = setInterval(fetchReasoning, 300000); // 5 Minutes
   }
 
   private startDMS() {

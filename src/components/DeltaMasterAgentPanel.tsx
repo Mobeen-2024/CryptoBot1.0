@@ -188,17 +188,17 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   };
 
   return (
-    <div className="w-full h-full flex flex-col p-6 text-white overflow-y-auto custom-scrollbar">
+    <div className="w-full h-full flex flex-col p-4 text-white overflow-y-auto custom-scrollbar">
       
       {/* Header Section */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-500/20 border border-indigo-500/30 rounded-2xl">
-            <Shield className="w-8 h-8 text-indigo-400" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-500/20 border border-indigo-500/30 rounded-xl">
+            <Shield className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tighter italic">Delta Master <span className="text-indigo-400">Phase 9</span></h1>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">State-Based Orchestration & ATR Friction</p>
+            <h1 className="text-lg font-black uppercase tracking-tighter italic leading-none">Delta Master <span className="text-indigo-400">Phase 9</span></h1>
+            <p className="text-[8px] font-bold text-gray-500 uppercase tracking-[0.2em] mt-0.5">State-Based Orchestration</p>
           </div>
         </div>
         
@@ -222,36 +222,36 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-4">
         {/* Account A PnL */}
-        <div className="glass-panel border-indigo-500/20 p-5 rounded-3xl col-span-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Account A (Principal)</span>
-          <span className={cn("text-4xl font-black font-mono tracking-tighter", state.pnlA >= 0 ? "text-emerald-400" : "text-rose-400")}>
-            {state.pnlA.toFixed(2)} <span className="text-sm font-bold text-gray-500">USDT</span>
+        <div className="glass-panel border-indigo-500/20 p-3 rounded-2xl col-span-1">
+          <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 mb-1 block">Account A (Principal)</span>
+          <span className={cn("text-2xl font-black font-mono tracking-tighter", state.pnlA >= 0 ? "text-emerald-400" : "text-rose-400")}>
+            {state.pnlA.toFixed(2)} <span className="text-[10px] font-bold text-gray-500">USDT</span>
           </span>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">Entry</span>
-                <span className="text-sm font-mono font-bold text-white">${state.entryA.toLocaleString()}</span>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
+                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Entry</span>
+                <span className="text-xs font-mono font-bold text-white">${state.entryA.toLocaleString()}</span>
              </div>
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">Status</span>
-                <span className="text-sm font-black text-indigo-400 uppercase">{state.phase}</span>
+             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
+                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Status</span>
+                <span className="text-xs font-black text-indigo-400 uppercase">{state.phase}</span>
              </div>
           </div>
         </div>
 
         {/* Net Exposure HUD (Central Piece) */}
-        <div className="glass-panel border-white/10 p-5 rounded-3xl bg-white/5 flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="glass-panel border-white/10 p-3 rounded-2xl bg-white/5 flex flex-col items-center justify-center relative overflow-hidden">
            <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
-           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-4 z-10">Net Exposure Delta</span>
+           <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-2 z-10">Net Exposure Delta</span>
            
-           <div className="relative w-full h-24 flex items-center justify-center z-10">
-              <div className="absolute w-full h-1 bg-white/5 rounded-full" />
+           <div className="relative w-full h-12 flex items-center justify-center z-10">
+              <div className="absolute w-full h-0.5 bg-white/5 rounded-full" />
               <div 
                 className={cn(
-                  "absolute h-2 rounded-full transition-all duration-500",
-                  Math.abs(state.netExposureDelta) < 0.01 ? "bg-emerald-500 w-4 shadow-[0_0_15px_rgba(16,185,129,0.5)]" : "bg-indigo-500"
+                  "absolute h-1 rounded-full transition-all duration-500",
+                  Math.abs(state.netExposureDelta) < 0.01 ? "bg-emerald-500 w-2 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-indigo-500"
                 )}
                 style={{ 
                   left: '50%',
@@ -259,159 +259,133 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                   transform: state.netExposureDelta >= 0 ? 'translateX(0)' : 'translateX(-100%)'
                 }}
               />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-indigo-500 rounded-full shadow-lg" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white border border-indigo-500 rounded-full shadow-lg" />
            </div>
            
-           <div className="flex items-center gap-2 z-10">
-              <Gauge className={cn("w-4 h-4", Math.abs(state.netExposureDelta) < 0.01 ? "text-emerald-400" : "text-gray-500")} />
-              <span className="text-2xl font-black font-mono tracking-tighter">
+           <div className="flex items-center gap-1.5 z-10">
+              <Gauge className={cn("w-3 h-3", Math.abs(state.netExposureDelta) < 0.01 ? "text-emerald-400" : "text-gray-500")} />
+              <span className="text-xl font-black font-mono tracking-tighter">
                 {state.netExposureDelta.toFixed(3)}
               </span>
-              <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-1">Contracts</span>
+              <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest mt-1">Contracts</span>
            </div>
-           <p className="text-[8px] font-bold text-gray-500 uppercase mt-2 tracking-widest">
-              {Math.abs(state.netExposureDelta) < 0.01 ? 'DELTA NEUTRAL ACTIVE' : 'RECALIBRATING EXPOSURE...'}
+           <p className="text-[8px] font-bold text-gray-500 uppercase mt-2 tracking-widest z-10">
+              {Math.abs(state.netExposureDelta) < 0.01 ? 'DELTA NEUTRAL' : 'RECALIBRATING...'}
            </p>
         </div>
 
         {/* Account B PnL */}
-        <div className="glass-panel border-amber-500/20 p-5 rounded-3xl relative overflow-hidden col-span-1">
-          <div className="flex justify-between items-start mb-2">
-             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 block">Account B (Insurance)</span>
+        <div className="glass-panel border-amber-500/20 p-3 rounded-2xl relative overflow-hidden col-span-1">
+          <div className="flex justify-between items-start mb-1">
+             <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 block">Account B (Insurance)</span>
              {state.isActive && (
                <div className={cn(
-                 "px-2 py-0.5 rounded-md border text-[8px] font-black uppercase tracking-widest",
+                 "px-1.5 py-0.5 rounded border text-[6px] font-black uppercase tracking-widest",
                  state.entryB < state.entryA ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
                )}>
-                 {state.entryB < state.entryA ? 'LONG PROTECTION (SELL-STOP)' : 'SHORT PROTECTION (BUY-STOP)'}
+                 {state.entryB < state.entryA ? 'L-PROT' : 'S-PROT'}
                </div>
              )}
           </div>
-          <span className={cn("text-4xl font-black font-mono tracking-tighter", state.pnlB >= 0 ? "text-emerald-400" : "text-rose-400")}>
-            {state.pnlB.toFixed(2)} <span className="text-sm font-bold text-gray-500">USDT</span>
+          <span className={cn("text-2xl font-black font-mono tracking-tighter", state.pnlB >= 0 ? "text-emerald-400" : "text-rose-400")}>
+            {state.pnlB.toFixed(2)} <span className="text-[10px] font-bold text-gray-500">USDT</span>
           </span>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">Trigger</span>
-                <span className="text-sm font-mono font-bold text-white">${state.entryB.toLocaleString()}</span>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
+                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Trigger</span>
+                <span className="text-xs font-mono font-bold text-white">${state.entryB.toLocaleString()}</span>
              </div>
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">Available Margin</span>
-                <span className="text-sm font-mono font-bold text-white">${state.availableMarginB.toFixed(2)}</span>
+             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
+                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Margin</span>
+                <span className="text-xs font-mono font-bold text-white">${state.availableMarginB.toFixed(0)}</span>
              </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
          {/* Volatility & ATR HUD */}
-         <div className="glass-panel p-6 rounded-[2rem] border-white/5 bg-black/20 space-y-4">
+         <div className="glass-panel p-4 rounded-2xl border-white/5 bg-black/20 space-y-3">
             <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                  <Wind className="w-5 h-5 text-indigo-400" />
-                  <span className="text-xs font-black uppercase tracking-widest">Volatility HUD</span>
-               </div>
                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-500 uppercase">Regime:</span>
-                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{state.intelligence?.regime || 'SCANNING...'}</span>
+                  <Wind className="w-4 h-4 text-indigo-400" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Volatility HUD</span>
                </div>
+               <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{state.intelligence?.regime || 'SCANNING...'}</span>
             </div>
             
-            <div className="grid grid-cols-2 gap-6">
-               <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                  <span className="text-[9px] text-gray-500 uppercase font-black block mb-1 tracking-widest text-center">ATR (14)</span>
-                  <div className="text-xl font-black font-mono text-center text-white">
-                     {state.intelligence?.atr?.toFixed(2) || '0.00'}
+            <div className="grid grid-cols-2 gap-3">
+               <div className="bg-white/5 p-2 rounded-xl border border-white/5 text-center">
+                  <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5 tracking-tightest">ATR (14)</span>
+                  <div className="text-sm font-black font-mono text-white">
+                     {state.intelligence?.atr?.toFixed(1) || '0.0'}
                   </div>
                </div>
-               <div className="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/20 px-2 py-0.5">
-                  <span className="text-[9px] text-indigo-400 uppercase font-black block mb-1 tracking-widest text-center">Bot Pilot Bias</span>
-                  <div className="flex flex-col items-center">
-                    <div className="text-xl font-black font-mono text-center text-indigo-400">
-                      {state.intelligence?.sentiment?.toFixed(2) || '0.00'}
-                    </div>
-                    {state.intelligence?.sentimentConfidence !== undefined && (
-                      <span className="text-[8px] font-black text-gray-500 uppercase">
-                        {(state.intelligence.sentimentConfidence * 100).toFixed(0)}% CONFIDENCE
-                      </span>
-                    )}
+               <div className="bg-indigo-500/10 p-2 rounded-xl border border-indigo-500/20 text-center">
+                  <span className="text-[8px] text-indigo-400 uppercase font-black block mb-0.5 tracking-tightest">Bot Bias</span>
+                  <div className="text-sm font-black font-mono text-white">
+                     {state.intelligence?.sentiment?.toFixed(1) || '0.0'}
                   </div>
                </div>
             </div>
          </div>
-
+ 
          {/* Phase 11: Reasoning HUD */}
-         <div className="glass-panel p-6 rounded-[2rem] border-indigo-500/30 bg-black/40 space-y-4">
+         <div className="glass-panel p-4 rounded-2xl border-indigo-500/30 bg-black/40 space-y-3">
             <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                  <Activity className="w-5 h-5 text-indigo-400" />
-                  <span className="text-xs font-black uppercase tracking-widest">Bot Pilot Reasoning</span>
+               <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-indigo-400" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Reasoning Snippet</span>
                </div>
-               {state.intelligence?.lastNewsUpdate && (
-                 <span className="text-[8px] font-black text-gray-500 uppercase animate-pulse">
-                   LIVE INGESTION ACTIVE
-                 </span>
-               )}
             </div>
-            <div className="bg-black/60 rounded-2xl border border-white/10 p-4 h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] leading-relaxed relative">
-               <div className="absolute top-2 right-2 flex gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" />
-               </div>
-               <span className="text-emerald-500 block mb-1 font-black underline uppercase">ASSISTANT_THOUGHTS:</span>
+            <div className="bg-black/60 rounded-xl border border-white/10 p-3 h-16 overflow-y-auto custom-scrollbar font-mono text-[8px] leading-relaxed">
                <span className="text-gray-400 italic">
-                 {state.intelligence?.reasoningSnippet || '> Waiting for agentic consensus ingestion...'}
+                 {state.intelligence?.reasoningSnippet || '> Waiting for ingestion...'}
                </span>
             </div>
-            <button 
-              onClick={() => setShowKeyModal(true)}
-              className="w-full py-2 bg-indigo-500/20 border border-indigo-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/30 transition-all"
-            >
-              Configure Agent Intelligence
-            </button>
          </div>
-
+ 
          {/* Net Performance HUD */}
-         <div className="glass-panel p-6 rounded-[2rem] border-emerald-500/30 bg-emerald-500/10 flex flex-col justify-center text-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">Consolidated Net PnL</span>
-            <span className={cn("text-5xl font-black font-mono tracking-tighter", state.netPnl >= 0 ? "text-white" : "text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.2)]")}>
+         <div className="glass-panel p-4 rounded-2xl border-emerald-500/30 bg-emerald-500/10 flex flex-col justify-center text-center col-span-2 py-3">
+            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400">Net PnL</span>
+            <span className={cn("text-3xl font-black font-mono tracking-tighter", state.netPnl >= 0 ? "text-white" : "text-rose-400")}>
                {state.netPnl >= 0 ? '+' : ''}{state.netPnl.toFixed(2)}
             </span>
          </div>
       </div>
 
-      {/* Control Panel or Advanced Tools */}
+      {/* Control Panel */}
       {!state.isActive ? (
-        <div className="glass-panel p-8 rounded-[2.5rem] border-white/10 space-y-6">
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Symbol</label>
-                 <input readOnly value={symbol} className="bg-black/40 border border-white/5 rounded-xl px-4 py-2 font-mono text-sm text-gray-400 outline-none" />
+        <div className="glass-panel p-4 rounded-2xl border-white/10 space-y-4">
+           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="flex flex-col gap-1">
+                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Symbol</label>
+                 <input readOnly value={symbol} className="bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 font-mono text-[10px] text-gray-400 outline-none" />
               </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Qty (A)</label>
-                 <input type="number" value={qtyA} onChange={(e) => setQtyA(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 font-mono text-sm outline-none focus:border-indigo-500/50" />
+              <div className="flex flex-col gap-1">
+                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Qty (A)</label>
+                 <input type="number" value={qtyA} onChange={(e) => setQtyA(e.target.value)} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none" />
               </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Offset</label>
-                 <input type="number" value={entryOffset} onChange={(e) => setEntryOffset(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 font-mono text-sm outline-none" />
+              <div className="flex flex-col gap-1">
+                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Offset</label>
+                 <input type="number" value={entryOffset} onChange={(e) => setEntryOffset(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none" />
               </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">ATR K-Mult</label>
-                 <input type="number" step="0.1" value={atrMultiplier} onChange={(e) => setAtrMultiplier(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 font-mono text-sm outline-none" />
+              <div className="flex flex-col gap-1">
+                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">ATR K</label>
+                 <input type="number" step="0.1" value={atrMultiplier} onChange={(e) => setAtrMultiplier(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none" />
               </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Side (A)</label>
-                 <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/10 h-full">
-                    <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[10px] font-black rounded-lg", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400" : "text-gray-500")}>BUY</button>
-                    <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[10px] font-black rounded-lg", sideA === 'sell' ? "bg-rose-500/20 text-rose-400" : "text-gray-500")}>SELL</button>
+              <div className="flex flex-col gap-1">
+                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Side</label>
+                 <div className="flex gap-1 bg-black/40 p-0.5 rounded-lg border border-white/10 h-full">
+                    <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[8px] font-black rounded", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400" : "text-gray-500")}>BUY</button>
+                    <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[8px] font-black rounded", sideA === 'sell' ? "bg-rose-500/20 text-rose-400" : "text-gray-500")}>SELL</button>
                  </div>
               </div>
            </div>
            
-           <button onClick={handleStart} disabled={loading} className="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-black font-black uppercase tracking-[0.4em] text-xs rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-              <Play className="w-5 h-5 fill-black" />
-              Deploy Phase 9 State-Based Engine
+           <button onClick={handleStart} disabled={loading} className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-black font-black uppercase tracking-[0.2em] text-[10px] rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+              <Play className="w-4 h-4 fill-black" />
+              Deploy Phase 9 Engine
            </button>
         </div>
       ) : (
