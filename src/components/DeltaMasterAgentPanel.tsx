@@ -149,12 +149,16 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
             <Shield className="w-8 h-8 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tighter">Delta Master <span className="text-indigo-400">V2</span></h1>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Institutional API Mastery</p>
+            <h1 className="text-2xl font-black uppercase tracking-tighter italic">Delta Master <span className="text-indigo-400">2026</span></h1>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">Symmetrical Sourcing & Recursive Consistency</p>
           </div>
         </div>
         
         <div className="flex items-center gap-6">
+           <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5 animate-pulse">
+              <div className="w-1 h-1 bg-indigo-500 rounded-full" />
+              <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">RPC FEED ACTIVE</span>
+           </div>
            {state.rateLimit && (
               <div className="hidden md:flex items-center gap-4 px-4 py-1.5 bg-black/20 rounded-full border border-white/5">
                  <div className="flex flex-col">
@@ -202,8 +206,19 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         </div>
 
         {/* Account B PnL */}
-        <div className="glass-panel border-amber-500/20 p-5 rounded-3xl">
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Account B (Insurance)</span>
+        <div className="glass-panel border-amber-500/20 p-5 rounded-3xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="flex justify-between items-start mb-2">
+             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 block">Account B (Insurance)</span>
+             {state.isActive && (
+               <div className={cn(
+                 "px-2 py-0.5 rounded-md border text-[8px] font-black uppercase tracking-widest",
+                 state.entryB < state.entryA ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
+               )}>
+                 {state.entryB < state.entryA ? 'LONG PROTECTION (SELL-STOP)' : 'SHORT PROTECTION (BUY-STOP)'}
+               </div>
+             )}
+          </div>
           <span className={cn("text-4xl font-black font-mono tracking-tighter", state.pnlB >= 0 ? "text-emerald-400" : "text-rose-400")}>
             {state.pnlB.toFixed(2)} <span className="text-sm font-bold text-gray-500">USDT</span>
           </span>

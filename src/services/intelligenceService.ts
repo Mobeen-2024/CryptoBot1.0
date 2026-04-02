@@ -80,4 +80,23 @@ export class IntelligenceService {
 
     return parseFloat(offset.toFixed(2));
   }
+
+  /**
+   * Centralizes the trigger price calculation for Account B
+   * @param entryA Account A entry price
+   * @param baseOffset The baseline 5 USDT offset or dynamic variant
+   * @param sideA Direction of Account A ('buy' = Long, 'sell' = Short)
+   */
+  public calculateSymmetricalOffset(entryA: number, baseOffset: number, sideA: 'buy' | 'sell'): number {
+    // Bullish: Hedge is below EntryA (Sell-Stop)
+    // Bearish: Hedge is above EntryA (Buy-Stop)
+    return sideA === 'buy' ? entryA - baseOffset : entryA + baseOffset;
+  }
+
+  /**
+   * Minimal friction to ensure break-even exits cover fees and capture momentum
+   */
+  public getFrictionOffset(sideA: 'buy' | 'sell'): number {
+    return sideA === 'buy' ? 2 : -2; 
+  }
 }

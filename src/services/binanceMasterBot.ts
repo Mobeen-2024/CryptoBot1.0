@@ -85,7 +85,10 @@ export class BinanceMasterBot extends EventEmitter {
       
       this.state.lastPrice = currentPrice;
       this.state.entryA = currentPrice;
-      this.state.entryB = currentPrice + (config.sideA === 'buy' ? -config.entryOffset : config.entryOffset);
+      
+      // Phase 8: Centralized Symmetrical Offset
+      const offset = config.entryOffset || 5;
+      this.state.entryB = this.intelligenceService.calculateSymmetricalOffset(currentPrice, offset, config.sideA);
       this.state.hedgeQty = config.qtyB;
 
       // Deploy Account A
@@ -149,8 +152,8 @@ export class BinanceMasterBot extends EventEmitter {
     const intel = this.intelligenceService.getIntelligence(this.config.symbol);
     if (intel) {
       finalOffset = this.intelligenceService.recommendOffset(baseOffset, intel, this.config.sideA);
-      this.state.entryB = this.state.entryA + (this.config.sideA === 'buy' ? -finalOffset : finalOffset);
-      Logger.info(`[BINANCE_MASTER] Bot Pilot: Dynamic Offset Applied: ${finalOffset} USDT (Base: ${baseOffset})`);
+      this.state.entryB = this.intelligenceService.calculateSymmetricalOffset(this.state.entryA, finalOffset, this.config.sideA);
+      Logger.info(`[BINANCE_MASTER] Bot Pilot: Dynamic Offset Applied: ${finalOffset} USDT`);
     }
 
     // Deploy Account B (Recursive Shield trigger)
@@ -232,16 +235,20 @@ export class BinanceMasterBot extends EventEmitter {
             }
           }
 
-          // 3. Recursive Shield Logic
-          if (this.state.hedgeStatus === 'pending' && ((isBuy && currentPrice <= this.state.entryB) || (!isBuy && currentPrice >= this.state.entryB))) {
+          // 3. Recursive Shield Logic - Symmetrical
+          const triggerCrossed = isBuy ? currentPrice <= this.state.entryB : currentPrice >= this.state.entryB;
+          if (this.state.hedgeStatus === 'pending' && triggerCrossed) {
             this.state.hedgeStatus = 'active';
             Logger.info('[BINANCE_MASTER] Recursive Shield ENGAGED');
           }
 
           if (this.state.hedgeStatus === 'active' && this.state.phase !== 'PRINCIPAL_RECOVERY') {
-            // Break-Even Recovery (Exit Hedge if price returns to entryA)
-            const exitTrigger = isBuy ? this.state.entryA - 2 : this.state.entryA + 2; 
-            if ((isBuy && currentPrice >= exitTrigger) || (!isBuy && currentPrice <= exitTrigger)) {
+            // Phase 8: Friction-aware Trend Recovery (Break-Even Exit)
+            const friction = this.intelligenceService.getFrictionOffset(this.config.sideA);
+            const threshold = this.state.entryB + friction;
+            const trendRecovered = isBuy ? currentPrice >= threshold : currentPrice <= threshold;
+
+            if (trendRecovered) {
               Logger.info('[BINANCE_MASTER] Market Recovered. Closing Shield at Break-Even.');
               await this.binanceService.closePosition(this.binanceService.getClientB(), this.state.symbol, isBuy ? 'sell' : 'buy', this.state.hedgeQty);
               await this.redeployHedge();
