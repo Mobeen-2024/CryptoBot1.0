@@ -41,6 +41,12 @@ The centerpiece of the application is a custom-engineered `Lightweight Charts` c
 - **Auto-Sync Recovery**: UI now automatically triggers a full state re-fetch upon socket reconnection.
 - **Sync Hub UI**: Integrated high-visibility connection health indicators in all agentic panels.
 
+### Phase 6 - Operational Intelligence (Bot Pilot)
+- **Regime Detection**: Autonomous classification of market states (High Volatility, Stable Trend, etc.).
+- **Sentiment Pulse Filtering**: Real-time adjustment of insurance offsets based on bullish/bearish bias.
+- **Dynamic Offset Calibration**: Automated tightening/widening of buffer zones to optimize protection.
+- **Intelligence HUD**: New reasoning suite visualizing the 'Bot Pilot's' logic and data-driven parameters.
+
 ---
 
 ### 2. Dual-Account Execution Modules (The Trading Core)

@@ -9,6 +9,8 @@ export class DeltaExchangeService {
   private clientB: any;
   private isTestnet: boolean;
   private isShadowMode: boolean;
+  private rateLimitInfoA: { limit: number; remaining: number; reset: number } = { limit: 0, remaining: 100, reset: 0 };
+  private rateLimitInfoB: { limit: number; remaining: number; reset: number } = { limit: 0, remaining: 100, reset: 0 };
 
   constructor() {
     this.isTestnet = process.env.DELTA_USE_TESTNET === 'true' || process.env.DELTA_USE_TESTNET === '1';
@@ -93,11 +95,98 @@ export class DeltaExchangeService {
     }
 
     try {
-      return await client.createOrder(symbol, type, side, amount, price, params);
+      const order = await client.createOrder(symbol, type, side, amount, price, params);
+      this.updateRateLimits(client, (order as any).info);
+      return order;
     } catch (error) {
       Logger.error(`Delta Order Placement Failed (${side}):`, error);
       throw error;
     }
+  }
+
+  public async placeBracketOrder(client: any, symbol: string, qty: number, side: 'buy' | 'sell', price: number, slPrice: number, tpPrice: number) {
+    if (this.isShadowMode) {
+      Logger.info(`[DELTA_SHADOW] BRACKET ORDER: ${side.toUpperCase()} ${qty} @ ${price} [SL: ${slPrice}, TP: ${tpPrice}]`);
+      return { id: `sim_bracket_${Date.now()}`, status: 'open', simulated: true };
+    }
+
+    try {
+      const params = {
+        symbol,
+        side: side.toUpperCase(),
+        order_type: 'limit',
+        limit_price: price.toString(),
+        size: qty.toString(),
+        stop_loss_price: slPrice.toString(),
+        take_profit_price: tpPrice.toString()
+      };
+      // POST /v2/orders/bracket
+      const response = await client.privatePostOrdersBracket(params);
+      this.updateRateLimits(client, response);
+      return response;
+    } catch (error) {
+      Logger.error(`Delta Bracket Order Failed:`, error);
+      throw error;
+    }
+  }
+
+  public async placeBatchOrders(client: any, orders: any[]) {
+    if (this.isShadowMode) {
+      Logger.info(`[DELTA_SHADOW] BATCH EXECUTION: ${orders.length} sub-orders triggered.`);
+      return { status: 'success', orders: orders.length, simulated: true };
+    }
+
+    try {
+      // POST /v2/orders/bulk
+      const response = await client.privatePostOrdersBulk({ orders });
+      this.updateRateLimits(client, response);
+      return response;
+    } catch (error) {
+      Logger.error(`Delta Batch Execution Failed:`, error);
+      throw error;
+    }
+  }
+
+  public async transferSubaccountFunds(fromId: string, toId: string, asset: string, amount: number) {
+    if (this.isShadowMode) {
+      Logger.info(`[DELTA_SHADOW] Subaccount Transfer: Main(${fromId}) -> Hedge(${toId}) | ${amount} ${asset}`);
+      return { status: 'success', simulated: true };
+    }
+
+    try {
+      // POST /v2/subaccounts/transfer
+      const response = await this.clientA.privatePostSubaccountsTransfer({
+        transferer_user_id: fromId,
+        transferee_user_id: toId,
+        asset_symbol: asset,
+        amount: amount.toString()
+      });
+      return response;
+    } catch (error) {
+      Logger.error(`Delta Subaccount Transfer Failed:`, error);
+      throw error;
+    }
+  }
+
+  private updateRateLimits(client: any, info: any) {
+    // In Delta V2, headers often contain rate limit info
+    // CCXT exposes lastResponseHeaders
+    const headers = client.lastResponseHeaders;
+    if (headers) {
+      const remaining = parseInt(headers['x-ratelimit-remaining'] || '100');
+      const limit = parseInt(headers['x-ratelimit-limit'] || '0');
+      const reset = parseInt(headers['x-ratelimit-reset'] || '0');
+      
+      if (client === this.clientA) {
+        this.rateLimitInfoA = { limit, remaining, reset };
+      } else {
+        this.rateLimitInfoB = { limit, remaining, reset };
+      }
+    }
+  }
+
+  public getRateLimitStatus() {
+    return { accountA: this.rateLimitInfoA, accountB: this.rateLimitInfoB };
   }
 
   public async fetchTicker(symbol: string) {
