@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { analyzeTradeAction } from "./aiAnalyzer.ts";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Logger } from "./logger"; // Adjust path if necessary
 
 // 1. Mock the Logger to prevent our test from spamming the console
@@ -12,14 +12,14 @@ vi.mock("./logger", () => ({
   },
 }));
 
-// 2. Mock the @google/genai SDK
-vi.mock("@google/genai", () => {
+// 2. Mock the @google/generative-ai SDK
+vi.mock("@google/generative-ai", () => {
   const generateContentMock = vi.fn();
   return {
-    GoogleGenAI: vi.fn().mockImplementation(() => ({
-      models: {
+    GoogleGenerativeAI: vi.fn().mockImplementation(() => ({
+      getGenerativeModel: vi.fn().mockReturnValue({
         generateContent: generateContentMock,
-      },
+      }),
     })),
     __generateContentMock: generateContentMock,
   };
@@ -32,9 +32,11 @@ describe("analyzeTradeAction", () => {
 
   it("should return a mocked AI analysis on success", async () => {
     // Arrange: Set up our mock to return a specific response
-    const { __generateContentMock } = (await import("@google/genai")) as any;
+    const { __generateContentMock } = (await import("@google/generative-ai")) as any;
     __generateContentMock.mockResolvedValueOnce({
-      text: "Mocked AI analysis: High risk trade.",
+      response: {
+        text: () => "Mocked AI analysis: High risk trade.",
+      },
     });
 
     // Act
@@ -50,7 +52,7 @@ describe("analyzeTradeAction", () => {
 
   it("should return null and log an error if the API call fails", async () => {
     // Arrange: Simulate an API failure (e.g., network error or quota exceeded)
-    const { __generateContentMock } = (await import("@google/genai")) as any;
+    const { __generateContentMock } = (await import("@google/generative-ai")) as any;
     __generateContentMock.mockRejectedValueOnce(
       new Error("API Quota Exceeded"),
     );

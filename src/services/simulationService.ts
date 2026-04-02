@@ -2,7 +2,7 @@ import { IntelligenceService } from './intelligenceService.js';
 import { Logger } from '../../logger.js';
 import EventEmitter from 'events';
 
-export type SimulationScenario = 'V_REVERSAL' | 'LIQUIDITY_SWEEP' | 'CONNECTION_FAILURE' | 'STABLE_TREND';
+export type SimulationScenario = 'V_REVERSAL' | 'LIQUIDITY_SWEEP' | 'CONNECTION_FAILURE' | 'SENTIMENT_SHOCK' | 'STABLE_TREND';
 
 export class SimulationService extends EventEmitter {
   private static instance: SimulationService;
@@ -37,6 +37,9 @@ export class SimulationService extends EventEmitter {
         break;
       case 'CONNECTION_FAILURE':
         await this.simulateConnectionFailure(symbol);
+        break;
+      case 'SENTIMENT_SHOCK':
+        await this.simulateSentimentShock(symbol);
         break;
       default:
         this.activeScenario = null;
@@ -111,6 +114,52 @@ export class SimulationService extends EventEmitter {
       Logger.info(`[SIMULATION] Dead Man's Switch Activated. Latent orders purged.`);
       this.emit('dms_purged', { symbol });
     }, 5000);
+  }
+
+  /**
+   * Scenario E: Sentiment Shock
+   * Verifies the "Always Protected" mission when AI sentiment is high-conviction
+   * but market dynamics (ATR) suggest a sudden reversal or crash.
+   */
+  private async simulateSentimentShock(symbol: string) {
+    const initialPrice = 65000;
+    let step = 0;
+
+    // 1. Initially set extreme Bullish sentiment
+    this.intelligenceService.applyAgenticConsensus(symbol, JSON.stringify({
+      sentiment: 0.9,
+      confidence: 0.95,
+      reasoningSnippet: "Extreme institutional inflows detected. Breaking resistance @ 66k likely.",
+      isHighRisk: false
+    }));
+
+    this.simulationInterval = setInterval(() => {
+      step++;
+      let currentPrice = initialPrice;
+
+      if (step < 5) {
+        // Price is stable/rising slightly
+        currentPrice += step * 0.5;
+      } else if (step < 10) {
+        // Sudden Flash Crash starts
+        currentPrice = initialPrice - (step - 4) * 5; // -5, -10, -15...
+      } else {
+        clearInterval(this.simulationInterval!);
+        Logger.info(`[SIMULATION] SENTIMENT_SHOCK Scenario Completed.`);
+      }
+
+      // Inject high ATR during crash to trigger mathematical override
+      if (step >= 5) {
+        const volatility = (step - 4) * 20;
+        const mockOhlcv = Array.from({ length: 20 }, () => [
+          Date.now(), currentPrice, currentPrice + volatility, currentPrice - volatility, currentPrice
+        ]);
+        this.intelligenceService.updateATR(symbol, mockOhlcv);
+      }
+
+      this.emit('price_update', { symbol, price: currentPrice });
+      this.intelligenceService.analyzeSymbol(symbol, currentPrice, step >= 5 ? 20 : 1);
+    }, 1000);
   }
 
   public stopSimulation() {

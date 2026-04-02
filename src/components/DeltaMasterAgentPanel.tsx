@@ -24,11 +24,14 @@ interface DeltaMasterState {
   netExposureDelta: number;
   intelligence?: {
     sentiment: number;
+    sentimentConfidence?: number; // Phase 11
+    reasoningSnippet?: string; // Phase 11
     regime: string;
     volatilityScore: number;
     liquidityScore: number;
     atr?: number;
     dynamicFriction?: number;
+    lastNewsUpdate?: number; // Phase 11
   };
   rateLimit?: {
     accountA: { limit: number; remaining: number; reset: number };
@@ -79,6 +82,8 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   const [entryOffset, setEntryOffset] = useState(5);
   const [sideA, setSideA] = useState<'buy' | 'sell'>('buy');
   const [atrMultiplier, setAtrMultiplier] = useState(1.0);
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [geminiKey, setGeminiKey] = useState('');
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -147,6 +152,23 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
       toast.success('Agent Terminated');
     } catch {} finally {
       setLoading(false);
+    }
+  };
+
+  const handleKeySubmit = async () => {
+    if (!geminiKey) return;
+    try {
+      const res = await fetch('/api/config/gemini-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: geminiKey })
+      });
+      if (res.ok) {
+        toast.success('Gemini Kernel Armed');
+        setShowKeyModal(false);
+      }
+    } catch {
+      toast.error('Failed to update key');
     }
   };
 
@@ -302,13 +324,51 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                      {state.intelligence?.atr?.toFixed(2) || '0.00'}
                   </div>
                </div>
-               <div className="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/20">
-                  <span className="text-[9px] text-indigo-400 uppercase font-black block mb-1 tracking-widest text-center">Dynamic Friction</span>
-                  <div className="text-xl font-black font-mono text-center text-indigo-400">
-                     ±{state.intelligence?.dynamicFriction?.toFixed(2) || '2.00'}
+               <div className="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-500/20 px-2 py-0.5">
+                  <span className="text-[9px] text-indigo-400 uppercase font-black block mb-1 tracking-widest text-center">Bot Pilot Bias</span>
+                  <div className="flex flex-col items-center">
+                    <div className="text-xl font-black font-mono text-center text-indigo-400">
+                      {state.intelligence?.sentiment?.toFixed(2) || '0.00'}
+                    </div>
+                    {state.intelligence?.sentimentConfidence !== undefined && (
+                      <span className="text-[8px] font-black text-gray-500 uppercase">
+                        {(state.intelligence.sentimentConfidence * 100).toFixed(0)}% CONFIDENCE
+                      </span>
+                    )}
                   </div>
                </div>
             </div>
+         </div>
+
+         {/* Phase 11: Reasoning HUD */}
+         <div className="glass-panel p-6 rounded-[2rem] border-indigo-500/30 bg-black/40 space-y-4">
+            <div className="flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <Activity className="w-5 h-5 text-indigo-400" />
+                  <span className="text-xs font-black uppercase tracking-widest">Bot Pilot Reasoning</span>
+               </div>
+               {state.intelligence?.lastNewsUpdate && (
+                 <span className="text-[8px] font-black text-gray-500 uppercase animate-pulse">
+                   LIVE INGESTION ACTIVE
+                 </span>
+               )}
+            </div>
+            <div className="bg-black/60 rounded-2xl border border-white/10 p-4 h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] leading-relaxed relative">
+               <div className="absolute top-2 right-2 flex gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" />
+               </div>
+               <span className="text-emerald-500 block mb-1 font-black underline uppercase">ASSISTANT_THOUGHTS:</span>
+               <span className="text-gray-400 italic">
+                 {state.intelligence?.reasoningSnippet || '> Waiting for agentic consensus ingestion...'}
+               </span>
+            </div>
+            <button 
+              onClick={() => setShowKeyModal(true)}
+              className="w-full py-2 bg-indigo-500/20 border border-indigo-500/30 rounded-xl text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/30 transition-all"
+            >
+              Configure Agent Intelligence
+            </button>
          </div>
 
          {/* Net Performance HUD */}
@@ -405,6 +465,36 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         </div>
       )}
 
+      {/* API Key Modal (Phase 11) */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="w-full max-w-md glass-panel p-8 rounded-[2.5rem] border-indigo-500/30 relative animate-in zoom-in-95 duration-300">
+             <button onClick={() => setShowKeyModal(false)} className="absolute top-6 right-6 text-gray-500 hover:text-white transition-all">
+                <StopCircle className="w-6 h-6" />
+             </button>
+             <div className="flex items-center gap-4 mb-6">
+                <Zap className="w-8 h-8 text-indigo-400" />
+                <h2 className="text-xl font-black uppercase tracking-tighter italic">Arm Bot Pilot</h2>
+             </div>
+             <p className="text-[10px] text-gray-400 mb-6 uppercase tracking-widest leading-relaxed">
+                Enter your <span className="text-indigo-400 font-black">Gemini 1.5 API Key</span> to enable agentic sentiment reasoning. The key is stored securely in the backend .env and never exposed to the client.
+             </p>
+             <input 
+                type="password" 
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                placeholder="AIzaSy..."
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-indigo-400/50 mb-6"
+             />
+             <button 
+                onClick={handleKeySubmit}
+                className="w-full py-4 bg-indigo-500 text-black font-black uppercase tracking-[0.4em] text-[10px] rounded-xl hover:brightness-110 active:scale-95 transition-all"
+             >
+                Initialize Kernel
+             </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

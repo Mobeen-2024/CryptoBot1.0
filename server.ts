@@ -231,6 +231,31 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // ─── Phase 11: Bot Pilot Configuration ───
+  app.post('/api/config/gemini-key', (req, res) => {
+    const { key } = req.body;
+    if (!key) return res.status(400).json({ error: 'Key is required' });
+    
+    // Inject into IntelligenceService without exposing to process.env permanently in memory
+    IntelligenceService.getInstance().setGeminiKey(key);
+    Logger.info('[SERVER] Gemini API Key Updated via Secure Ingestion.');
+    res.json({ success: true, message: 'Gemini Kernel Armed.' });
+  });
+
+  // ─── 5-Minute Agentic Sentiment Loop ───
+  setInterval(async () => {
+    const activeSymbols = ['BTCUSDT', 'ETHUSDT']; // Can be expanded based on active bots
+    for (const symbol of activeSymbols) {
+      try {
+        // In a real scenario, this would call AgenticSearchService.fetchAndSanitize
+        // For this environment, we use a placeholder that server-side logic would trigger
+        // IntelligenceService.getInstance().applyAgenticConsensus(symbol, "...");
+      } catch (err) {
+        Logger.error(`[SERVER] Sentiment Loop Error for ${symbol}:`, err);
+      }
+    }
+  }, 300000); // 5 Minutes
+
   // Initialize Public Binance exchange (for market data)
   // Explicitly set apiKey/secret to undefined to ensure it's truly public
   const publicExchange = new (ccxt as any).binance({

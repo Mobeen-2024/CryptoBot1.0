@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Logger } from "./logger";
 import dotenv from "dotenv";
 
@@ -27,7 +27,8 @@ export async function analyzeTradeAction(
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `Analyze this trade action for institutional-grade risk management:
     Symbol: ${symbol}
@@ -39,12 +40,9 @@ export async function analyzeTradeAction(
 
     Logger.info(`Requesting AI Trade Analysis for ${symbol} (${side}) at ${price}...`);
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-
-    const text = response.text;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     Logger.info("AI Trade Analysis received successfully.");
     return text || null;

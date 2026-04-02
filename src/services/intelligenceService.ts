@@ -1,21 +1,43 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Logger } from '../../logger';
+import { AgenticSearchService } from './agenticSearchService';
 
 export type MarketRegime = 'STABLE_TREND' | 'RANGE_BOUND' | 'HIGH_VOLATILITY' | 'LIQUIDITY_HUNT';
 
 interface IntelligenceData {
-  sentiment: number; // -1 (Extreme Bearish) to 1 (Extreme Bullish)
+  sentiment: number; 
+  sentimentConfidence: number; // 0.0 to 1.0 (Phase 11)
+  reasoningSnippet?: string; // Phase 11
   regime: MarketRegime;
-  volatilityScore: number; // 0-100
-  liquidityScore: number; // 0-100 (100 = deep books, low spread)
+  volatilityScore: number; 
+  liquidityScore: number; 
   lastUpdate: number;
+  lastNewsUpdate?: number; // Phase 11
   atr?: number;
 }
 
 export class IntelligenceService {
   private static instance: IntelligenceService;
   private data: Map<string, IntelligenceData> = new Map();
+  private genAI: GoogleGenerativeAI | null = null;
+  private model: any | null = null;
 
-  private constructor() {}
+  private constructor() {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      this.setGeminiKey(apiKey);
+    }
+  }
+
+  public setGeminiKey(key: string) {
+    try {
+      this.genAI = new GoogleGenerativeAI(key);
+      this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      Logger.info('[INTELLIGENCE] Gemini Reasoning Kernel Initialized.');
+    } catch (e) {
+      Logger.error('[INTELLIGENCE] Gemini Initialization Failed:', e);
+    }
+  }
 
   public static getInstance(): IntelligenceService {
     if (!IntelligenceService.instance) {
@@ -24,11 +46,56 @@ export class IntelligenceService {
     return IntelligenceService.instance;
   }
 
+  public async applyAgenticConsensus(symbol: string, news: string) {
+    if (!this.model) {
+      Logger.warn('[INTELLIGENCE] Gemini Mode Unavailable. Falling back to Phase 9 math.');
+      return;
+    }
+
+    try {
+      const prompt = AgenticSearchService.createSentimentPrompt(symbol, news);
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      // Attempt to parse JSON safely
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}') + 1;
+      const jsonStr = text.substring(jsonStart, jsonEnd);
+      
+      const analysis = JSON.parse(jsonStr);
+      
+      const current = this.data.get(symbol) || { 
+        sentiment: 0, 
+        sentimentConfidence: 0, 
+        regime: 'STABLE_TREND' as MarketRegime, 
+        volatilityScore: 0, 
+        liquidityScore: 100, 
+        lastUpdate: Date.now() 
+      };
+
+      this.data.set(symbol, {
+        ...current,
+        sentiment: analysis.sentiment,
+        sentimentConfidence: analysis.confidence,
+        reasoningSnippet: analysis.reasoningSnippet,
+        lastNewsUpdate: Date.now()
+      });
+
+      Logger.info(`[INTELLIGENCE] Bot Pilot Consensus for ${symbol}: ${analysis.sentiment} (${(analysis.confidence * 100).toFixed(0)}% Conf)`);
+      if (analysis.isHighRisk) {
+        Logger.warn(`[INTELLIGENCE] AI WARNING: HIGH RISK DETECTED FOR ${symbol}!`);
+      }
+    } catch (error) {
+      Logger.error('[INTELLIGENCE] Agentic Consensus Error:', error);
+    }
+  }
+
   public async analyzeSymbol(symbol: string, lastPrice: number, spread: number): Promise<IntelligenceData> {
     const existing = this.data.get(symbol);
     
-    // Simulate complex reasoning logic (DeepSeek/Gemini simulation)
-    const sentiment = existing ? existing.sentiment : (Math.random() * 2 - 1);
+    const sentiment = existing ? existing.sentiment : 0;
+    const confidence = existing ? existing.sentimentConfidence : 0;
     const volatility = Math.min(100, Math.max(10, (spread / lastPrice) * 10000));
     
     let regime: MarketRegime = 'STABLE_TREND';
@@ -37,10 +104,14 @@ export class IntelligenceService {
     
     const intelligence: IntelligenceData = {
       sentiment,
+      sentimentConfidence: confidence,
+      reasoningSnippet: existing?.reasoningSnippet,
       regime,
       volatilityScore: volatility,
       liquidityScore: Math.max(0, 100 - volatility),
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
+      lastNewsUpdate: existing?.lastNewsUpdate,
+      atr: existing?.atr
     };
 
     this.data.set(symbol, intelligence);
@@ -48,7 +119,7 @@ export class IntelligenceService {
   }
 
   public setSentiment(symbol: string, score: number) {
-    const current = this.data.get(symbol) || { sentiment: 0, regime: 'STABLE_TREND', volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
+    const current = this.data.get(symbol) || { sentiment: 0, sentimentConfidence: 0, regime: 'STABLE_TREND' as MarketRegime, volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
     this.data.set(symbol, { ...current, sentiment: Math.max(-1, Math.min(1, score)), lastUpdate: Date.now() });
     Logger.info(`[INTELLIGENCE] Manual Sentiment Override for ${symbol}: ${score}`);
   }
@@ -68,15 +139,25 @@ export class IntelligenceService {
 
     // 1. Volatility Adjustment
     if (intelligence.regime === 'HIGH_VOLATILITY') {
-      offset *= 1.5; // Widen buffer during turbulence to avoid noise triggers
+      offset *= 1.5; 
     }
 
-    // 2. Sentiment Adjustment
-    // If we are LONG (buy) and sentiment is BEARISH (-1), we tighten the shield trigger
-    if (botSide === 'buy' && intelligence.sentiment < -0.3) {
-      offset *= 0.7; // Tighten trigger (move closer to entry) to trigger insurance faster
-    } else if (botSide === 'sell' && intelligence.sentiment > 0.3) {
-      offset *= 0.7; // Tighten trigger for Shorts if sentiment is Bullish
+    // 2. Agentic Sentiment Modulation (Phase 11)
+    // Only apply if confidence is high (>= 0.7)
+    if (intelligence.sentimentConfidence >= 0.7) {
+      // If we are LONG (buy) and sentiment is BEARISH (-1), we tighten the shield trigger
+      if (botSide === 'buy' && intelligence.sentiment < -0.3) {
+        offset *= 0.7; // Tighten trigger (move closer to entry)
+      } else if (botSide === 'sell' && intelligence.sentiment > 0.3) {
+        offset *= 0.7; // Tighten trigger for Shorts if sentiment is Bullish
+      }
+    }
+
+    // 3. ATR Sanity Check (Flash Crash Override)
+    // If ATR is surging while Sentiment is bullish, we force tighter offsets regardless of AI bias
+    if (intelligence.atr && intelligence.atr > (baseOffset * 2)) {
+      Logger.warn('[INTELLIGENCE] ATR Surge Detected! Overriding AI bias for safety.');
+      offset *= 0.5; // Force tight protection
     }
 
     return parseFloat(offset.toFixed(2));
@@ -117,7 +198,7 @@ export class IntelligenceService {
         trSum += tr;
     }
     const atr = trSum / (ohlcv.length - 1);
-    const current = this.data.get(symbol) || { sentiment: 0, regime: 'STABLE_TREND', volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
+    const current = this.data.get(symbol) || { sentiment: 0, sentimentConfidence: 0, regime: 'STABLE_TREND' as MarketRegime, volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
     this.data.set(symbol, { ...current, atr, lastUpdate: Date.now() });
     Logger.info(`[INTELLIGENCE] ATR Updated for ${symbol}: ${atr.toFixed(2)}`);
   }
