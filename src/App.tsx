@@ -13,6 +13,7 @@ import { CopierControls } from './components/CopierControls';
 import { DatabasePanel } from './components/DatabasePanel';
 import { DeltaNeutralPanel } from './components/DeltaNeutralPanel';
 import { DeltaMasterAgentPanel } from './components/DeltaMasterAgentPanel';
+import { BinanceMasterAgentPanel } from './components/BinanceMasterAgentPanel';
 import { BotPanel } from './components/BotPanel';
 import { MarketWatchlist } from './components/MarketWatchlist';
 import { OpenOrdersPanel } from './components/OpenOrdersPanel';
@@ -185,7 +186,7 @@ const CandleCountdown: React.FC<{ interval: string; onChange?: (val: string) => 
 
 export default function App() {
   const [symbol, setSymbol] = useState('BTCUSDT');
-  const [activeMode, setActiveMode] = useState<'SPOT' | 'DELTA' | 'DELTA_MASTER'>('SPOT');
+  const [activeMode, setActiveMode] = useState<'SPOT' | 'DELTA' | 'DELTA_MASTER' | 'BINANCE_MASTER'>('SPOT');
   const [chartInterval, setChartInterval] = useState('1h');
   const [marketData, setMarketData] = useState<any[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);

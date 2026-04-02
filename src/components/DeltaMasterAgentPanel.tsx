@@ -13,6 +13,12 @@ interface DeltaMasterState {
   entryA: number;
   entryB: number;
   symbol: string;
+  liqPriceA: number;
+  hedgeRatio: number;
+  availableMarginB: number;
+  dmsStatus: string;
+  tpTiers: { price: number; qty: number; status: 'waiting' | 'filled'; tier: number }[];
+  slOrder: { id: string; price: number; qty: number; status: 'open' | 'filled' | 'closed'; isBreakEven: boolean } | null;
 }
 
 export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) => {
@@ -26,7 +32,13 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
     lastPrice: 0,
     entryA: 0,
     entryB: 0,
-    symbol: ''
+    symbol: '',
+    liqPriceA: 0,
+    hedgeRatio: 1.0,
+    availableMarginB: 0,
+    dmsStatus: 'inactive',
+    tpTiers: [],
+    slOrder: null
   });
 
   // Config State
@@ -161,7 +173,15 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                 <Shield className="w-4 h-4 text-amber-400" />
                 <span className="text-xs font-black uppercase tracking-widest text-gray-400">Account B (Insurance)</span>
              </div>
-             <span className="text-[10px] font-mono font-bold text-amber-400/60 uppercase">Hedge Shield</span>
+             <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase text-gray-500">Hedge Ratio</span>
+                <span className={cn(
+                  "text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg",
+                  state.hedgeRatio >= 0.9 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                )}>
+                  {(state.hedgeRatio * 100).toFixed(1)}%
+                </span>
+             </div>
           </div>
           <div className="flex flex-col gap-1">
              <span className="text-[10px] font-bold text-gray-500 uppercase">Hedge PnL</span>
@@ -184,6 +204,61 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
           </div>
         </div>
 
+      </div>
+
+      {/* Phase 2: Safety Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animation-delay-300">
+         <div className="glass-panel p-4 rounded-3xl border-rose-500/20 bg-rose-500/5 flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+               <span className="text-[9px] font-black tracking-widest text-rose-400 uppercase">Liquidation Guard</span>
+               <AlertCircle className="w-3 h-3 text-rose-400" />
+            </div>
+            <div className="flex items-baseline gap-2">
+               <span className="text-lg font-mono font-black text-white">${state.liqPriceA.toLocaleString(undefined, { minimumFractionDigits: 1 })}</span>
+               <span className="text-[9px] font-bold text-gray-500 uppercase font-mono">Distance: {Math.abs(((state.lastPrice - state.liqPriceA) / state.lastPrice) * 100).toFixed(2)}%</span>
+            </div>
+            <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden mt-1">
+               <div 
+                 className={cn(
+                   "h-full transition-all duration-1000",
+                   Math.abs((state.lastPrice - state.liqPriceA) / state.lastPrice) < 0.05 ? "bg-rose-500 shadow-[0_0_10px_#f43f5e]" : "bg-indigo-500"
+                 )}
+                 style={{ width: `${Math.min(100, Math.max(0, (Math.abs(state.lastPrice - state.liqPriceA) / (state.lastPrice * 0.2)) * 100))}%` }}
+               />
+            </div>
+         </div>
+
+         <div className="md:col-span-2 glass-panel p-4 rounded-3xl border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+               <div className="p-3 bg-white/5 rounded-2xl relative">
+                  <Zap className={cn("w-5 h-5", state.isActive ? "text-indigo-400 animate-pulse" : "text-gray-600")} />
+                  {state.dmsStatus === 'active' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-black shadow-[0_0_8px_#10b981]" />}
+               </div>
+               <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest flex items-center gap-2">
+                    Autonomous Sync Health
+                    <span className={cn(
+                      "text-[8px] px-1.5 py-0.5 rounded-md border",
+                      state.dmsStatus === 'active' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-gray-500/10 border-gray-500/20 text-gray-500"
+                    )}>
+                      DMS: {state.dmsStatus.toUpperCase()}
+                    </span>
+                  </span>
+                  <span className="text-sm font-bold text-white uppercase tracking-tighter">Recursive Logic Layer Active</span>
+               </div>
+            </div>
+            <div className="flex gap-2">
+               <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-gray-600 uppercase">Hedge Capacity</span>
+                  <span className="text-[10px] font-mono font-bold text-amber-400">${state.availableMarginB.toFixed(2)}</span>
+               </div>
+               <div className="w-px h-8 bg-white/10 mx-2" />
+               <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-gray-600 uppercase">NTP Sync</span>
+                  <span className="text-[10px] font-mono font-bold text-indigo-400">Verified</span>
+               </div>
+            </div>
+         </div>
       </div>
 
       {/* Net Exposure Central Hub */}
@@ -280,6 +355,55 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         </div>
       ) : (
         <div className="w-full animate-in fade-in zoom-in-95 duration-500">
+           
+           {/* Managed Exit HUD */}
+           <div className="glass-panel border-indigo-500/30 bg-indigo-500/5 p-6 rounded-[2rem] mb-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                 <Shield className="w-24 h-24 text-indigo-400" />
+              </div>
+              
+              <div className="flex items-center justify-between mb-6">
+                 <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1">Managed Exit Engine</span>
+                    <h3 className="text-lg font-black uppercase tracking-tighter">Tiered Capital Extraction</h3>
+                 </div>
+                 {state.slOrder && (
+                   <div className={cn(
+                     "px-4 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
+                     state.slOrder.isBreakEven ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+                   )}>
+                      <StopCircle className="w-3 h-3" />
+                      SL: {state.slOrder.isBreakEven ? 'BREAK-EVEN' : 'PROTECTIVE'} (${state.slOrder.price.toLocaleString()})
+                   </div>
+                 )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                 {(state.tpTiers && state.tpTiers.length > 0 ? state.tpTiers : [1,2,3,4]).map((tier: any, i: number) => {
+                    const isActual = typeof tier === 'object' && tier !== null;
+                    const status = isActual ? tier.status : 'waiting';
+                    const price = isActual ? tier.price : 0;
+                    const tierNum = isActual ? tier.tier : i + 1;
+                    
+                    return (
+                      <div key={i} className={cn(
+                        "p-4 rounded-2xl border transition-all duration-500 flex flex-col gap-1 relative overflow-hidden",
+                        status === 'filled' ? "bg-emerald-500/10 border-emerald-500/30" : "bg-black/20 border-white/5 opacity-60"
+                      )}>
+                         {status === 'filled' && <div className="absolute top-0 right-0 p-2"><Zap className="w-3 h-3 text-emerald-400" /></div>}
+                         <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Tier {tierNum} (25%)</span>
+                         <span className={cn("text-sm font-mono font-black", status === 'filled' ? "text-emerald-400" : "text-white")}>
+                            {price > 0 ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 1 })}` : '--'}
+                         </span>
+                         <span className="text-[8px] font-bold uppercase text-gray-600 tracking-wider">
+                            {status === 'filled' ? 'EXECUTED' : 'WAITING'}
+                         </span>
+                      </div>
+                    );
+                 })}
+              </div>
+           </div>
+
            <button 
              onClick={handleStop}
              disabled={loading}

@@ -15,6 +15,8 @@ import { EMA, MACD, RSI, BollingerBands, ATR, SMA, PSAR, WilliamsR, OBV, Stochas
 import { TradeCopier } from './tradeCopier';
 import { DeltaNeutralBot } from './src/services/deltaNeutralBot.js';
 import { DeltaMasterBot } from './src/services/deltaMasterBot.js';
+import { BinanceMasterBot } from './src/services/binanceMasterBot.js';
+import { Logger as LoggerJs } from './logger.js';
 
 dotenv.config({ quiet: true });
 
@@ -96,6 +98,7 @@ async function startServer() {
 
   // Initialize Delta Master Bot (Account A/B Insurance System)
   const deltaMasterBot = new DeltaMasterBot(io);
+  const binanceMasterBot = new BinanceMasterBot(io);
 
   let isPendingEngineRunning = false;
   // ─── Shadow Pending Order Price-Matching Engine ────────────────────
@@ -538,6 +541,33 @@ async function startServer() {
 
   app.get('/api/delta-master/status', (req, res) => {
     res.json(deltaMasterBot.getStatus());
+  });
+
+  // ─── Binance Master (Account A/B Insurance System) Endpoints ───
+  app.post('/api/binance-master/start', async (req, res) => {
+    try {
+      const config = req.body;
+      if (!config.symbol || !config.qtyA) {
+        return res.status(400).json({ error: 'Missing required parameters: symbol, qtyA' });
+      }
+      await binanceMasterBot.start(config);
+      res.json({ message: 'Binance Master Agent Deployed', status: binanceMasterBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to start Binance Master' });
+    }
+  });
+
+  app.post('/api/binance-master/stop', async (req, res) => {
+    try {
+      await binanceMasterBot.stop();
+      res.json({ message: 'Binance Master Agent Stopped', status: binanceMasterBot.getStatus() });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to stop Binance Master' });
+    }
+  });
+
+  app.get('/api/binance-master/status', (req, res) => {
+    res.json(binanceMasterBot.getStatus());
   });
 
   const handleBinanceError = (error: any, res: express.Response, defaultMessage: string) => {
