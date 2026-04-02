@@ -79,13 +79,14 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   const [qtyB, setQtyB] = useState('0.1');
   const [leverA, setLeverA] = useState(10);
   const [leverB, setLeverB] = useState(20);
-  const [entryOffset, setEntryOffset] = useState(5);
+  const [entryOffset, setEntryOffset] = useState('5');
   const [sideA, setSideA] = useState<'buy' | 'sell'>('buy');
-  const [atrMultiplier, setAtrMultiplier] = useState(1.0);
+  const [atrMultiplier, setAtrMultiplier] = useState('1.0');
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [geminiKey, setGeminiKey] = useState('');
 
   useEffect(() => {
+    let lastUpdate = 0;
     const fetchStatus = async () => {
       try {
         const res = await fetch('/api/delta-master/status');
@@ -101,9 +102,14 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
     if ((window as any).socket) {
       const socket = (window as any).socket;
       const handleStatusUpdate = (data: DeltaMasterState) => {
-        setState(data);
+        const now = Date.now();
+        if (now - lastUpdate > 500 || data.isActive !== state.isActive) {
+          setState(data);
+          lastUpdate = now;
+        }
         setWsConnected(true);
       };
+      // ... socket setup code remains ...
       socket.on('connect', () => {
         setWsConnected(true);
         fetchStatus();
@@ -134,9 +140,22 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
       const res = await fetch('/api/delta-master/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, qtyA: Number(qtyA), qtyB: Number(qtyB), sideA, leverA, leverB, entryOffset: Number(entryOffset), protectionRatio: 1.0, atrMultiplier })
+        body: JSON.stringify({ 
+          symbol, 
+          qtyA: Number(qtyA), 
+          qtyB: Number(qtyB), 
+          sideA, 
+          leverA, 
+          leverB, 
+          entryOffset: Number(entryOffset), 
+          protectionRatio: 1.0, 
+          atrMultiplier: Number(atrMultiplier) 
+        })
       });
-      if (!res.ok) throw new Error('Deployment failed');
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Deployment failed');
+      }
       toast.success('Delta Master Deployed!', { id: tId });
     } catch (err: any) {
       toast.error(err.message, { id: tId });
@@ -202,7 +221,14 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
           </div>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+           <button 
+             onClick={() => window.location.reload()} 
+             className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-gray-500 hover:text-white"
+             title="Hard Refresh"
+           >
+              <Activity className="w-4 h-4" />
+           </button>
            <div className={cn(
               "px-5 py-2 rounded-full border text-[11px] font-black tracking-widest flex items-center gap-3",
               wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse"
@@ -356,32 +382,66 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
 
       {/* Control Panel */}
       {!state.isActive ? (
-        <div className="glass-panel p-4 rounded-2xl border-white/10 space-y-4">
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <div className="flex flex-col gap-1">
-                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Symbol</label>
-                 <input readOnly value={symbol} className="bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 font-mono text-[10px] text-gray-400 outline-none" />
-              </div>
-              <div className="flex flex-col gap-1">
-                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Qty (A)</label>
-                 <input type="number" value={qtyA} onChange={(e) => setQtyA(e.target.value)} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none" />
-              </div>
-              <div className="flex flex-col gap-1">
-                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Offset</label>
-                 <input type="number" value={entryOffset} onChange={(e) => setEntryOffset(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none" />
-              </div>
-              <div className="flex flex-col gap-1">
-                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">ATR K</label>
-                 <input type="number" step="0.1" value={atrMultiplier} onChange={(e) => setAtrMultiplier(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none" />
-              </div>
-              <div className="flex flex-col gap-1">
-                 <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Side</label>
-                 <div className="flex gap-1 bg-black/40 p-0.5 rounded-lg border border-white/10 h-full">
-                    <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[8px] font-black rounded", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400" : "text-gray-500")}>BUY</button>
-                    <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[8px] font-black rounded", sideA === 'sell' ? "bg-rose-500/20 text-rose-400" : "text-gray-500")}>SELL</button>
-                 </div>
-              </div>
-           </div>
+         <div className="glass-panel p-4 rounded-2xl border-white/10 space-y-4 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-20 pointer-events-auto">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+               <div className="flex flex-col">
+                  <span className="text-[8px] font-black uppercase text-gray-500 tracking-widest">Active Pair</span>
+                  <span className="text-xs font-mono font-black text-indigo-400">{symbol}</span>
+               </div>
+               <div className="flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-md">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                  <span className="text-[9px] font-black uppercase text-indigo-300">Ready to Deploy</span>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+               <div className="flex flex-col gap-1 relative z-30">
+                  <label className="text-[8px] font-black uppercase text-indigo-400 ml-1 flex items-center gap-1">
+                     Qty (B) <span className="text-[7px] text-indigo-500/40">● Input</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    inputMode="decimal" 
+                    value={qtyA} 
+                    onChange={(e) => setQtyA(e.target.value)} 
+                    placeholder="0.1"
+                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 rounded-lg px-2 py-2 font-mono text-[10px] outline-none transition-all" 
+                  />
+               </div>
+               <div className="flex flex-col gap-1 relative z-30">
+                  <label className="text-[8px] font-black uppercase text-indigo-400 ml-1 flex items-center gap-1">
+                     Offset <span className="text-[7px] text-indigo-500/40">● Input</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    inputMode="decimal" 
+                    value={entryOffset} 
+                    onChange={(e) => setEntryOffset(e.target.value)} 
+                    placeholder="5"
+                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 rounded-lg px-2 py-2 font-mono text-[10px] outline-none transition-all" 
+                  />
+               </div>
+               <div className="flex flex-col gap-1 relative z-30">
+                  <label className="text-[8px] font-black uppercase text-indigo-400 ml-1 flex items-center gap-1">
+                     ATR Multiplier <span className="text-[7px] text-indigo-500/40">● Input</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    inputMode="decimal" 
+                    value={atrMultiplier} 
+                    onChange={(e) => setAtrMultiplier(e.target.value)} 
+                    placeholder="1.0"
+                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 rounded-lg px-2 py-2 font-mono text-[10px] outline-none transition-all" 
+                  />
+               </div>
+               <div className="flex flex-col gap-1 relative z-30">
+                  <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Direction (A)</label>
+                  <div className="flex gap-1 bg-black/60 p-1 rounded-lg border border-white/10 h-full">
+                     <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[8px] font-black rounded transition-all", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20" : "text-gray-500 hover:text-white")}>BUY</button>
+                     <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[8px] font-black rounded transition-all", sideA === 'sell' ? "bg-rose-500/20 text-rose-400 border border-rose-500/20" : "text-gray-500 hover:text-white")}>SELL</button>
+                  </div>
+               </div>
+            </div>
            
            <button onClick={handleStart} disabled={loading} className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-black font-black uppercase tracking-[0.2em] text-[10px] rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
               <Play className="w-4 h-4 fill-black" />
