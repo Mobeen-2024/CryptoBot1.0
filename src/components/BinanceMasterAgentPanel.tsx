@@ -64,6 +64,8 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
   const [entryOffset, setEntryOffset] = useState(100);
   const [sideA, setSideA] = useState<'buy' | 'sell'>('buy');
   const [atrMultiplier, setAtrMultiplier] = useState(1.0);
+  const [slPercent, setSlPercent] = useState('1.0');
+  const [tpTiers, setTpTiers] = useState('2,3,4,5');
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -114,7 +116,17 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
       const res = await fetch('/api/binance-master/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, qtyA: Number(qtyA), qtyB: Number(qtyB), sideA, entryOffset: Number(entryOffset), protectionRatio: 1.0, atrMultiplier })
+        body: JSON.stringify({ 
+          symbol, 
+          qtyA: Number(qtyA), 
+          qtyB: Number(qtyB), 
+          sideA, 
+          entryOffset: Number(entryOffset), 
+          protectionRatio: 1.0, 
+          atrMultiplier,
+          slPercent: Number(slPercent),
+          tpTiers
+        })
       });
       if (!res.ok) throw new Error('Deployment failed');
       toast.success('Binance Master Deployed!', { id: tId });
@@ -151,70 +163,67 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
   };
 
   return (
-    <div className="w-full h-full flex flex-col p-6 text-white overflow-y-auto custom-scrollbar">
+    <div className="w-full h-full flex flex-col p-3 text-white overflow-y-auto custom-scrollbar bg-slate-950/40">
       
       {/* Header Section */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-fuchsia-500/20 border border-fuchsia-500/30 rounded-2xl">
-            <Cpu className="w-8 h-8 text-fuchsia-400" />
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-fuchsia-500/20 border border-fuchsia-500/30 rounded-lg">
+            <Cpu className="w-4 h-4 text-fuchsia-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tighter italic">Binance Master <span className="text-fuchsia-400">Phase 9</span></h1>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em]">State-Based Orchestration & ATR Friction</p>
+            <h1 className="text-sm font-black uppercase tracking-tighter italic leading-none">Binance Master <span className="text-fuchsia-400">Phase 12</span></h1>
+            <p className="text-[7px] font-bold text-gray-500 uppercase tracking-[0.2em] mt-0.5">Agentic Exposure Orchestration</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
            <div className={cn(
-              "px-5 py-2 rounded-full border text-[11px] font-black tracking-widest flex items-center gap-3",
+              "px-3 py-1 rounded-full border text-[9px] font-black tracking-widest flex items-center gap-2",
               wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse"
            )}>
               <div className="flex flex-col items-end">
-                 <div className="flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5" />
-                    {wsConnected ? `SYNCED: ${latency}ms` : 'LINK SEVERED'}
+                 <div className="flex items-center gap-1.5">
+                    <Activity className="w-3 h-3" />
+                    {wsConnected ? `SYNCED: ${latency}ms` : 'OFFLINE'}
                  </div>
-                 {state.telemetry && (
-                   <span className="text-[7px] text-gray-500 uppercase mt-0.5">
-                     EXE: {state.telemetry.executionSpeed}ms | API: {state.telemetry.avgLatency}ms
-                   </span>
-                 )}
               </div>
            </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         {/* Account A PnL */}
-        <div className="glass-panel border-fuchsia-500/20 p-5 rounded-3xl col-span-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Account A (Spot Alpha)</span>
-          <span className={cn("text-4xl font-black font-mono tracking-tighter", state.pnlA >= 0 ? "text-emerald-400" : "text-rose-400")}>
-            {state.pnlA.toFixed(2)} <span className="text-sm font-bold text-gray-500">USDT</span>
+        <div className="glass-panel border-fuchsia-500/20 p-2 rounded-xl col-span-1">
+          <div className="flex justify-between items-center mb-1">
+             <span className="text-[7px] font-black uppercase tracking-widest text-gray-500">Spot Alpha (A)</span>
+             <span className="text-[6px] font-bold text-fuchsia-400 px-1 bg-fuchsia-500/10 rounded">LIVE</span>
+          </div>
+          <span className={cn("text-lg font-black font-mono tracking-tighter", state.pnlA >= 0 ? "text-emerald-400" : "text-rose-400")}>
+            {state.pnlA.toFixed(2)}
           </span>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">Entry</span>
-                <span className="text-sm font-mono font-bold text-white">${state.entryA.toLocaleString()}</span>
+          <div className="mt-1 flex gap-2">
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5 flex flex-col items-center">
+                <span className="text-[5px] text-gray-500 uppercase font-black block">Entry</span>
+                <span className="text-[8px] font-mono font-bold text-white">${state.entryA.toLocaleString()}</span>
              </div>
-             <div className={cn("p-3 rounded-2xl border border-white/5 bg-black/20")}>
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">HMAC Status</span>
-                <span className="text-sm font-black text-fuchsia-400 uppercase tracking-widest">{state.hmacStatus}</span>
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5 flex flex-col items-center">
+                <span className="text-[5px] text-gray-500 uppercase font-black block">HMAC</span>
+                <span className="text-[8px] font-black text-fuchsia-400 uppercase tracking-widest">{state.hmacStatus}</span>
              </div>
           </div>
         </div>
 
         {/* Net Exposure HUD */}
-        <div className="glass-panel border-white/10 p-5 rounded-3xl bg-white/5 flex flex-col items-center justify-center relative overflow-hidden col-span-1">
-           <div className="absolute inset-0 bg-gradient-to-b from-fuchsia-500/5 to-transparent pointer-events-none" />
-           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-400 mb-4 z-10">Net Exposure Delta</span>
+        <div className="glass-panel border-white/10 p-2 rounded-xl bg-white/5 flex flex-col items-center justify-center relative overflow-hidden col-span-1">
+           <span className="text-[7px] font-black uppercase tracking-[0.1em] text-fuchsia-400 mb-1 z-10">Exposure Delta</span>
            
-           <div className="relative w-full h-24 flex items-center justify-center z-10">
-              <div className="absolute w-full h-1 bg-white/5 rounded-full" />
+           <div className="relative w-full h-4 flex items-center justify-center z-10 mb-1">
+              <div className="absolute w-full h-0.5 bg-white/5 rounded-full" />
               <div 
                 className={cn(
-                  "absolute h-2 rounded-full transition-all duration-500",
-                  Math.abs(state.netExposureDelta) < 0.01 ? "bg-emerald-500 w-4 shadow-[0_0_15px_rgba(16,185,129,0.5)]" : "bg-fuchsia-500"
+                  "absolute h-1 rounded-full transition-all duration-500",
+                  Math.abs(state.netExposureDelta) < 0.01 ? "bg-emerald-500 w-1 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-fuchsia-500"
                 )}
                 style={{ 
                   left: '50%',
@@ -222,166 +231,180 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
                   transform: state.netExposureDelta >= 0 ? 'translateX(0)' : 'translateX(-100%)'
                 }}
               />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-fuchsia-500 rounded-full shadow-lg" />
            </div>
            
-           <div className="flex items-center gap-2 z-10">
-              <Gauge className={cn("w-4 h-4", Math.abs(state.netExposureDelta) < 0.01 ? "text-emerald-400" : "text-gray-500")} />
-              <span className="text-2xl font-black font-mono tracking-tighter">
+           <div className="flex items-center gap-1 z-10">
+              <span className="text-sm font-black font-mono tracking-tighter">
                 {state.netExposureDelta.toFixed(3)}
               </span>
            </div>
-           <p className="text-[8px] font-bold text-gray-500 uppercase mt-2 tracking-widest text-center">
-              {Math.abs(state.netExposureDelta) < 0.01 ? 'DELTA NEUTRAL ACTIVE' : 'SYNCING SHIELD EXPOSURE...'}
-           </p>
         </div>
 
         {/* Account B PnL */}
-        <div className="glass-panel border-amber-500/20 p-5 rounded-3xl relative overflow-hidden col-span-1">
-          <div className="flex justify-between items-start mb-2">
-             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 block">Account B (Insurance)</span>
-             {state.isActive && (
-               <div className={cn(
-                 "px-2 py-0.5 rounded-md border text-[8px] font-black uppercase tracking-widest",
-                 state.entryB < state.entryA ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
-               )}>
-                 {state.entryB < state.entryA ? 'LONG PROTECTION (SELL-STOP)' : 'SHORT PROTECTION (BUY-STOP)'}
-               </div>
-             )}
-          </div>
-          <span className={cn("text-4xl font-black font-mono tracking-tighter", state.pnlB >= 0 ? "text-emerald-400" : "text-rose-400")}>
-            {state.pnlB.toFixed(2)} <span className="text-sm font-bold text-gray-500">USDT</span>
-          </span>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">Trigger</span>
-                <span className="text-sm font-mono font-bold text-white">${state.entryB.toLocaleString()}</span>
+        <div className="glass-panel border-amber-500/20 p-2 rounded-xl relative overflow-hidden col-span-1">
+          <div className="flex justify-between items-center mb-1">
+             <span className="text-[7px] font-black uppercase tracking-widest text-gray-500">Insurance (B)</span>
+             <div className={cn(
+               "px-1 py-0.5 rounded text-[5px] font-black uppercase",
+               state.hedgeStatus === 'active' ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+             )}>
+               {state.hedgeStatus}
              </div>
-             <div className="bg-black/20 p-3 rounded-2xl border border-white/5">
-                <span className="text-[9px] text-gray-500 uppercase font-black block mb-1">Status</span>
-                <span className="text-sm font-black text-amber-500 uppercase tracking-widest">{state.hedgeStatus}</span>
+          </div>
+          <span className={cn("text-lg font-black font-mono tracking-tighter", state.pnlB >= 0 ? "text-emerald-400" : "text-rose-400")}>
+            {state.pnlB.toFixed(2)}
+          </span>
+          <div className="mt-1 flex gap-2">
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5 flex flex-col items-center">
+                <span className="text-[5px] text-gray-500 uppercase font-black block">Trigger</span>
+                <span className="text-[8px] font-mono font-bold text-white">${state.entryB.toLocaleString()}</span>
+             </div>
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5 flex flex-col items-center">
+                <span className="text-[5px] text-gray-500 uppercase font-black block">Margin</span>
+                <span className="text-[8px] font-mono font-bold text-amber-400">${state.availableMarginB.toFixed(0)}</span>
              </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-4 gap-2 mb-3">
          {/* Volatility & ATR HUD */}
-         <div className="glass-panel p-6 rounded-[2rem] border-white/5 bg-black/20 space-y-4">
-            <div className="flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                  <Wind className="w-5 h-5 text-fuchsia-400" />
-                  <span className="text-xs font-black uppercase tracking-widest">Volatility HUD</span>
+         <div className="glass-panel p-2 rounded-xl border-white/5 bg-black/20 space-y-1 col-span-2 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-1">
+               <div className="flex items-center gap-1.5">
+                  <Wind className="w-3 h-3 text-fuchsia-400" />
+                  <span className="text-[7px] font-black uppercase tracking-widest">Volatility HUD</span>
                </div>
-               <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-gray-500 uppercase">Regime:</span>
-                  <span className="text-[10px] font-black text-fuchsia-400 uppercase tracking-widest">{state.intelligence?.regime || 'SCANNING...'}</span>
-               </div>
+               <span className="text-[7px] font-black text-fuchsia-400 uppercase">{state.intelligence?.regime || 'SCAN'}</span>
             </div>
             
-            <div className="grid grid-cols-2 gap-6">
-               <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                  <span className="text-[9px] text-gray-500 uppercase font-black block mb-1 tracking-widest text-center">ATR (14)</span>
-                  <div className="text-xl font-black font-mono text-center text-white">
-                     {state.intelligence?.atr?.toFixed(2) || '0.00'}
-                  </div>
+            <div className="grid grid-cols-2 gap-2">
+               <div className="bg-white/5 p-1 rounded-lg border border-white/5 flex justify-between items-center px-2">
+                  <span className="text-[6px] text-gray-500 uppercase font-black">ATR</span>
+                  <span className="text-[10px] font-black font-mono text-white">{state.intelligence?.atr?.toFixed(2) || '0.00'}</span>
                </div>
-               <div className="bg-fuchsia-500/10 p-4 rounded-2xl border border-fuchsia-500/20">
-                  <span className="text-[9px] text-fuchsia-400 uppercase font-black block mb-1 tracking-widest text-center">Dynamic Friction</span>
-                  <div className="text-xl font-black font-mono text-center text-fuchsia-400">
-                     ±{state.intelligence?.dynamicFriction?.toFixed(2) || '2.00'}
-                  </div>
+               <div className="bg-fuchsia-500/10 p-1 rounded-lg border border-fuchsia-500/20 flex justify-between items-center px-2">
+                  <span className="text-[6px] text-fuchsia-400 uppercase font-black">FRIC</span>
+                  <span className="text-[10px] font-black font-mono text-fuchsia-400">±{state.intelligence?.dynamicFriction?.toFixed(2) || '2.00'}</span>
                </div>
             </div>
          </div>
 
-         {/* Consolidated Net PnL */}
-         <div className="glass-panel p-6 rounded-[2rem] border-fuchsia-500/30 bg-fuchsia-500/10 flex flex-col justify-center text-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-400 mb-1">Consolidated Net PnL</span>
-            <span className={cn("text-5xl font-black font-mono tracking-tighter", state.netPnl >= 0 ? "text-white" : "text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.2)]")}>
-               {state.netPnl >= 0 ? '+' : ''}{state.netPnl.toFixed(2)}
-            </span>
+         {/* Reasoning HUD (Bot Pilot) */}
+         <div className="glass-panel p-2 rounded-xl border-indigo-500/20 bg-indigo-500/5 col-span-2 relative overflow-hidden">
+            <div className="flex items-center gap-1.5 mb-1">
+               <Cpu className="w-3 h-3 text-indigo-400" />
+               <span className="text-[7px] font-black uppercase text-indigo-400 tracking-widest">Bot Pilot Reasoning</span>
+            </div>
+            <p className="text-[8px] leading-tight text-gray-300 italic line-clamp-2">
+               {state.intelligence?.reasoningSnippet || "Awaiting seasonal sentiment consensus..."}
+            </p>
          </div>
       </div>
 
+      {/* Control Panel: Phase 12 High Density Command */}
       {!state.isActive ? (
-        <div className="glass-panel p-8 rounded-[2.5rem] border-white/10 space-y-6">
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Symbol</label>
-                 <input readOnly value={symbol} className="bg-black/40 border border-white/5 rounded-xl px-4 py-2 font-mono text-sm text-gray-400 outline-none" />
-              </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Qty (Spot)</label>
-                 <input type="number" value={qtyA} onChange={(e) => setQtyA(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 font-mono text-sm outline-none" />
-              </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Offset</label>
-                 <input type="number" value={entryOffset} onChange={(e) => setEntryOffset(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 font-mono text-sm outline-none" />
-              </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">ATR K-Mult</label>
-                 <input type="number" step="0.1" value={atrMultiplier} onChange={(e) => setAtrMultiplier(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 font-mono text-sm outline-none" />
-              </div>
-              <div className="flex flex-col gap-2">
-                 <label className="text-[10px] font-black uppercase text-gray-500 ml-1">Side</label>
-                 <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/10 h-full">
-                    <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[10px] font-black rounded-lg", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400" : "text-gray-500")}>LONG</button>
-                    <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[10px] font-black rounded-lg", sideA === 'sell' ? "bg-rose-500/20 text-rose-400" : "text-gray-500")}>SHORT</button>
-                 </div>
-              </div>
-           </div>
-           <button onClick={handleStart} disabled={loading} className="w-full py-5 bg-gradient-to-r from-fuchsia-600 to-fuchsia-500 text-black font-black uppercase tracking-[0.4em] text-xs rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-              <Play className="w-5 h-5 fill-black" />
-              Deploy HMAC Phase 9 Architecture
-           </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-           <div className="glass-panel p-6 rounded-[2rem] border-white/5 space-y-6 col-span-2">
-              <div className="flex justify-between items-center px-1">
-                 <span className="text-xs font-black uppercase tracking-widest text-fuchsia-400">Atomic Managed Exits</span>
-                 <div className={cn("px-3 py-1 rounded-lg border text-[9px] font-black uppercase", state.slOrder?.isBreakEven ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400")}>
-                    SL: {state.slOrder?.status.toUpperCase()}
-                 </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 {state.tpTiers.map((tier, i) => (
-                    <div key={i} className={cn("p-4 rounded-2xl border transition-all", tier.status === 'filled' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-black/20 border-white/5 opacity-60")}>
-                       <span className="text-[9px] font-black text-gray-500 uppercase block mb-1">Tier {tier.tier}</span>
-                       <span className="text-sm font-mono font-black">${tier.price.toLocaleString()}</span>
-                    </div>
-                 ))}
-              </div>
-           </div>
+         <div className="glass-panel p-3 rounded-xl border-white/10 space-y-3 bg-black/40">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">Pair</label>
+                  <div className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-[9px] text-fuchsia-300">{symbol}</div>
+               </div>
+               
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">Qty (A)</label>
+                  <input 
+                    type="text" 
+                    value={qtyA} 
+                    onChange={(e) => setQtyA(e.target.value)} 
+                    className="bg-black/60 border border-white/10 focus:border-fuchsia-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none" 
+                  />
+               </div>
 
-           {/* Stress Test Suite */}
-           <div className="glass-panel p-6 rounded-[2rem] border-rose-500/20 bg-rose-500/5 space-y-4">
-              <div className="flex items-center gap-3">
-                 <AlertTriangle className="w-5 h-5 text-rose-400" />
-                 <span className="text-xs font-black uppercase tracking-widest text-rose-400">Stress Test Suite</span>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                 <button onClick={() => runSimulation('V_REVERSAL')} className="px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all text-left flex justify-between items-center group">
-                    V-REVERSAL TEST
-                    <Zap className="w-3 h-3 text-amber-400 opacity-0 group-hover:opacity-100 transition-all" />
-                 </button>
-                 <button onClick={() => runSimulation('LIQUIDITY_SWEEP')} className="px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all text-left flex justify-between items-center group">
-                    LIQUIDITY SWEEP
-                    <ShieldCheck className="w-3 h-3 text-indigo-400 opacity-0 group-hover:opacity-100 transition-all" />
-                 </button>
-                 <button onClick={() => runSimulation('CONNECTION_FAILURE')} className="px-4 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/20 transition-all text-left flex justify-between items-center group text-rose-400">
-                    CONNECTION FAILURE
-                    <AlertCircle className="w-3 h-3 text-rose-400 opacity-0 group-hover:opacity-100 transition-all" />
-                 </button>
-              </div>
-              
-              <button onClick={handleStop} className="w-full py-4 mt-2 bg-rose-500 text-black font-black uppercase tracking-[0.2em] text-[10px] rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-3 shadow-[0_5px_15px_rgba(244,63,94,0.3)]">
-                 <StopCircle className="w-4 h-4" />
-                 Terminate Agent
-              </button>
-           </div>
-        </div>
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">Offset</label>
+                  <input 
+                    type="text" 
+                    value={entryOffset} 
+                    onChange={(e) => setEntryOffset(Number(e.target.value))} 
+                    className="bg-black/60 border border-white/10 focus:border-fuchsia-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none" 
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">ATR K-Mult</label>
+                  <input 
+                    type="text" 
+                    value={atrMultiplier} 
+                    onChange={(e) => setAtrMultiplier(Number(e.target.value))} 
+                    className="bg-black/60 border border-white/10 focus:border-fuchsia-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none" 
+                  />
+               </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">SL %</label>
+                  <input 
+                    type="text" 
+                    value={slPercent} 
+                    onChange={(e) => setSlPercent(e.target.value)} 
+                    className="bg-black/60 border border-white/10 focus:border-fuchsia-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none text-rose-400" 
+                  />
+               </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">TP Tiers</label>
+                  <input 
+                    type="text" 
+                    value={tpTiers} 
+                    onChange={(e) => setTpTiers(e.target.value)} 
+                    className="bg-black/60 border border-white/10 focus:border-fuchsia-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none text-emerald-400" 
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1 col-span-1">
+                  <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">Side (A)</label>
+                  <div className="flex gap-1 bg-black/60 p-1 rounded border border-white/10 h-full">
+                     <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[7px] font-black rounded transition-all", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20" : "text-gray-500")}>LONG</button>
+                     <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[7px] font-black rounded transition-all", sideA === 'sell' ? "bg-rose-500/20 text-rose-400 border border-rose-500/20" : "text-gray-500")}>SHORT</button>
+                  </div>
+               </div>
+            </div>
+           
+            <button onClick={handleStart} disabled={loading} className="w-full py-2 bg-fuchsia-600 text-black font-black uppercase tracking-widest text-[9px] rounded hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+               <Play className="w-3.5 h-3.5 fill-black" />
+               Deploy Agentic HMAC
+            </button>
+         </div>
+      ) : (
+         <div className="grid grid-cols-4 gap-2">
+            <div className="glass-panel p-2 rounded-xl border-white/10 col-span-2">
+               <div className="flex justify-between items-center mb-2 px-1">
+                  <span className="text-[7px] font-black uppercase text-fuchsia-400">Exits Monitoring</span>
+               </div>
+               <div className="grid grid-cols-4 gap-2">
+                  {state.tpTiers.map((tier, i) => (
+                     <div key={i} className={cn("p-1.5 rounded-lg border text-center", tier.status === 'filled' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-black/20 border-white/5 opacity-60")}>
+                        <span className="text-[6px] font-black text-gray-500 uppercase block">T{tier.tier}</span>
+                        <span className="text-[9px] font-mono font-black">${tier.price.toLocaleString()}</span>
+                     </div>
+                  ))}
+               </div>
+            </div>
+
+            <div className="glass-panel p-2 rounded-xl border-rose-500/20 bg-rose-500/5 col-span-1">
+               <div className="grid grid-cols-2 gap-1.5 h-full">
+                  <button onClick={() => runSimulation('V_REVERSAL')} title="V-REVERSAL" className="p-1 bg-black/40 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center justify-center"><Zap className="w-3 h-3 text-amber-400" /></button>
+                  <button onClick={() => runSimulation('WHIPSAW')} title="WHIPSAW" className="p-1 bg-black/40 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center justify-center"><Activity className="w-3 h-3 text-indigo-400" /></button>
+                  <button onClick={() => runSimulation('LIQUIDITY_SWEEP')} title="SWEEP" className="p-1 bg-black/40 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center justify-center"><ShieldCheck className="w-3 h-3 text-emerald-400" /></button>
+                  <button onClick={() => runSimulation('CONNECTION_FAILURE')} title="KILL" className="p-1 bg-rose-500/10 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 transition-all flex items-center justify-center"><AlertCircle className="w-3 h-3 text-rose-400" /></button>
+               </div>
+            </div>
+
+            <button onClick={handleStop} className="bg-rose-500 text-black font-black uppercase text-[8px] rounded-xl hover:brightness-110 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+               <StopCircle className="w-4 h-4" />
+               TERMINATE
+            </button>
+         </div>
       )}
     </div>
   );

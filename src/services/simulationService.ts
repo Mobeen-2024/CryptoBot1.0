@@ -2,7 +2,7 @@ import { IntelligenceService } from './intelligenceService.js';
 import { Logger } from '../../logger.js';
 import EventEmitter from 'events';
 
-export type SimulationScenario = 'V_REVERSAL' | 'LIQUIDITY_SWEEP' | 'CONNECTION_FAILURE' | 'SENTIMENT_SHOCK' | 'STABLE_TREND';
+export type SimulationScenario = 'V_REVERSAL' | 'LIQUIDITY_SWEEP' | 'CONNECTION_FAILURE' | 'SENTIMENT_SHOCK' | 'WHIPSAW' | 'STABLE_TREND';
 
 export class SimulationService extends EventEmitter {
   private static instance: SimulationService;
@@ -40,6 +40,9 @@ export class SimulationService extends EventEmitter {
         break;
       case 'SENTIMENT_SHOCK':
         await this.simulateSentimentShock(symbol);
+        break;
+      case 'WHIPSAW':
+        await this.simulateWhipsaw(symbol);
         break;
       default:
         this.activeScenario = null;
@@ -160,6 +163,31 @@ export class SimulationService extends EventEmitter {
       this.emit('price_update', { symbol, price: currentPrice });
       this.intelligenceService.analyzeSymbol(symbol, currentPrice, step >= 5 ? 20 : 1);
     }, 1000);
+  }
+
+  /**
+   * Scenario G: Whipsaw Oscillation
+   * Rapidly oscillates price around EntryB (+/- ATR) to test friction and re-entry.
+   */
+  private async simulateWhipsaw(symbol: string) {
+    const initialPrice = 65000;
+    const triggerPrice = 64995; // 5 USDT offset
+    let step = 0;
+
+    this.simulationInterval = setInterval(() => {
+      step++;
+      // Oscillate price around the trigger
+      const noise = Math.sin(step * 1.5) * 4; // +/- 4 USDT
+      const currentPrice = triggerPrice + noise;
+
+      this.emit('price_update', { symbol, price: currentPrice });
+      this.intelligenceService.analyzeSymbol(symbol, currentPrice, 2);
+
+      if (step > 40) {
+        clearInterval(this.simulationInterval!);
+        Logger.info(`[SIMULATION] WHIPSAW Scenario Completed.`);
+      }
+    }, 400); // Fast 400ms interval for whipsaw stress
   }
 
   public stopSimulation() {

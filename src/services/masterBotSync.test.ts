@@ -21,9 +21,9 @@ vi.mock('./binanceService', () => {
                 fetchTicker: vi.fn().mockResolvedValue({ last: 50000 }),
                 placeOrder: vi.fn().mockImplementation(() => Promise.resolve({ id: 'order_123' })),
                 fetchPositions: vi.fn().mockResolvedValue([]),
-                closePosition: vi.fn().mockImplementation((client: any, symbol: string, side: string, amount: number) => {
-                    return mock.placeOrder(client, symbol, 'market', side === 'buy' ? 'sell' : 'buy', amount);
-                }),
+                // closePosition now passes side directly — no internal flip
+                closePosition: vi.fn().mockResolvedValue({ id: 'close_123', status: 'closed' }),
+                cancelAllOrders: vi.fn().mockResolvedValue({ status: 'success' }),
                 fetchBalance: vi.fn().mockResolvedValue({ USDT: { free: 1000 } }),
                 fetchLiquidityMetrics: vi.fn().mockResolvedValue({ spread: 2 }),
                 getClientA: vi.fn().mockReturnValue({}),
@@ -54,6 +54,12 @@ describe('BinanceMasterBot Orchestration', () => {
     mockBinance = (bot as any).binanceService;
     mockIntel = (bot as any).intelligenceService;
     
+    // Default: Account A has a live position (prevents auto-teardown), Account B is flat
+    mockBinance.fetchPositions.mockImplementation(async (client: any) => {
+      if (client === mockBinance.getClientA()) return [{ symbol: 'BTC/USDT', contracts: 1.0 }];
+      return [];
+    });
+
     // Reset singleton data
     (mockIntel as any).data = new Map();
   });
@@ -81,6 +87,11 @@ describe('BinanceMasterBot Orchestration', () => {
     // Simulate monitor interval
     // 1. Set current price below entryB (49950)
     mockBinance.fetchTicker.mockResolvedValue({ last: 49940 });
+    // Account A still open; Account B now has a position (hedge activated via syncTargetExposure)
+    mockBinance.fetchPositions.mockImplementation(async (client: any) => {
+      if (client === mockBinance.getClientA()) return [{ symbol: 'BTC/USDT', contracts: 1.0 }];
+      return [{ symbol: 'BTC/USDT', contracts: 1.0 }]; // Simulate hedge position active
+    });
     
     // Simulate 20 OHLCV candles to satisfy ATR calculation
     const ohlcv = Array(20).fill(0).map(() => [0, 50000, 50010, 49990, 50000, 1000]);
@@ -97,11 +108,14 @@ describe('BinanceMasterBot Orchestration', () => {
   it('should recover and redeploy hedge via ATR friction', async () => {
     await bot.start(config);
     
-    // 1. Activate hedge
+    // 1. Activate hedge: Account A open, Account B has a live position
     mockBinance.fetchTicker.mockResolvedValue({ last: 49940 });
     const ohlcv = Array(20).fill(0).map(() => [0, 50000, 50010, 49990, 50000, 1000]); // ATR approx 20
     mockBinance.getClientA().fetchOHLCV = vi.fn().mockResolvedValue(ohlcv);
-    mockBinance.fetchPositions.mockResolvedValue([{ contracts: 1.0 }]); // Hedge is active
+    mockBinance.fetchPositions.mockImplementation(async (client: any) => {
+      if (client === mockBinance.getClientA()) return [{ symbol: 'BTC/USDT', contracts: 1.0 }];
+      return [{ symbol: 'BTC/USDT', contracts: 1.0 }]; // Hedge is active
+    });
     
     await vi.advanceTimersByTimeAsync(2000);
     expect(bot.getStatus().hedgeStatus).toBe('active');
@@ -113,14 +127,20 @@ describe('BinanceMasterBot Orchestration', () => {
     await vi.advanceTimersByTimeAsync(2000);
     
     const state = bot.getStatus();
-    expect(mockBinance.closePosition).toHaveBeenCalledWith(expect.anything(), 'BTC/USDT', 'sell', 1.0);
+    // hedgeB opened as 'sell' (short) — closing requires 'buy'
+    expect(mockBinance.closePosition).toHaveBeenCalledWith(expect.anything(), 'BTC/USDT', 'buy', 1.0);
     expect(state.hedgeStatus).toBe('pending'); // Redeployed
-    expect(mockBinance.placeOrder).toHaveBeenCalledTimes(4); // Init(2) + Close(1) + Redeploy(1)
+    expect(mockBinance.placeOrder).toHaveBeenCalledTimes(3); // Init market A + hedge limit B + redeploy limit B
   });
 
   it('should move SL to Break-Even after TP1 is hit', async () => {
     await bot.start(config);
     
+    // Account A still has position; Account B is flat (no hedge needed for TP test)
+    mockBinance.fetchPositions.mockImplementation(async (client: any) => {
+      if (client === mockBinance.getClientA()) return [{ symbol: 'BTC/USDT', contracts: 1.0 }];
+      return [];
+    });
     // TP1 is at 2% offset = 50000 * 1.02 = 51000
     mockBinance.fetchTicker.mockResolvedValue({ last: 51100 });
     
@@ -130,5 +150,7 @@ describe('BinanceMasterBot Orchestration', () => {
     expect(state.tpTiers[0].status).toBe('filled');
     expect(state.slOrder?.price).toBe(state.entryA);
     expect(state.slOrder?.isBreakEven).toBe(true);
+    // Phase 12: Physical partial close must be sent with closeSideA='sell'
+    expect(mockBinance.closePosition).toHaveBeenCalledWith(expect.anything(), 'BTC/USDT', 'sell', expect.any(Number));
   });
 });

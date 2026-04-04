@@ -176,12 +176,19 @@ export class IntelligenceService {
   }
 
   public getFrictionOffset(sideA: 'buy' | 'sell', symbol: string, k: number = 1.0): number {
+    return this.getDynamicFriction(symbol, k) * (sideA === 'buy' ? 1 : -1);
+  }
+
+  /**
+   * Returns a dynamic offset based on the current ATR and user multiplier.
+   * Standardizes Phase 9 "Dynamic Friction" architecture.
+   */
+  public getDynamicFriction(symbol: string, k: number = 1.0): number {
     const intel = this.data.get(symbol);
     if (intel && intel.atr) {
-      const dynamicFriction = intel.atr * k;
-      return sideA === 'buy' ? dynamicFriction : -dynamicFriction;
+      return intel.atr * k;
     }
-    return sideA === 'buy' ? 2 : -2; 
+    return 2.0; // Default hard fallback
   }
 
   /**
@@ -206,15 +213,22 @@ export class IntelligenceService {
   /**
    * Calculates the target hedge exposure based on the current price state.
    * Mission: Always Protected.
+   * Standardizes the Phase 9 State-Based Exposure Model.
    */
-  public calculateRequiredHedge(markPrice: number, entryA: number, entryB: number, qtyA: number, sideA: 'buy' | 'sell'): number {
+  public calculateRequiredHedge(markPrice: number, entryA: number, entryB: number, qtyA: number, sideA: 'buy' | 'sell', slA: number): number {
     const isBuy = sideA === 'buy';
     const triggerCrossed = isBuy ? markPrice <= entryB : markPrice >= entryB;
     
     if (!triggerCrossed) return 0;
     
-    // Once triggered, we aim for Delta Neutrality (HedgeQty == QtyA)
-    // In more complex scenarios, this can be proportional to the 'Danger Zone' (EntryA to SL_A)
+    // Phase 9: Dynamic Hedge Scaling
+    // If we are between EntryB and SL_A, we want to maintain the hedge.
+    // In advanced mode, we scale from 0.5 to 1.0 or just 1.0 for institutional safety.
+    const distanceToStop = Math.abs(entryA - slA);
+    const currentDistance = Math.abs(entryA - markPrice);
+    
+    // If price is 50% towards SL, we must have at least 50% hedge.
+    // But for institutional standard, we aim for full Delta Neutrality immediately upon trigger.
     return qtyA; 
   }
 }

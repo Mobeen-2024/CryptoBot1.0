@@ -76,10 +76,11 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   const [latency, setLatency] = useState(0);
 
   const [qtyA, setQtyA] = useState('0.1');
-  const [qtyB, setQtyB] = useState('0.1');
   const [leverA, setLeverA] = useState(10);
   const [leverB, setLeverB] = useState(20);
   const [entryOffset, setEntryOffset] = useState('5');
+  const [slPercent, setSlPercent] = useState('1.0');
+  const [tpTiers, setTpTiers] = useState('4');
   const [sideA, setSideA] = useState<'buy' | 'sell'>('buy');
   const [atrMultiplier, setAtrMultiplier] = useState('1.0');
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -143,13 +144,14 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         body: JSON.stringify({ 
           symbol, 
           qtyA: Number(qtyA), 
-          qtyB: Number(qtyB), 
           sideA, 
           leverA, 
           leverB, 
           entryOffset: Number(entryOffset), 
           protectionRatio: 1.0, 
-          atrMultiplier: Number(atrMultiplier) 
+          atrMultiplier: Number(atrMultiplier),
+          slPercent: Number(slPercent),
+          tpTiers: tpTiers
         })
       });
       if (!res.ok) {
@@ -207,77 +209,74 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   };
 
   return (
-    <div className="w-full h-full flex flex-col p-4 text-white overflow-y-auto custom-scrollbar">
+    <div className="w-full h-full flex flex-col p-3 text-white overflow-y-auto custom-scrollbar bg-slate-950/40">
       
       {/* Header Section */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-500/20 border border-indigo-500/30 rounded-xl">
-            <Shield className="w-5 h-5 text-indigo-400" />
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-indigo-500/20 border border-indigo-500/30 rounded-lg">
+            <Shield className="w-4 h-4 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-lg font-black uppercase tracking-tighter italic leading-none">Delta Master <span className="text-indigo-400">Phase 9</span></h1>
-            <p className="text-[8px] font-bold text-gray-500 uppercase tracking-[0.2em] mt-0.5">State-Based Orchestration</p>
+            <h1 className="text-sm font-black uppercase tracking-tighter italic leading-none">Delta Master <span className="text-indigo-400">Phase 12</span></h1>
+            <p className="text-[7px] font-bold text-gray-500 uppercase tracking-[0.2em] mt-0.5">Recursive Hedge Architecture</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
            <button 
              onClick={() => window.location.reload()} 
-             className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-gray-500 hover:text-white"
+             className="p-1.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all text-gray-500 hover:text-white"
              title="Hard Refresh"
            >
-              <Activity className="w-4 h-4" />
+              <Activity className="w-3 h-3" />
            </button>
            <div className={cn(
-              "px-5 py-2 rounded-full border text-[11px] font-black tracking-widest flex items-center gap-3",
+              "px-3 py-1 rounded-full border text-[9px] font-black tracking-widest flex items-center gap-2",
               wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse"
            )}>
               <div className="flex flex-col items-end">
-                 <div className="flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5" />
-                    {wsConnected ? `SYNCED: ${latency}ms` : 'LINK SEVERED'}
+                 <div className="flex items-center gap-1.5">
+                    <Activity className="w-3 h-3" />
+                    {wsConnected ? `SYNCED: ${latency}ms` : 'OFFLINE'}
                  </div>
-                 {state.telemetry && (
-                   <span className="text-[7px] text-gray-500 uppercase mt-0.5">
-                     EXE: {state.telemetry.executionSpeed}ms | API: {state.telemetry.avgLatency}ms
-                   </span>
-                 )}
               </div>
            </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         {/* Account A PnL */}
-        <div className="glass-panel border-indigo-500/20 p-3 rounded-2xl col-span-1">
-          <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 mb-1 block">Account A (Principal)</span>
-          <span className={cn("text-2xl font-black font-mono tracking-tighter", state.pnlA >= 0 ? "text-emerald-400" : "text-rose-400")}>
-            {state.pnlA.toFixed(2)} <span className="text-[10px] font-bold text-gray-500">USDT</span>
+        <div className="glass-panel border-indigo-500/20 p-2 rounded-xl col-span-1">
+          <div className="flex justify-between items-center mb-1">
+             <span className="text-[7px] font-black uppercase tracking-widest text-gray-500">Principal (A)</span>
+             <span className="text-[6px] font-bold text-indigo-400 px-1 bg-indigo-500/10 rounded">LIVE</span>
+          </div>
+          <span className={cn("text-lg font-black font-mono tracking-tighter", state.pnlA >= 0 ? "text-emerald-400" : "text-rose-400")}>
+            {state.pnlA.toFixed(2)}
           </span>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Entry</span>
-                <span className="text-xs font-mono font-bold text-white">${state.entryA.toLocaleString()}</span>
+          <div className="mt-1 flex gap-2">
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5">
+                <span className="text-[6px] text-gray-500 uppercase font-black block">Ent</span>
+                <span className="text-[9px] font-mono font-bold text-white">${state.entryA.toLocaleString()}</span>
              </div>
-             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Status</span>
-                <span className="text-xs font-black text-indigo-400 uppercase">{state.phase}</span>
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5">
+                <span className="text-[6px] text-gray-500 uppercase font-black block">Phase</span>
+                <span className="text-[9px] font-black text-indigo-400 uppercase">{state.phase}</span>
              </div>
           </div>
         </div>
 
-        {/* Net Exposure HUD (Central Piece) */}
-        <div className="glass-panel border-white/10 p-3 rounded-2xl bg-white/5 flex flex-col items-center justify-center relative overflow-hidden">
-           <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
-           <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-2 z-10">Net Exposure Delta</span>
+        {/* Net Exposure HUD */}
+        <div className="glass-panel border-white/10 p-2 rounded-xl bg-white/5 flex flex-col items-center justify-center relative overflow-hidden">
+           <span className="text-[7px] font-black uppercase tracking-[0.1em] text-indigo-400 mb-1 z-10">Exposure Delta</span>
            
-           <div className="relative w-full h-12 flex items-center justify-center z-10">
+           <div className="relative w-full h-4 flex items-center justify-center z-10 mb-1">
               <div className="absolute w-full h-0.5 bg-white/5 rounded-full" />
               <div 
                 className={cn(
                   "absolute h-1 rounded-full transition-all duration-500",
-                  Math.abs(state.netExposureDelta) < 0.01 ? "bg-emerald-500 w-2 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-indigo-500"
+                  Math.abs(state.netExposureDelta) < 0.01 ? "bg-emerald-500 w-1 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-indigo-500"
                 )}
                 style={{ 
                   left: '50%',
@@ -285,45 +284,37 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                   transform: state.netExposureDelta >= 0 ? 'translateX(0)' : 'translateX(-100%)'
                 }}
               />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white border border-indigo-500 rounded-full shadow-lg" />
            </div>
            
-           <div className="flex items-center gap-1.5 z-10">
-              <Gauge className={cn("w-3 h-3", Math.abs(state.netExposureDelta) < 0.01 ? "text-emerald-400" : "text-gray-500")} />
-              <span className="text-xl font-black font-mono tracking-tighter">
+           <div className="flex items-center gap-1 z-10">
+              <span className="text-sm font-black font-mono tracking-tighter">
                 {state.netExposureDelta.toFixed(3)}
               </span>
-              <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest mt-1">Contracts</span>
            </div>
-           <p className="text-[8px] font-bold text-gray-500 uppercase mt-2 tracking-widest z-10">
-              {Math.abs(state.netExposureDelta) < 0.01 ? 'DELTA NEUTRAL' : 'RECALIBRATING...'}
-           </p>
         </div>
 
         {/* Account B PnL */}
-        <div className="glass-panel border-amber-500/20 p-3 rounded-2xl relative overflow-hidden col-span-1">
-          <div className="flex justify-between items-start mb-1">
-             <span className="text-[8px] font-black uppercase tracking-widest text-gray-500 block">Account B (Insurance)</span>
-             {state.isActive && (
-               <div className={cn(
-                 "px-1.5 py-0.5 rounded border text-[6px] font-black uppercase tracking-widest",
-                 state.entryB < state.entryA ? "bg-amber-500/10 border-amber-500/30 text-amber-500" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
-               )}>
-                 {state.entryB < state.entryA ? 'L-PROT' : 'S-PROT'}
-               </div>
-             )}
-          </div>
-          <span className={cn("text-2xl font-black font-mono tracking-tighter", state.pnlB >= 0 ? "text-emerald-400" : "text-rose-400")}>
-            {state.pnlB.toFixed(2)} <span className="text-[10px] font-bold text-gray-500">USDT</span>
-          </span>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Trigger</span>
-                <span className="text-xs font-mono font-bold text-white">${state.entryB.toLocaleString()}</span>
+        <div className="glass-panel border-amber-500/20 p-2 rounded-xl relative col-span-1">
+          <div className="flex justify-between items-center mb-1">
+             <span className="text-[7px] font-black uppercase tracking-widest text-gray-500">Insurance (B)</span>
+             <div className={cn(
+               "px-1 py-0.5 rounded text-[6px] font-black uppercase",
+               state.hedgeStatus === 'active' ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+             )}>
+               {state.hedgeStatus}
              </div>
-             <div className="bg-black/20 p-2 rounded-xl border border-white/5">
-                <span className="text-[8px] text-gray-500 uppercase font-black block mb-0.5">Margin</span>
-                <span className="text-xs font-mono font-bold text-white">${state.availableMarginB.toFixed(0)}</span>
+          </div>
+          <span className={cn("text-lg font-black font-mono tracking-tighter", state.pnlB >= 0 ? "text-emerald-400" : "text-rose-400")}>
+            {state.pnlB.toFixed(2)}
+          </span>
+          <div className="mt-1 flex gap-2">
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5">
+                <span className="text-[6px] text-gray-500 uppercase font-black block">Ent</span>
+                <span className="text-[9px] font-mono font-bold text-white">${state.entryB.toLocaleString()}</span>
+             </div>
+             <div className="bg-black/20 px-1.5 py-0.5 rounded border border-white/5">
+                <span className="text-[6px] text-gray-500 uppercase font-black block">Mgn</span>
+                <span className="text-[9px] font-mono font-bold text-amber-400">${state.availableMarginB.toFixed(0)}</span>
              </div>
           </div>
         </div>
@@ -380,123 +371,93 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
          </div>
       </div>
 
-      {/* Control Panel */}
+      {/* Control Panel: Phase 12 High Density Command */}
       {!state.isActive ? (
-         <div className="glass-panel p-4 rounded-2xl border-white/10 space-y-4 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-20 pointer-events-auto">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-               <div className="flex flex-col">
-                  <span className="text-[8px] font-black uppercase text-gray-500 tracking-widest">Active Pair</span>
-                  <span className="text-xs font-mono font-black text-indigo-400">{symbol}</span>
+         <div className="glass-panel p-3 rounded-xl border-white/10 space-y-3 bg-black/40">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-indigo-400 ml-1">Pair</label>
+                  <div className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-[9px] text-indigo-300">{symbol}</div>
                </div>
-               <div className="flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-md">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                  <span className="text-[9px] font-black uppercase text-indigo-300">Ready to Deploy</span>
-               </div>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-               <div className="flex flex-col gap-1 relative z-30">
-                  <label className="text-[8px] font-black uppercase text-indigo-400 ml-1 flex items-center gap-1">
-                     Qty (B) <span className="text-[7px] text-indigo-500/40">● Input</span>
-                  </label>
+               
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-indigo-400 ml-1">Qty (A)</label>
                   <input 
                     type="text" 
-                    inputMode="decimal" 
                     value={qtyA} 
                     onChange={(e) => setQtyA(e.target.value)} 
-                    placeholder="0.1"
-                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 rounded-lg px-2 py-2 font-mono text-[10px] outline-none transition-all" 
+                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none" 
                   />
                </div>
-               <div className="flex flex-col gap-1 relative z-30">
-                  <label className="text-[8px] font-black uppercase text-indigo-400 ml-1 flex items-center gap-1">
-                     Offset <span className="text-[7px] text-indigo-500/40">● Input</span>
-                  </label>
+
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-rose-400 ml-1">Stop Loss (%)</label>
                   <input 
                     type="text" 
-                    inputMode="decimal" 
+                    value={slPercent} 
+                    onChange={(e) => setSlPercent(e.target.value)} 
+                    className="bg-black/60 border border-rose-500/20 focus:border-rose-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none" 
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-emerald-400 ml-1">TP Tiers (%)</label>
+                  <input 
+                    type="text" 
+                    value={tpTiers} 
+                    onChange={(e) => setTpTiers(e.target.value)} 
+                    placeholder="2,3,4,5"
+                    className="bg-black/60 border border-emerald-500/20 focus:border-emerald-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none" 
+                  />
+               </div>
+
+               <div className="flex flex-col gap-1">
+                  <label className="text-[7px] font-black uppercase text-indigo-400 ml-1">Hedge Offset</label>
+                  <input 
+                    type="text" 
                     value={entryOffset} 
                     onChange={(e) => setEntryOffset(e.target.value)} 
-                    placeholder="5"
-                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 rounded-lg px-2 py-2 font-mono text-[10px] outline-none transition-all" 
+                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none" 
                   />
-               </div>
-               <div className="flex flex-col gap-1 relative z-30">
-                  <label className="text-[8px] font-black uppercase text-indigo-400 ml-1 flex items-center gap-1">
-                     ATR Multiplier <span className="text-[7px] text-indigo-500/40">● Input</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    inputMode="decimal" 
-                    value={atrMultiplier} 
-                    onChange={(e) => setAtrMultiplier(e.target.value)} 
-                    placeholder="1.0"
-                    className="bg-black/60 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 rounded-lg px-2 py-2 font-mono text-[10px] outline-none transition-all" 
-                  />
-               </div>
-               <div className="flex flex-col gap-1 relative z-30">
-                  <label className="text-[8px] font-black uppercase text-gray-500 ml-1">Direction (A)</label>
-                  <div className="flex gap-1 bg-black/60 p-1 rounded-lg border border-white/10 h-full">
-                     <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[8px] font-black rounded transition-all", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20" : "text-gray-500 hover:text-white")}>BUY</button>
-                     <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[8px] font-black rounded transition-all", sideA === 'sell' ? "bg-rose-500/20 text-rose-400 border border-rose-500/20" : "text-gray-500 hover:text-white")}>SELL</button>
-                  </div>
                </div>
             </div>
-           
-           <button onClick={handleStart} disabled={loading} className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-black font-black uppercase tracking-[0.2em] text-[10px] rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
-              <Play className="w-4 h-4 fill-black" />
-              Deploy Phase 9 Engine
-           </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-           {/* Managed Exits HUD */}
-           <div className="glass-panel p-6 rounded-[2rem] border-white/5 space-y-6 col-span-2">
-              <div className="flex justify-between items-center">
-                 <span className="text-xs font-black uppercase tracking-widest text-indigo-400">Atomic Managed Exits</span>
-                 <div className="flex gap-3">
-                    <div className={cn("px-3 py-1 rounded-lg border text-[9px] font-black uppercase", state.hedgeStatus === 'active' ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-gray-500/10 border-gray-500/20 text-gray-500")}>
-                       SHIELD: {state.hedgeStatus.toUpperCase()}
-                    </div>
-                 </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 {state.tpTiers.map((tier, i) => (
-                    <div key={i} className={cn("p-4 rounded-2xl border transition-all", tier.status === 'filled' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-black/20 border-white/5 opacity-60")}>
-                       <span className="text-[9px] font-black text-gray-500 uppercase block mb-1">Tier {tier.tier}</span>
-                       <span className="text-sm font-mono font-black">${tier.price.toLocaleString()}</span>
-                    </div>
-                 ))}
-              </div>
-           </div>
 
-           {/* Stress Test Suite */}
-           <div className="glass-panel p-6 rounded-[2rem] border-rose-500/20 bg-rose-500/5 space-y-4">
-              <div className="flex items-center gap-3">
-                 <AlertTriangle className="w-5 h-5 text-rose-400" />
-                 <span className="text-xs font-black uppercase tracking-widest text-rose-400">Stress Test Suite</span>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                 <button onClick={() => runSimulation('V_REVERSAL')} className="px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all text-left flex justify-between items-center group">
-                    V-REVERSAL TEST
-                    <Zap className="w-3 h-3 text-amber-400 opacity-0 group-hover:opacity-100 transition-all" />
-                 </button>
-                 <button onClick={() => runSimulation('LIQUIDITY_SWEEP')} className="px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all text-left flex justify-between items-center group">
-                    LIQUIDITY SWEEP
-                    <ShieldCheck className="w-3 h-3 text-indigo-400 opacity-0 group-hover:opacity-100 transition-all" />
-                 </button>
-                 <button onClick={() => runSimulation('CONNECTION_FAILURE')} className="px-4 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/20 transition-all text-left flex justify-between items-center group text-rose-400">
-                    CONNECTION FAILURE
-                    <AlertCircle className="w-3 h-3 text-rose-400 opacity-0 group-hover:opacity-100 transition-all" />
-                 </button>
-              </div>
-              
-              <button onClick={handleStop} className="w-full py-4 mt-2 bg-rose-500 text-black font-black uppercase tracking-[0.2em] text-[10px] rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-3 shadow-[0_5px_15px_rgba(244,63,94,0.3)]">
-                 <StopCircle className="w-4 h-4" />
-                 Terminate Agent
-              </button>
-           </div>
-        </div>
+            <div className="grid grid-cols-2 gap-2">
+               <div className="flex gap-1 bg-black/60 p-1 rounded border border-white/10 h-8">
+                  <button onClick={() => setSideA('buy')} className={cn("flex-1 text-[7px] font-black rounded transition-all", sideA === 'buy' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20" : "text-gray-500")}>LONG (A)</button>
+                  <button onClick={() => setSideA('sell')} className={cn("flex-1 text-[7px] font-black rounded transition-all", sideA === 'sell' ? "bg-rose-500/20 text-rose-400 border border-rose-500/20" : "text-gray-500")}>SHORT (A)</button>
+               </div>
+               
+               <button onClick={handleStart} disabled={loading} className="py-2 bg-indigo-600 text-black font-black uppercase tracking-widest text-[9px] rounded hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+                  <Play className="w-3.5 h-3.5 fill-black" />
+                  Deploy Agent
+               </button>
+            </div>
+         </div>
+      ) : (
+         <div className="grid grid-cols-4 gap-2">
+            <div className="glass-panel p-2 rounded-xl border-white/10 col-span-3">
+               <div className="flex justify-between items-center mb-2">
+                  <span className="text-[7px] font-black uppercase text-indigo-400">Exits Monitoring</span>
+                  <div className="flex gap-2">
+                     <span className="text-[6px] text-gray-500 px-1 bg-white/5 rounded">SL: {state.slOrder?.price.toFixed(1)}</span>
+                  </div>
+               </div>
+               <div className="grid grid-cols-4 gap-2">
+                  {state.tpTiers.map((tier, i) => (
+                     <div key={i} className={cn("p-1.5 rounded-lg border text-center", tier.status === 'filled' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-black/20 border-white/5")}>
+                        <span className="text-[6px] font-black text-gray-500 uppercase block">T{tier.tier}</span>
+                        <span className="text-[9px] font-mono font-black">${tier.price.toLocaleString()}</span>
+                     </div>
+                  ))}
+               </div>
+            </div>
+
+            <button onClick={handleStop} className="bg-rose-500 text-black font-black uppercase text-[8px] rounded-xl hover:brightness-110 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+               <StopCircle className="w-4 h-4" />
+               TERMINATE
+            </button>
+         </div>
       )}
 
       {/* API Key Modal (Phase 11) */}

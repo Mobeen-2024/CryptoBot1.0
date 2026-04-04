@@ -247,14 +247,15 @@ export class DeltaExchangeService {
     }
   }
 
-  public async closePosition(client: any, symbol: string, side: 'buy' | 'sell', amount: number) {
+  public async closePosition(client: any, symbol: string, closeSide: 'buy' | 'sell', amount: number) {
     if (this.isShadowMode) {
-      Logger.info(`[DELTA_SHADOW] Closing ${side.toUpperCase()} ${amount} ${symbol}`);
+      Logger.info(`[DELTA_SHADOW] Close ${closeSide.toUpperCase()} ${amount} ${symbol} (reduceOnly)`);
       return { status: 'closed', simulated: true };
     }
     try {
-      // Delta Exchange uses createOrder with 'reduceOnly': true for closing
-      return await client.createOrder(symbol, 'market', side === 'buy' ? 'sell' : 'buy', amount, undefined, { reduceOnly: true });
+      // closeSide is the ORDER side required to reduce the position.
+      // Callers are responsible for the correct closing direction (opposite to their opening side).
+      return await client.createOrder(symbol, 'market', closeSide, amount, undefined, { reduceOnly: true });
     } catch (error) {
       Logger.error(`Failed to close position for ${symbol}:`, error);
       throw error;

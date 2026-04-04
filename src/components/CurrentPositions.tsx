@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { io } from 'socket.io-client';
 import { Briefcase, ArrowUpRight, ArrowDownRight, RefreshCw, Crosshair, Cpu } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { cn } from '../utils/cn';
 
 interface Position {
+  slave_id: string; // Added to differentiate master accounts
   symbol: string;
   netQuantity: number;
   averageEntryPrice: number;
@@ -145,12 +147,19 @@ export function CurrentPositions() {
         <div className="scan-lines pointer-events-none opacity-50 z-0 bg-transparent" />
         {positions.map((pos) => {
           let displaySymbol = pos.symbol;
+          let accountBase = '';
+          if (pos.symbol.includes(':')) {
+            const parts = pos.symbol.split(':');
+            accountBase = parts[0];
+            displaySymbol = parts[1];
+          }
+
           let marginTag = 'CROSS_10X';
-          if (pos.symbol.includes('-ISOLATED')) {
-            displaySymbol = pos.symbol.replace('-ISOLATED', '');
+          if (displaySymbol.includes('-ISOLATED')) {
+            displaySymbol = displaySymbol.replace('-ISOLATED', '');
             marginTag = 'ISO_10X';
-          } else if (pos.symbol.includes('-CROSS')) {
-            displaySymbol = pos.symbol.replace('-CROSS', '');
+          } else if (displaySymbol.includes('-CROSS')) {
+            displaySymbol = displaySymbol.replace('-CROSS', '');
           }
 
           const livePrc = livePrices[pos.symbol] || pos.averageEntryPrice;
@@ -167,7 +176,7 @@ export function CurrentPositions() {
           const healthGlow = isProfit ? 'var(--holo-cyan-glow)' : 'var(--holo-magenta-glow)';
 
           return (
-            <div key={pos.symbol} 
+            <div key={`${pos.slave_id}-${pos.symbol}`} 
                  className="bg-black/40 backdrop-blur-md rounded-lg border border-white/5 relative overflow-hidden group transition-all duration-300 hover:bg-black/60 z-10"
                  style={{
                    // Dynamic hover glow based on profitability
@@ -188,7 +197,19 @@ export function CurrentPositions() {
                       {base.slice(0,2)}
                     </div>
                     <div>
-                      <div className="text-[12px] font-black tracking-widest text-white font-mono">{displaySymbol}</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-[12px] font-black tracking-widest text-white font-mono">{displaySymbol}</div>
+                        {pos.slave_id && (
+                          <span className={cn(
+                            "px-1 py-0.5 rounded-[4px] text-[6px] font-black uppercase tracking-[0.1em] border leading-none shrink-0",
+                            pos.slave_id.includes('delta_master_a') || pos.slave_id.includes('binance_master_a') ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+                            pos.slave_id.includes('delta_master_b') || pos.slave_id.includes('binance_master_b') ? "bg-amber-500/10 border-amber-500/30 text-amber-500" :
+                            "bg-white/5 border-white/10 text-gray-400"
+                          )}>
+                            {pos.slave_id.includes('_a') ? 'PRINCIPAL' : pos.slave_id.includes('_b') ? 'INSURANCE' : pos.slave_id}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className={`text-[8px] font-black tracking-widest px-1 rounded uppercase ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
                         <span className="text-[8px] font-black tracking-widest text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 px-1 rounded uppercase">{marginTag}</span>
@@ -236,7 +257,19 @@ export function CurrentPositions() {
                     <span className="text-[11px] font-black">{base.slice(0,1)}</span>
                   </div>
                   <div className="flex flex-col">
-                    <h3 className="font-black text-white text-[12px] tracking-[0.1em]">{displaySymbol}</h3>
+                    <div className="flex items-center gap-2">
+                       <h3 className="font-black text-white text-[12px] tracking-[0.1em]">{displaySymbol}</h3>
+                       {pos.slave_id && (
+                         <span className={cn(
+                           "px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border",
+                           pos.slave_id.includes('_a') ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+                           pos.slave_id.includes('_b') ? "bg-amber-500/10 border-amber-500/30 text-amber-500" :
+                           "bg-white/5 border-white/10 text-gray-400"
+                         )}>
+                           {pos.slave_id.includes('_a') ? 'PRINCIPAL' : pos.slave_id.includes('_b') ? 'INSURANCE' : pos.slave_id}
+                         </span>
+                       )}
+                    </div>
                     <div className="flex gap-1 mt-0.5">
                       <span className={`text-[9px] px-1 rounded-sm font-black font-mono tracking-widest uppercase ${isLong ? 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10' : 'text-[var(--holo-magenta)] bg-[var(--holo-magenta)]/10'}`}>{isLong ? 'LONG' : 'SHORT'}</span>
                       <span className="text-[9px] text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 px-1 rounded-sm font-black font-mono tracking-widest uppercase">{marginTag}</span>

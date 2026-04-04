@@ -262,6 +262,7 @@ async function startServer() {
     apiKey: undefined,
     secret: undefined,
     enableRateLimit: true,
+    timeout: 30000,
     options: {
       defaultType: 'spot',
     },
@@ -272,6 +273,7 @@ async function startServer() {
     apiKey: process.env.BINANCE_API_KEY || '',
     secret: (process.env.BINANCE_API_SECRET || process.env.BINANCE_SECRET_KEY) || '',
     enableRateLimit: true,
+    timeout: 30000,
     options: {
       defaultType: 'spot',
     },

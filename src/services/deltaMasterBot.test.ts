@@ -27,7 +27,11 @@ describe('DeltaMasterBot (Phase 9 Orchestrator)', () => {
       placeOrder: vi.fn().mockResolvedValue({ id: 'hedge_b' }),
       cancelAllOrders: vi.fn().mockResolvedValue(true),
       closePosition: vi.fn().mockResolvedValue(true),
-      fetchPositions: vi.fn().mockResolvedValue([{ contracts: 0.1 }]),
+      // Default: Account A has a live position; Account B is flat
+      fetchPositions: vi.fn().mockImplementation(async (client: any) => {
+        if (client === mockDeltaService.getClientA()) return [{ contracts: 0.1 }];
+        return [{ contracts: 0.1 }]; // B also active by default (needed for delta calc)
+      }),
       fetchBalance: vi.fn().mockResolvedValue({ total: 1000 }),
       fetchLiquidityMetrics: vi.fn().mockResolvedValue({ spread: 0.5 }),
       setDeadMansSwitch: vi.fn().mockResolvedValue(true),
@@ -150,17 +154,22 @@ describe('DeltaMasterBot (Phase 9 Orchestrator)', () => {
 
     await bot.start(config);
 
-    // Initial state: Price is at entry
-    // Now trigger Trend Recovery: Price > EntryB + Friction
-    mockDeltaService.fetchTicker.mockResolvedValue({ last: 50000 }); // Threshold is 49500 + 100 = 49600
+    // Configure: price recovers above threshold (49500 + friction 100 = 49600)
+    mockDeltaService.fetchTicker.mockResolvedValue({ last: 50000 });
+    // Account A is open; Account B has a live short position (hedge active)
+    mockDeltaService.fetchPositions.mockImplementation(async (client: any) => {
+      if (client === mockDeltaService.getClientA()) return [{ contracts: 0.1 }];
+      return [{ contracts: 0.1 }]; // hedge position
+    });
     
     await vi.advanceTimersByTimeAsync(2100);
 
-    // Verify closePosition was called on Account B
+    // Verify closePosition was called on Account B with its CLOSING side
+    // sideA='buy', so hedge (B) opened as 'sell'; closing a short requires 'buy'
     expect(mockDeltaService.closePosition).toHaveBeenCalledWith(
       expect.anything(),
       config.symbol,
-      'sell',
+      'buy',   // closeSideB = opposite of hedge opening side ('sell')
       0.1
     );
   });
@@ -180,7 +189,10 @@ describe('DeltaMasterBot (Phase 9 Orchestrator)', () => {
     await bot.start(config);
     await bot.stop();
 
-    expect(mockDeltaService.closePosition).toHaveBeenCalledTimes(2); // One for A, one for B
+    expect(mockDeltaService.closePosition).toHaveBeenCalledTimes(2); // closeSideA for A, closeSideB for B
+    // sideA='buy' → closeSideA='sell'; hedgeB opened 'sell' → closeSideB='buy'
+    expect(mockDeltaService.closePosition).toHaveBeenCalledWith(expect.anything(), config.symbol, 'sell', expect.any(Number));
+    expect(mockDeltaService.closePosition).toHaveBeenCalledWith(expect.anything(), config.symbol, 'buy', expect.any(Number));
     expect(mockDeltaService.cancelAllOrders).toHaveBeenCalledTimes(2);
     
     const state = bot.getStatus();

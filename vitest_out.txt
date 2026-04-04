@@ -1,0 +1,84 @@
+﻿
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mD:/WorkStation/cryptobot[39m
+
+ [31mΓ¥»[39m src/services/deltaMasterBot.integration.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 43[2mms[22m[39m
+[31m   [31m├ù[31m DeltaMasterBot (Phase 9 Integration)[2m > [22mshould execute full V-REVERSAL recovery cycle[39m[32m 42[2mms[22m[39m
+[31m     ΓåÆ expected 'pending' to be 'active' // Object.is equality[39m
+node.exe : 
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (:St  
+  ring) [], RemoteExcept   
+ ion
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+[31mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+[39m[1m[41m Failed Tests 
+1 [49m[22m[31mΓÄ»ΓÄ»ΓÄ»Γ
+Ä»ΓÄ»ΓÄ»ΓÄ»[39m
+
+[41m[1m FAIL [22m[49m s
+rc/services/deltaMasterBot.
+integration.test.ts[2m > 
+[22mDeltaMasterBot (Phase 
+9 Integration)[2m > 
+[22mshould execute full 
+V-REVERSAL recovery cycle
+[31m[1mAssertionError[22
+m: expected 'pending' to 
+be 'active' // Object.is 
+equality[39m
+
+Expected: 
+[32m"active"[39m
+Received: 
+[31m"pending"[39m
+
+[36m [2mΓ¥»[22m src/serv
+ices/deltaMasterBot.integra
+tion.test.ts:[2m111:32[22
+m[39m
+    [90m109| [39m    
+    [90m110| [39m    
+[35mlet[39m status 
+[33m=[39m bot[33m.[39m
+[34mgetStatus[39m()[33m;
+[39m
+    [90m111| [39m    [34
+mexpect[39m(status[33m.[
+39mhedgeStatus)[33m.[39m
+[34mtoBe[39m([32m'active'
+[39m)[33m;[39m
+    [90m   | [39m        
+                       
+[31m^[39m
+    [90m112| [39m    [34
+mexpect[39m(status[33m.[
+39mnetExposureDelta)[33m.
+[39m[34mtoBeLessThan[39m(
+[34m0.01[39m)[33m;[39m
+    [90m113| [39m    [34
+mexpect[39m(status[33m.[
+39mpnlA)[33m.[39m[34mtoB
+eLessThan[39m([34m0[39m)
+[33m;[39m
+
+[31m[2mΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+[1/1]ΓÄ»[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 18:05:24
+[2m   Duration [22m 985ms[2m (transform 93ms, setup 0ms, collect 533ms, tests 43ms, environment 0ms, prepare 123ms)[22m
+

@@ -27,9 +27,10 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
       placeOrder: vi.fn().mockResolvedValue({ id: 'hedge_b' }),
       cancelAllOrders: vi.fn().mockResolvedValue(true),
       closePosition: vi.fn().mockResolvedValue(true),
-      fetchPositions: vi.fn().mockImplementation(async (client, symbol) => {
-         // Return 0 contracts by default
-         return [];
+      fetchPositions: vi.fn().mockImplementation(async (client: any) => {
+        // Default: Account A has a live position; Account B is flat
+        if (client === mockDeltaService.getClientA()) return [{ symbol: 'BTC/USDT:USDT', contracts: 0.1, side: 'long' }];
+        return [];
       }),
       fetchBalance: vi.fn().mockResolvedValue({ total: 1000 }),
       fetchLiquidityMetrics: vi.fn().mockResolvedValue({ spread: 0.5 }),
@@ -94,18 +95,21 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
     expect(bot.getStatus().entryB).toBe(64995);
 
     // 2. DROP: Trigger Hedge Activation
-    // Simulate price drop to 64990 (Trigger is 64995)
+    // Simulate price drop to 64990 (trigger is entryB 64995)
     mockDeltaService.fetchTicker.mockResolvedValue({ last: 64990 });
     
-    // Simulate positions showing hedge is active
-    mockDeltaService.fetchPositions.mockResolvedValue([{ symbol: config.symbol, contracts: 0.101, side: 'sell' }]);
+    // Client-aware: Account A still open, Account B now has a hedge position
+    mockDeltaService.fetchPositions.mockImplementation(async (client: any) => {
+      if (client === mockDeltaService.getClientA()) return [{ symbol: config.symbol, contracts: 0.101, side: 'long' }];
+      return [{ symbol: config.symbol, contracts: 0.101, side: 'sell' }]; // hedge active
+    });
 
-    // Run two intervals to process logic
+    // Run one interval to process logic
     await vi.advanceTimersByTimeAsync(2100);
     
     let status = bot.getStatus();
     expect(status.hedgeStatus).toBe('active');
-    expect(status.netExposureDelta).toBeLessThan(0.01); 
+    expect(status.netExposureDelta).toBeLessThan(0.01);
     expect(status.pnlA).toBeLessThan(0);
     expect(status.pnlB).toBeGreaterThan(0);
 
@@ -116,11 +120,12 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
     // Process monitoring logic
     await vi.advanceTimersByTimeAsync(2100);
 
-    // Verify closePosition was called for Account B
+    // Verify closePosition was called for Account B with its CLOSING side
+    // hedgeB opened as 'sell' (short) → closing requires 'buy'
     expect(mockDeltaService.closePosition).toHaveBeenCalledWith(
         expect.anything(),
         config.symbol,
-        'sell',
+        'buy',    // closeSideB — opposite of hedge opening side ('sell')
         0.101
     );
 

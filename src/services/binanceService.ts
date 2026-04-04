@@ -122,8 +122,10 @@ export class BinanceService {
     return await client.fetchBalance();
   }
 
-  public async closePosition(client: any, symbol: string, side: 'buy' | 'sell', amount: number) {
-    return await this.placeOrder(client, symbol, 'market', side === 'buy' ? 'sell' : 'buy', amount);
+  public async closePosition(client: any, symbol: string, closeSide: 'buy' | 'sell', amount: number) {
+    // closeSide is the ORDER side needed to close — callers are responsible for passing the correct
+    // closing direction (opposite to the opening side). Do NOT flip here again.
+    return await this.placeOrder(client, symbol, 'market', closeSide, amount);
   }
 
   public async cancelOrder(client: any, orderId: string, symbol: string) {

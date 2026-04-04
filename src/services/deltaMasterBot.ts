@@ -1,8 +1,10 @@
+import Database from 'better-sqlite3';
 import { DeltaExchangeService } from './deltaExchangeService.js';
 import { IntelligenceService } from './intelligenceService.js';
 import { Logger } from '../../logger.js';
 import { Server as SocketIOServer } from 'socket.io';
 import EventEmitter from 'events';
+import { AgenticSearchService } from './agenticSearchService.js';
 
 export interface DeltaMasterConfig {
   symbol: string;
@@ -14,6 +16,8 @@ export interface DeltaMasterConfig {
   entryOffset: number;
   protectionRatio: number;
   atrMultiplier?: number;
+  slPercent?: number; // Phase 12: User SL % (e.g. 1.0)
+  tpTiersArray?: number[]; // Phase 12: User TP levels (e.g. [2, 3, 4, 5])
 }
 
 export interface DeltaMasterState {
@@ -43,6 +47,7 @@ export interface DeltaMasterState {
     liquidityScore: number;
     atr?: number;
     dynamicFriction?: number;
+    reasoningSnippet?: string;
   };
   rateLimit?: {
     accountA: { limit: number; remaining: number; reset: number };
@@ -123,7 +128,7 @@ export class DeltaMasterBot extends EventEmitter {
       const entryB = this.intelligenceService.calculateSymmetricalOffset(entryA, offset, config.sideA);
       this.state.entryB = entryB;
 
-      const slA = config.sideA === 'buy' ? entryA * 0.99 : entryA * 1.01;
+      const slA = config.sideA === 'buy' ? entryA * (1 - (config.slPercent || 1.0) / 100) : entryA * (1 + (config.slPercent || 1.0) / 100);
       const lossA = Math.abs(entryA - slA) * config.qtyA;
       const gainPerUnitB = Math.abs(entryB - slA);
       const qtyB = Number((lossA / gainPerUnitB).toFixed(3));
@@ -131,8 +136,11 @@ export class DeltaMasterBot extends EventEmitter {
       
       Logger.info(`[DELTA_MASTER] Insurance Engine Sizing: LossA=$${lossA.toFixed(2)}, EntryB=$${entryB.toFixed(2)}, SizeB=${qtyB}`);
 
-      // Deploy Account A Brackets
-      const tp1 = config.sideA === 'buy' ? entryA * 1.02 : entryA * 0.98;
+      // Deploy Account A Brackets (Safety Net at furthest TP)
+      const tpTiers = config.tpTiersArray || [2, 3, 4, 5];
+      const farthest_tp_percent = tpTiers[tpTiers.length - 1];
+      const tpFinal = config.sideA === 'buy' ? entryA * (1 + farthest_tp_percent / 100) : entryA * (1 - farthest_tp_percent / 100);
+      
       await this.deltaService.placeBracketOrder(
         this.deltaService.getClientA(),
         config.symbol,
@@ -140,12 +148,13 @@ export class DeltaMasterBot extends EventEmitter {
         config.sideA,
         entryA,
         slA,
-        tp1
+        tpFinal
       );
 
-      await this.deployManagedExits();
-      await this.redeployHedge();
+      // Log Shadow Fill for Account A
+      await this.logShadowFill('delta_master_a', config.symbol, config.sideA, config.qtyA, entryA);
 
+      // Phase 12: Atomic Deployment
       await this.deployManagedExits();
       await this.redeployHedge();
 
@@ -154,12 +163,9 @@ export class DeltaMasterBot extends EventEmitter {
       this.startDMS();
       
       const speed = Date.now() - startTime;
-      if (!this.state.telemetry) this.state.telemetry = { avgLatency: 0, executionSpeed: 0, heartbeat: Date.now() };
-      this.state.telemetry.executionSpeed = speed;
+      if (this.state.telemetry) this.state.telemetry.executionSpeed = speed;
       
-      this.emitStatus();
-      
-      Logger.info(`[DELTA_MASTER] Phase 9 Architecture Deployed in ${speed}ms! mission: 'Always Protected'`);
+      Logger.info(`[DELTA_MASTER] Phase 12 Architecture Deployed in ${speed}ms!`);
     } catch (error: any) {
       Logger.error('[DELTA_MASTER] Deployment Failure:', error);
       this.stop();
@@ -169,8 +175,42 @@ export class DeltaMasterBot extends EventEmitter {
 
   public async stop() {
     Logger.info('[DELTA_MASTER] Initiating Atomic Exit Sequence...');
-    await this.closeAll();
     
+    let currentQtyA = 0;
+    let currentQtyB = 0;
+
+    if (this.config) {
+      try {
+        const [positionsA, positionsB] = await Promise.all([
+          this.deltaService.fetchPositions(this.deltaService.getClientA(), this.state.symbol),
+          this.deltaService.fetchPositions(this.deltaService.getClientB(), this.state.symbol)
+        ]);
+        currentQtyA = positionsA.length > 0 ? Math.abs((positionsA[0] as any).contracts) : 0;
+        currentQtyB = positionsB.length > 0 ? Math.abs((positionsB[0] as any).contracts) : 0;
+      } catch (e) {
+        currentQtyA = this.config.qtyA;
+        currentQtyB = this.state.hedgeStatus === 'active' ? this.state.hedgeQty : 0;
+      }
+    }
+
+    await this.closeAll(currentQtyA, currentQtyB);
+    
+    // Log Shadow Fills to "Close" positions in UI
+    if (this.config) {
+      const sideA_close = this.config.sideA === 'buy' ? 'sell' : 'buy';
+      const sideB_close = this.config.sideA === 'buy' ? 'buy' : 'sell';
+      
+      // Close Account A
+      if (currentQtyA > 0) {
+        await this.logShadowFill('delta_master_a', this.state.symbol, sideA_close, currentQtyA, this.state.lastPrice);
+      }
+      
+      // Close Account B
+      if (currentQtyB > 0) {
+        await this.logShadowFill('delta_master_b', this.state.symbol, sideB_close, currentQtyB, this.state.lastPrice);
+      }
+    }
+
     this.state.isActive = false;
     this.state.phase = 'CLOSED';
     if (this.monitorInterval) clearInterval(this.monitorInterval);
@@ -182,17 +222,23 @@ export class DeltaMasterBot extends EventEmitter {
     this.emitStatus();
   }
 
-  private async closeAll() {
+  private async closeAll(currentQtyA: number, currentQtyB: number) {
     if (!this.config) return;
     try {
-      const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
+      // Closing side is always OPPOSITE to the opening side
+      const closeSideA = this.config.sideA === 'buy' ? 'sell' : 'buy';
+      const closeSideB = this.config.sideA === 'buy' ? 'buy' : 'sell'; // B opened opposite to A
       const promises: Promise<any>[] = [
-        this.deltaService.closePosition(this.deltaService.getClientA(), this.state.symbol, this.config.sideA, this.config.qtyA),
-        this.deltaService.closePosition(this.deltaService.getClientB(), this.state.symbol, sideB, this.state.hedgeQty),
         this.deltaService.cancelAllOrders(this.deltaService.getClientB(), this.state.symbol),
         this.deltaService.cancelAllOrders(this.deltaService.getClientA(), this.state.symbol)
       ];
-      await Promise.all(promises);
+      if (currentQtyA > 0) {
+        promises.push(this.deltaService.closePosition(this.deltaService.getClientA(), this.state.symbol, closeSideA, currentQtyA));
+      }
+      if (currentQtyB > 0) {
+        promises.push(this.deltaService.closePosition(this.deltaService.getClientB(), this.state.symbol, closeSideB, currentQtyB));
+      }
+      await Promise.allSettled(promises);
       this.state.slOrder = null;
       this.state.tpTiers = [];
     } catch (error) {
@@ -224,40 +270,55 @@ export class DeltaMasterBot extends EventEmitter {
              this.intelligenceService.updateATR(this.state.symbol, ohlcv);
           }
 
-          // 2. Exposure & PnL Tracking
+          // 2. Exposure & Fetch Real Positions
+          const [positionsA, positionsB] = await Promise.all([
+             this.deltaService.fetchPositions(this.deltaService.getClientA(), this.state.symbol),
+             this.deltaService.fetchPositions(this.deltaService.getClientB(), this.state.symbol)
+          ]);
+          
+          const currentQtyA = positionsA.length > 0 ? Math.abs((positionsA[0] as any).contracts) : 0;
+          const currentQtyB = positionsB.length > 0 ? Math.abs((positionsB[0] as any).contracts) : 0;
+
+          // Phase 12: Auto-teardown if Account A is fully closed natively
+          if (this.state.phase !== 'SYMMETRIC_DEPLOY' && currentQtyA === 0 && this.state.isActive) {
+             Logger.info(`[DELTA_MASTER] Primary Position Closed (Zero Contracts). Auto-Terminating Agent...`);
+             await this.stop();
+             return;
+          }
+
           const diffA = currentPrice - this.state.entryA;
-          this.state.pnlA = (this.config.sideA === 'buy' ? diffA : -diffA) * this.config.qtyA;
+          this.state.pnlA = (this.config.sideA === 'buy' ? diffA : -diffA) * currentQtyA;
           
           const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
           const sideBMult = sideB === 'buy' ? 1 : -1;
           const sideAMult = this.config.sideA === 'buy' ? 1 : -1;
 
-          // Fetch real positions for Account B to calculate Net Exposure
-          const positionsB = await this.deltaService.fetchPositions(this.deltaService.getClientB(), this.state.symbol);
-          const currentQtyB = positionsB.length > 0 ? (positionsB[0] as any).contracts : 0;
-          this.state.netExposureDelta = (this.config.qtyA * sideAMult) + (currentQtyB * sideBMult);
+          this.state.netExposureDelta = (currentQtyA * sideAMult) + (currentQtyB * sideBMult);
 
           const diffB = currentPrice - this.state.entryB;
           this.state.pnlB = (sideB === 'buy' ? diffB : -diffB) * currentQtyB;
           this.state.netPnl = this.state.pnlA + this.state.pnlB;
 
-          // 3. State-Based Exposure Sync
-          const targetHedge = this.intelligenceService.calculateRequiredHedge(currentPrice, this.state.entryA, this.state.entryB, this.config.qtyA, this.config.sideA);
-          if (targetHedge > 0 && this.state.hedgeStatus !== 'active') {
-             this.state.hedgeStatus = 'active';
-             Logger.info(`[DELTA_MASTER] Exposure Target Initialized: ${targetHedge} contracts.`);
-          }
+          // 3. State-Based Exposure Orchestration (Phase 9)
+          await this.syncTargetExposure(currentPrice, currentQtyA);
 
-          // 4. Recursive Trend Recovery with ATR Friction
+          // 4. Recursive Trend Recovery with ATR Friction & Break-Even Loop
           if (this.state.hedgeStatus === 'active' && this.state.phase !== 'PRINCIPAL_RECOVERY') {
+             const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
              const friction = this.intelligenceService.getFrictionOffset(this.config.sideA, this.state.symbol, this.config.atrMultiplier || 1.0);
              const threshold = this.state.entryB + friction;
              const trendRecovered = this.config.sideA === 'buy' ? currentPrice >= threshold : currentPrice <= threshold;
 
              if (trendRecovered) {
                 const t0 = Date.now();
-                Logger.info(`[DELTA_MASTER] V-Reversal Detected via ATR Friction. Closing Shield at B/E.`);
-                await this.deltaService.closePosition(this.deltaService.getClientB(), this.state.symbol, sideB, currentQtyB);
+                Logger.info(`[DELTA_MASTER] Shield Reversal Detected (ATR Friction). Closing Shield.`);
+                // closeSideB = closing side for Account B (opposite of hedge opening side)
+                const closeSideB = sideB === 'buy' ? 'sell' : 'buy';
+                await this.deltaService.closePosition(this.deltaService.getClientB(), this.state.symbol, closeSideB, currentQtyB);
+                
+                // Shadow Balance for B closing
+                await this.logShadowFill('delta_master_b', this.state.symbol, sideB === 'buy' ? 'sell' : 'buy', currentQtyB, currentPrice);
+
                 if (this.state.telemetry) this.state.telemetry.executionSpeed = Date.now() - t0;
                 
                 this.state.hedgeStatus = 'pending';
@@ -265,17 +326,29 @@ export class DeltaMasterBot extends EventEmitter {
              }
           }
 
-          // 5. Managed Exit Logic
+          // 5. Managed Exit Logic (Phase 12: Physical Execution)
           if (this.state.isActive && this.state.tpTiers.length > 0 && this.state.phase !== 'PRINCIPAL_RECOVERY') {
             for (const tier of this.state.tpTiers) {
               if (tier.status === 'waiting') {
                 const reached = this.config.sideA === 'buy' ? currentPrice >= tier.price : currentPrice <= tier.price;
                 if (reached) {
+                  Logger.info(`[DELTA_MASTER] TP Tier ${tier.tier} reached @ ${tier.price}. Executing partial close.`);
                   tier.status = 'filled';
+                  
+                  // Partially close the tier quantity on Account A (closeSide = opposite of opening side)
+                  const closeSide = this.config.sideA === 'buy' ? 'sell' : 'buy';
+                  await this.deltaService.closePosition(this.deltaService.getClientA(), this.state.symbol, closeSide, tier.qty);
+                  
+                  // Log Shadow Fill for the partial close
+                  await this.logShadowFill('delta_master_a', this.state.symbol, closeSide, tier.qty, currentPrice);
+
                   if (tier.tier === 1 && this.state.slOrder && !this.state.slOrder.isBreakEven) {
                      this.state.slOrder.price = this.state.entryA;
                      this.state.slOrder.isBreakEven = true;
-                     await this.deltaService.editOrder(this.deltaService.getClientA(), this.state.slOrder.id, this.state.symbol, 'limit', sideB, this.state.slOrder.qty, this.state.slOrder.price);
+                     try {
+                        // Break-even SL amendment: stop is a close order (closeSide) on Account A
+                        await this.deltaService.editOrder(this.deltaService.getClientA(), this.state.slOrder.id, this.state.symbol, 'limit', closeSide, this.state.slOrder.qty, this.state.slOrder.price);
+                     } catch(e) {}
                   }
                 }
               }
@@ -329,13 +402,22 @@ export class DeltaMasterBot extends EventEmitter {
     if (!this.config) return;
     const entry = this.state.entryA;
     const side = this.config.sideA;
-    this.state.tpTiers = [1, 2, 3, 4].map(i => ({
-      tier: i,
-      price: side === 'buy' ? entry * (1 + 0.01 * (i + 1)) : entry * (1 - 0.01 * (i + 1)),
-      qty: this.config!.qtyA * 0.25,
+    const slPct = this.config.slPercent || 1.0;
+    const tpTiers = this.config.tpTiersArray || [2, 3, 4, 5];
+
+    this.state.tpTiers = tpTiers.map((pct, i) => ({
+      tier: i + 1,
+      price: side === 'buy' ? entry * (1 + pct / 100) : entry * (1 - pct / 100),
+      qty: Number((this.config!.qtyA * (1 / tpTiers.length)).toFixed(3)),
       status: 'waiting'
     }));
-    this.state.slOrder = { id: 'bracket_sl', price: side === 'buy' ? entry * 0.99 : entry * 1.01, qty: this.config.qtyA, status: 'open', isBreakEven: false };
+    this.state.slOrder = { 
+      id: 'bracket_sl', 
+      price: side === 'buy' ? entry * (1 - slPct / 100) : entry * (1 + slPct / 100), 
+      qty: this.config.qtyA, 
+      status: 'open', 
+      isBreakEven: false 
+    };
   }
 
   private async redeployHedge() {
@@ -361,15 +443,60 @@ export class DeltaMasterBot extends EventEmitter {
     }
   }
 
+  /**
+   * Institutional Exposure Orchestration
+   * Synchronizes the physical position with the tactical target.
+   */
+  private async syncTargetExposure(markPrice: number, currentQtyA: number) {
+    if (!this.config || !this.state.slOrder) return;
+
+    const targetQty = this.intelligenceService.calculateRequiredHedge(
+      markPrice,
+      this.state.entryA,
+      this.state.entryB,
+      currentQtyA, // Dynamic size based on partial TP hits
+      this.config.sideA,
+      this.state.slOrder.price
+    );
+
+    // Current Physical Hedge Position
+    const positionsB = await this.deltaService.fetchPositions(this.deltaService.getClientB(), this.state.symbol);
+    const currentQtyB = positionsB.length > 0 ? Math.abs((positionsB[0] as any).contracts) : 0;
+
+    const delta = targetQty - currentQtyB;
+
+    if (Math.abs(delta) > 0.001) {
+       Logger.info(`[DELTA_MASTER] Syncing Exposure Delta: ${delta.toFixed(3)} contracts.`);
+       const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
+       
+       if (targetQty > 0 && currentQtyB === 0) {
+          // Initial Activation
+          this.state.hedgeStatus = 'active';
+          await this.logShadowFill('delta_master_b', this.state.symbol, sideB, targetQty, markPrice);
+       } else if (targetQty === 0 && currentQtyB > 0) {
+          // Deactivation (Trend Recovery) handled by monitor loop break-even check
+       }
+    }
+
+    // Always reflect physical reality: if B has contracts, hedge is active
+    if (currentQtyB > 0) this.state.hedgeStatus = 'active';
+
+    this.state.netExposureDelta = (this.config.sideA === 'buy' ? this.config.qtyA : -this.config.qtyA) + 
+                                  (currentQtyB * (this.config.sideA === 'buy' ? -1 : 1));
+  }
+
   private startAgenticReasoning() {
     const fetchReasoning = async () => {
       if (!this.state.isActive || !this.state.symbol) return;
       Logger.info(`[DELTA_MASTER] Seeking Agentic Consensus for ${this.state.symbol}...`);
       
-      // Phase 11: In a real world scenario, we'd fetch actual news/data here.
-      // For Phase 11, we pass the current price context to Gemini.
-      const context = `Current Price: $${this.state.lastPrice}. Momentum is ${this.state.pnlA >= 0 ? 'Positive' : 'Negative'}. ATR: ${this.state.intelligence?.atr || 'Unknown'}.`;
-      await this.intelligenceService.applyAgenticConsensus(this.state.symbol, context);
+      try {
+        const headlines = await AgenticSearchService.fetchTopHeadlines(this.state.symbol);
+        const news = AgenticSearchService.sanitizeNews(headlines);
+        await this.intelligenceService.applyAgenticConsensus(this.state.symbol, news);
+      } catch (err) {
+        Logger.error('[DELTA_MASTER] Agentic News Fetch Failed:', err);
+      }
     };
 
     fetchReasoning();
@@ -395,5 +522,61 @@ export class DeltaMasterBot extends EventEmitter {
   private emitStatus() {
     if (this.io) this.io.emit('delta_master_status', this.state);
     this.emit('status', this.state);
+  }
+
+  private async logShadowFill(slave_id: string, symbol: string, side: string, quantity: number, price: number) {
+    try {
+      const db = new Database('trades.db');
+      const ts = Date.now();
+      const tradeId = `shadow_${ts}_${Math.random().toString(36).substring(2, 7)}`;
+      const ccxtSymbol = symbol.replace('USDT', '/USDT');
+      
+      db.prepare(`
+        INSERT INTO copied_fills_v2 (slave_id, master_trade_id, master_order_id, slave_order_id, symbol, side, quantity, price, timestamp) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(slave_id, tradeId, tradeId, tradeId, ccxtSymbol, side.toLowerCase(), quantity, price, ts);
+      db.close();
+
+      // NEW Phase 12: Trigger Balance Update for Shadow Accounts if in shadow mode
+      // We look for tradeCopier.updateShadowBalance logic from the main trade engine
+      // Since bots are internal, we simulate it here:
+      const parts = ccxtSymbol.split('/');
+      const baseAsset = parts[0];
+      const quoteAsset = parts[1] || 'USDT';
+      
+      // We need access to the tradeCopier instance or mimic its logic.
+      // Assuming tradeCopier is available globally or can be reached:
+      // For now, mirroring the logic to update shadow_balances table directly:
+      const shadowDb = new Database('trades.db');
+      const getBal = shadowDb.prepare('SELECT balance FROM shadow_balances WHERE slave_id = ? AND asset = ?');
+      
+      let baseBal = (getBal.get(slave_id, baseAsset) as any)?.balance || 0;
+      let quoteBal = (getBal.get(slave_id, quoteAsset) as any)?.balance || 10000;
+      
+      const value = quantity * price;
+      if (side.toLowerCase() === 'buy') {
+        baseBal += quantity;
+        quoteBal -= value;
+      } else {
+        baseBal -= quantity;
+        quoteBal += value;
+      }
+      
+      const upsert = shadowDb.prepare(`
+        INSERT INTO shadow_balances (slave_id, asset, balance) VALUES (?, ?, ?)
+        ON CONFLICT(slave_id, asset) DO UPDATE SET balance = excluded.balance
+      `);
+      upsert.run(slave_id, baseAsset, baseBal);
+      upsert.run(slave_id, quoteAsset, quoteBal);
+      shadowDb.close();
+      
+      // Notify UI
+      if (this.io) {
+        this.io.emit('new_trade');
+        this.io.emit('balance_update');
+      }
+    } catch (error) {
+      Logger.error(`[DELTA_MASTER] Failed to log shadow fill for ${slave_id}:`, error);
+    }
   }
 }
