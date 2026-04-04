@@ -18,6 +18,7 @@ import { DeltaMasterBot } from './src/services/deltaMasterBot.js';
 import { BinanceMasterBot } from './src/services/binanceMasterBot.js';
 import { IntelligenceService } from './src/services/intelligenceService.js';
 import { SimulationService } from './src/services/simulationService.js';
+import { AgenticSearchService } from './src/services/agenticSearchService.js';
 import { Logger as LoggerJs } from './logger.js';
 
 dotenv.config({ quiet: true });
@@ -244,12 +245,12 @@ async function startServer() {
 
   // ─── 5-Minute Agentic Sentiment Loop ───
   setInterval(async () => {
-    const activeSymbols = ['BTCUSDT', 'ETHUSDT']; // Can be expanded based on active bots
+    const activeSymbols = ['BTC/USDT', 'ETH/USDT']; // Standard CCXT symbols
     for (const symbol of activeSymbols) {
       try {
-        // In a real scenario, this would call AgenticSearchService.fetchAndSanitize
-        // For this environment, we use a placeholder that server-side logic would trigger
-        // IntelligenceService.getInstance().applyAgenticConsensus(symbol, "...");
+        const headlines = await AgenticSearchService.fetchTopHeadlines(symbol);
+        const sanitized = AgenticSearchService.sanitizeNews(headlines);
+        await IntelligenceService.getInstance().applyAgenticConsensus(symbol, sanitized);
       } catch (err) {
         Logger.error(`[SERVER] Sentiment Loop Error for ${symbol}:`, err);
       }
@@ -601,6 +602,26 @@ async function startServer() {
     }
   });
 
+  // ─── Phase 9: Simulation Service Endpoints ───
+  app.post('/api/simulation/run', (req, res) => {
+    const { scenario, symbol } = req.body;
+    if (!scenario || !symbol) return res.status(400).json({ error: 'Scenario and symbol are required.' });
+    
+    try {
+      SimulationService.getInstance().runScenario(scenario, symbol);
+      Logger.info(`[SERVER] Simulation Started: ${scenario} for ${symbol}`);
+      res.json({ success: true, message: `Scenario ${scenario} initiated.` });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/simulation/stop', (req, res) => {
+    SimulationService.getInstance().stopScenario();
+    Logger.info(`[SERVER] Simulation Stopped.`);
+    res.json({ success: true, message: 'Simulation halted.' });
+  });
+
   app.get('/api/binance-master/status', (req, res) => {
     res.json(binanceMasterBot.getStatus());
   });
@@ -635,7 +656,7 @@ async function startServer() {
 
   app.post('/api/simulation/stop', (req, res) => {
     try {
-      SimulationService.getInstance().stopSimulation();
+      SimulationService.getInstance().stopScenario();
       res.json({ message: 'Simulation stopped.' });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

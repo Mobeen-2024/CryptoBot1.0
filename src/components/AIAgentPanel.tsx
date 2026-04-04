@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { AgentVisualizer } from './AgentVisualizer';
 import { ExecutionPayload } from './ExecutionPayload';
+import StressTestSuite from './StressTestSuite';
+import BotPilotSetup from './BotPilotSetup';
 
 interface Message {
   id: string;
@@ -31,6 +33,8 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
   const [weights, setWeights] = useState({ risk: 30, momentum: 60, neutral: 10 });
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [dataStream, setDataStream] = useState<string[]>([]);
+  const [isPilotArmed, setIsPilotArmed] = useState(false);
+  const [showPilotSetup, setShowPilotSetup] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const streamEndRef = useRef<HTMLDivElement>(null);
@@ -204,8 +208,22 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
           </div>
         </div>
 
-        {/* Global Consensus Score */}
-        <div className="flex flex-col items-end">
+        {/* Global Consensus Score & Bot Pilot Toggle */}
+        <div className="flex items-center gap-6">
+          {!isPilotArmed ? (
+            <button 
+              onClick={() => setShowPilotSetup(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-400 text-xs font-bold hover:bg-indigo-500/20 transition-all group"
+            >
+              <Zap className="w-4 h-4 group-hover:animate-pulse" />
+              ARM BOT PILOT
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-bold">
+              <ShieldCheck className="w-4 h-4" />
+              PILOT ARMED
+            </div>
+          )}
           <span className="text-[9px] font-bold text-gray-500 tracking-[0.2em] uppercase mb-1">Final Consensus</span>
           <div className="flex items-center gap-3">
              <div className="text-right">
@@ -321,8 +339,11 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
              )}
           </div>
 
+          {/* Stress Testing Suite (Phase 9) */}
+          <StressTestSuite symbol={symbol} />
+
           {/* The Matrix Waterfall Stream */}
-          <div className="bg-black/60 border border-white/[0.05] rounded-xl flex-1 min-h-[150px] flex flex-col overflow-hidden relative">
+          <div className="bg-black/60 border border-white/[0.05] rounded-xl flex-1 min-h-[120px] flex flex-col overflow-hidden relative">
              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 pointer-events-none z-10" />
              <div className="p-2 border-b border-white/[0.05] bg-white/[0.02] flex items-center justify-between shrink-0">
                <div className="flex items-center gap-2">
@@ -345,6 +366,12 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
         </div>
 
       </div>
+      {showPilotSetup && (
+        <BotPilotSetup 
+          onArmed={() => setIsPilotArmed(true)} 
+          onClose={() => setShowPilotSetup(false)} 
+        />
+      )}
     </div>
   );
 };

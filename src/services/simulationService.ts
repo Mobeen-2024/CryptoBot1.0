@@ -190,8 +190,11 @@ export class SimulationService extends EventEmitter {
     }, 400); // Fast 400ms interval for whipsaw stress
   }
 
-  public stopSimulation() {
-    if (this.simulationInterval) clearInterval(this.simulationInterval);
+  public stopScenario() {
+    if (this.simulationInterval) {
+      clearInterval(this.simulationInterval);
+      this.simulationInterval = null;
+    }
     this.activeScenario = null;
     Logger.info(`[SIMULATION] Simulation Stopped.`);
   }

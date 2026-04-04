@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Shield, Zap, TrendingUp, TrendingDown, Activity, AlertCircle, StopCircle, Play, ShieldCheck, Gauge, Wind, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { PerformanceHUD } from './PerformanceHUD';
+import StressTestSuite from './StressTestSuite';
+import BotPilotSetup from './BotPilotSetup';
 
 interface DeltaMasterState {
   isActive: boolean;
@@ -22,16 +25,17 @@ interface DeltaMasterState {
   hedgeStatus: 'inactive' | 'pending' | 'active';
   hedgeQty: number;
   netExposureDelta: number;
+  accumulatedFees?: number; // Phase 9
   intelligence?: {
     sentiment: number;
-    sentimentConfidence?: number; // Phase 11
-    reasoningSnippet?: string; // Phase 11
+    sentimentConfidence?: number;
+    reasoningSnippet?: string;
     regime: string;
     volatilityScore: number;
     liquidityScore: number;
     atr?: number;
     dynamicFriction?: number;
-    lastNewsUpdate?: number; // Phase 11
+    lastNewsUpdate?: number;
   };
   rateLimit?: {
     accountA: { limit: number; remaining: number; reset: number };
@@ -47,6 +51,11 @@ interface DeltaMasterState {
     lastSlippage?: number;
     executionSpeed: number;
     heartbeat: number;
+    latencyBreakdown?: { // Phase 9
+      exchangeFetch: number;
+      logicProcessing: number;
+      orderExecution: number;
+    };
   };
 }
 
@@ -83,8 +92,8 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   const [tpTiers, setTpTiers] = useState('4');
   const [sideA, setSideA] = useState<'buy' | 'sell'>('buy');
   const [atrMultiplier, setAtrMultiplier] = useState('1.0');
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [geminiKey, setGeminiKey] = useState('');
+  const [showPilotSetup, setShowPilotSetup] = useState(false);
+  const [isPilotArmed, setIsPilotArmed] = useState(false);
 
   useEffect(() => {
     let lastUpdate = 0;
@@ -176,22 +185,6 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
     }
   };
 
-  const handleKeySubmit = async () => {
-    if (!geminiKey) return;
-    try {
-      const res = await fetch('/api/config/gemini-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: geminiKey })
-      });
-      if (res.ok) {
-        toast.success('Gemini Kernel Armed');
-        setShowKeyModal(false);
-      }
-    } catch {
-      toast.error('Failed to update key');
-    }
-  };
 
   const runSimulation = async (scenario: string) => {
     toast.promise(
@@ -224,13 +217,26 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         </div>
         
         <div className="flex items-center gap-2">
-           <button 
-             onClick={() => window.location.reload()} 
-             className="p-1.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all text-gray-500 hover:text-white"
-             title="Hard Refresh"
-           >
-              <Activity className="w-3 h-3" />
-           </button>
+            {!isPilotArmed ? (
+              <button 
+                onClick={() => setShowPilotSetup(true)} 
+                className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition-all text-indigo-400"
+                title="Arm Bot Pilot"
+              >
+                 <Zap className="w-3 h-3" />
+              </button>
+            ) : (
+              <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400">
+                <ShieldCheck className="w-3 h-3" />
+              </div>
+            )}
+            <button 
+              onClick={() => window.location.reload()} 
+              className="p-1.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all text-gray-500 hover:text-white"
+              title="Hard Refresh"
+            >
+               <Activity className="w-3 h-3" />
+            </button>
            <div className={cn(
               "px-3 py-1 rounded-full border text-[9px] font-black tracking-widest flex items-center gap-2",
               wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse"
@@ -244,6 +250,14 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
            </div>
         </div>
       </div>
+
+      <PerformanceHUD 
+        telemetry={state.telemetry}
+        netExposureDelta={state.netExposureDelta}
+        accumulatedFees={state.accumulatedFees}
+        atr={state.intelligence?.atr}
+        dynamicFriction={state.intelligence?.dynamicFriction}
+      />
 
       <div className="grid grid-cols-3 gap-2 mb-3">
         {/* Account A PnL */}
@@ -435,22 +449,25 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
             </div>
          </div>
       ) : (
-         <div className="grid grid-cols-4 gap-2">
-            <div className="glass-panel p-2 rounded-xl border-white/10 col-span-3">
-               <div className="flex justify-between items-center mb-2">
+          <div className="grid grid-cols-4 gap-2">
+            <div className="glass-panel p-2 rounded-xl border-white/10 col-span-2">
+               <div className="flex justify-between items-center mb-2 px-1">
                   <span className="text-[7px] font-black uppercase text-indigo-400">Exits Monitoring</span>
-                  <div className="flex gap-2">
-                     <span className="text-[6px] text-gray-500 px-1 bg-white/5 rounded">SL: {state.slOrder?.price.toFixed(1)}</span>
-                  </div>
                </div>
                <div className="grid grid-cols-4 gap-2">
                   {state.tpTiers.map((tier, i) => (
-                     <div key={i} className={cn("p-1.5 rounded-lg border text-center", tier.status === 'filled' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-black/20 border-white/5")}>
+                     <div key={i} className={cn("p-1.5 rounded-lg border text-center", tier.status === 'filled' ? "bg-emerald-500/10 border-emerald-500/20" : "bg-black/20 border-white/5 opacity-60")}>
                         <span className="text-[6px] font-black text-gray-500 uppercase block">T{tier.tier}</span>
                         <span className="text-[9px] font-mono font-black">${tier.price.toLocaleString()}</span>
                      </div>
                   ))}
                </div>
+            </div>
+
+            <div className="col-span-1">
+               <StressTestSuite 
+                 symbol={symbol} 
+               />
             </div>
 
             <button onClick={handleStop} className="bg-rose-500 text-black font-black uppercase text-[8px] rounded-xl hover:brightness-110 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
@@ -460,35 +477,11 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
          </div>
       )}
 
-      {/* API Key Modal (Phase 11) */}
-      {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="w-full max-w-md glass-panel p-8 rounded-[2.5rem] border-indigo-500/30 relative animate-in zoom-in-95 duration-300">
-             <button onClick={() => setShowKeyModal(false)} className="absolute top-6 right-6 text-gray-500 hover:text-white transition-all">
-                <StopCircle className="w-6 h-6" />
-             </button>
-             <div className="flex items-center gap-4 mb-6">
-                <Zap className="w-8 h-8 text-indigo-400" />
-                <h2 className="text-xl font-black uppercase tracking-tighter italic">Arm Bot Pilot</h2>
-             </div>
-             <p className="text-[10px] text-gray-400 mb-6 uppercase tracking-widest leading-relaxed">
-                Enter your <span className="text-indigo-400 font-black">Gemini 1.5 API Key</span> to enable agentic sentiment reasoning. The key is stored securely in the backend .env and never exposed to the client.
-             </p>
-             <input 
-                type="password" 
-                value={geminiKey}
-                onChange={(e) => setGeminiKey(e.target.value)}
-                placeholder="AIzaSy..."
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-indigo-400/50 mb-6"
-             />
-             <button 
-                onClick={handleKeySubmit}
-                className="w-full py-4 bg-indigo-500 text-black font-black uppercase tracking-[0.4em] text-[10px] rounded-xl hover:brightness-110 active:scale-95 transition-all"
-             >
-                Initialize Kernel
-             </button>
-          </div>
-        </div>
+      {showPilotSetup && (
+        <BotPilotSetup 
+          onArmed={() => setIsPilotArmed(true)} 
+          onClose={() => setShowPilotSetup(false)} 
+        />
       )}
     </div>
   );

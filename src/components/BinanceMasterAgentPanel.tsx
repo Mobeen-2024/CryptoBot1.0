@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Shield, Zap, TrendingUp, TrendingDown, Activity, AlertCircle, StopCircle, Play, Cpu, Gauge, Wind, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { PerformanceHUD } from './PerformanceHUD';
+import StressTestSuite from './StressTestSuite';
+import BotPilotSetup from './BotPilotSetup';
 
 interface BinanceMasterState {
   isActive: boolean;
@@ -20,17 +23,28 @@ interface BinanceMasterState {
   hedgeStatus: 'inactive' | 'pending' | 'active';
   hedgeQty: number;
   netExposureDelta: number;
+  accumulatedFees?: number; // Phase 9
   intelligence?: {
     sentiment: number;
+    sentimentConfidence?: number;
+    reasoningSnippet?: string;
     regime: string;
+    volatilityScore: number;
+    liquidityScore: number;
     atr?: number;
     dynamicFriction?: number;
+    lastNewsUpdate?: number;
   };
   telemetry?: {
     avgLatency: number;
     lastSlippage?: number;
     executionSpeed: number;
     heartbeat: number;
+    latencyBreakdown?: { // Phase 9
+      exchangeFetch: number;
+      logicProcessing: number;
+      orderExecution: number;
+    };
   };
 }
 
@@ -66,6 +80,8 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
   const [atrMultiplier, setAtrMultiplier] = useState(1.0);
   const [slPercent, setSlPercent] = useState('1.0');
   const [tpTiers, setTpTiers] = useState('2,3,4,5');
+  const [showPilotSetup, setShowPilotSetup] = useState(false);
+  const [isPilotArmed, setIsPilotArmed] = useState(false);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -108,6 +124,7 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
       };
     }
   }, []);
+
 
   const handleStart = async () => {
     setLoading(true);
@@ -178,6 +195,19 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
         </div>
         
         <div className="flex items-center gap-2">
+            {!isPilotArmed ? (
+              <button 
+                onClick={() => setShowPilotSetup(true)} 
+                className="p-1.5 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-lg hover:bg-fuchsia-500/40 transition-all text-fuchsia-400"
+                title="Arm Bot Pilot"
+              >
+                 <Zap className="w-3 h-3" />
+              </button>
+            ) : (
+              <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400">
+                <ShieldCheck className="w-3 h-3" />
+              </div>
+            )}
            <div className={cn(
               "px-3 py-1 rounded-full border text-[9px] font-black tracking-widest flex items-center gap-2",
               wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse"
@@ -191,6 +221,14 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
            </div>
         </div>
       </div>
+
+      <PerformanceHUD 
+        telemetry={state.telemetry}
+        netExposureDelta={state.netExposureDelta}
+        accumulatedFees={state.accumulatedFees}
+        atr={state.intelligence?.atr}
+        dynamicFriction={state.intelligence?.dynamicFriction}
+      />
 
       <div className="grid grid-cols-3 gap-2 mb-3">
         {/* Account A PnL */}
@@ -391,13 +429,10 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
                </div>
             </div>
 
-            <div className="glass-panel p-2 rounded-xl border-rose-500/20 bg-rose-500/5 col-span-1">
-               <div className="grid grid-cols-2 gap-1.5 h-full">
-                  <button onClick={() => runSimulation('V_REVERSAL')} title="V-REVERSAL" className="p-1 bg-black/40 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center justify-center"><Zap className="w-3 h-3 text-amber-400" /></button>
-                  <button onClick={() => runSimulation('WHIPSAW')} title="WHIPSAW" className="p-1 bg-black/40 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center justify-center"><Activity className="w-3 h-3 text-indigo-400" /></button>
-                  <button onClick={() => runSimulation('LIQUIDITY_SWEEP')} title="SWEEP" className="p-1 bg-black/40 border border-white/10 rounded-lg hover:bg-white/10 transition-all flex items-center justify-center"><ShieldCheck className="w-3 h-3 text-emerald-400" /></button>
-                  <button onClick={() => runSimulation('CONNECTION_FAILURE')} title="KILL" className="p-1 bg-rose-500/10 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 transition-all flex items-center justify-center"><AlertCircle className="w-3 h-3 text-rose-400" /></button>
-               </div>
+            <div className="col-span-1">
+               <StressTestSuite 
+                 symbol={symbol} 
+               />
             </div>
 
             <button onClick={handleStop} className="bg-rose-500 text-black font-black uppercase text-[8px] rounded-xl hover:brightness-110 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
@@ -405,6 +440,13 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
                TERMINATE
             </button>
          </div>
+      )}
+
+      {showPilotSetup && (
+        <BotPilotSetup 
+          onArmed={() => setIsPilotArmed(true)} 
+          onClose={() => setShowPilotSetup(false)} 
+        />
       )}
     </div>
   );

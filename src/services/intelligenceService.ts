@@ -192,6 +192,22 @@ export class IntelligenceService {
   }
 
   /**
+   * Fetches real-time ATR from a provided exchange service instance.
+   */
+  public async fetchATR(service: any, symbol: string, timeframe: string = '1m', period: number = 20) {
+    try {
+      if (service && typeof service.fetchOHLCV === 'function') {
+        const ohlcv = await service.fetchOHLCV(symbol, timeframe, undefined, period);
+        if (ohlcv && ohlcv.length > 0) {
+          this.updateATR(symbol, ohlcv);
+        }
+      }
+    } catch (e) {
+      Logger.error(`[INTELLIGENCE] ATR Fetch Failed for ${symbol}:`, e);
+    }
+  }
+
+  /**
    * Calculates ATR(14) from OHLCV data
    */
   public updateATR(symbol: string, ohlcv: number[][]) {
