@@ -314,6 +314,7 @@ export class DeltaMasterBot extends EventEmitter {
 
   private async processTick(currentPrice: number, positionsA: any[], positionsB: any[], telemetry?: any) {
     if (!this.state.isActive) return;
+    this.state.lastPrice = currentPrice;
 
     const tLogicStart = performance.now();
     const currentQtyA = positionsA.length > 0 ? Math.abs((positionsA[0] as any).contracts) : 0;
