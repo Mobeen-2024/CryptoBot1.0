@@ -100,6 +100,7 @@ export class BinanceMasterBot extends EventEmitter {
   private sessionBalanceA: number = 1000;
   private sessionBalanceB: number = 1000;
   private priceUpdateListener: ((data: { symbol: string; price: number }) => void) | null = null;
+  private _isStopping: boolean = false;
 
   constructor(io?: SocketIOServer) {
     super();
@@ -180,8 +181,17 @@ export class BinanceMasterBot extends EventEmitter {
     }
   }
 
-  public async stop() {
+  public async stop(triggerLeg?: string) {
+    // Idempotency guard: prevent re-entrant calls from rapid double-clicks or dual-leg closes
+    if (this._isStopping) {
+      Logger.warn(`[BINANCE_MASTER] stop() called while already stopping (triggered by: ${triggerLeg || 'unknown'}). Ignoring duplicate.`);
+      return;
+    }
     if (!this.state.isActive && this.state.phase === 'CLOSED') return;
+    this._isStopping = true;
+    if (triggerLeg) {
+      Logger.info(`[BINANCE_MASTER] Shutdown triggered by leg: ${triggerLeg}`);
+    }
     this.state.isActive = false;
     Logger.info('[BINANCE_MASTER] Initiating Atomic Exit Sequence...');
     let currentQtyA = 0;
@@ -240,6 +250,7 @@ export class BinanceMasterBot extends EventEmitter {
       this.sessionBalanceB += this.state.realizedPnLB;
     }
 
+    this._isStopping = false;
     Logger.info('[BINANCE_MASTER] Sequence Terminated.');
     this.emitStatus();
   }

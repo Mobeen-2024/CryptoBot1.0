@@ -880,9 +880,9 @@ async function startServer() {
           const bot = matchingSymbol ? deltaMasterBots.get(matchingSymbol) : null;
           
           if (bot) {
-            Logger.info(`[SERVER] Manual termination detected for Delta Master (${slave_id} - ${matchingSymbol}). Activating Bot Exit Sequence...`);
-            await bot.stop();
-            return res.json({ message: 'Delta Master Agent Terminated via Node List', status: bot.getStatus() });
+            Logger.info(`[SERVER] Manual termination detected for Delta Master (leg: ${slave_id}, symbol: ${matchingSymbol}). Activating Bot Exit Sequence...`);
+            await bot.stop(slave_id);
+            return res.json({ message: 'Delta Master Agent Terminated via Node List', triggeredBy: slave_id, status: bot.getStatus() });
           }
         }
         
@@ -892,9 +892,9 @@ async function startServer() {
           const bot = matchingSymbol ? binanceMasterBots.get(matchingSymbol) : null;
           
           if (bot) {
-            Logger.info(`[SERVER] Manual termination detected for Binance Master (${slave_id} - ${matchingSymbol}). Activating Bot Exit Sequence...`);
-            await bot.stop();
-            return res.json({ message: 'Binance Master Agent Terminated via Node List', status: bot.getStatus() });
+            Logger.info(`[SERVER] Manual termination detected for Binance Master (leg: ${slave_id}, symbol: ${matchingSymbol}). Activating Bot Exit Sequence...`);
+            await bot.stop(slave_id);
+            return res.json({ message: 'Binance Master Agent Terminated via Node List', triggeredBy: slave_id, status: bot.getStatus() });
           }
         }
       }

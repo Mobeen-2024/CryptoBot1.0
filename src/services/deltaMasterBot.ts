@@ -128,6 +128,7 @@ export class DeltaMasterBot extends EventEmitter {
   private sessionBalanceA: number = 1000;
   private sessionBalanceB: number = 1000;
   private priceUpdateListener: ((data: { symbol: string; price: number }) => void) | null = null;
+  private _isStopping: boolean = false;
 
   constructor(io?: SocketIOServer) {
     super();
@@ -252,8 +253,17 @@ export class DeltaMasterBot extends EventEmitter {
     }
   }
 
-  public async stop() {
+  public async stop(triggerLeg?: string) {
+    // Idempotency guard: prevent re-entrant calls from rapid double-clicks or dual-leg closes
+    if (this._isStopping) {
+      Logger.warn(`[DELTA_MASTER] stop() called while already stopping (triggered by: ${triggerLeg || 'unknown'}). Ignoring duplicate.`);
+      return;
+    }
     if (!this.state.isActive && this.state.phase === 'CLOSED') return;
+    this._isStopping = true;
+    if (triggerLeg) {
+      Logger.info(`[DELTA_MASTER] Shutdown triggered by leg: ${triggerLeg}`);
+    }
     this.state.isActive = false;
     Logger.info('[DELTA_MASTER] Initiating Atomic Exit Sequence...');
     
@@ -328,6 +338,7 @@ export class DeltaMasterBot extends EventEmitter {
       }
       
       this.state.dmsStatus = 'inactive';
+      this._isStopping = false;
       
       this.emitEventLog('system_halted', 'Delta Master Agent Terminated.');
       Logger.info('[DELTA_MASTER] Sequence Terminated.');
