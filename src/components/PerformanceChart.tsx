@@ -40,13 +40,14 @@ export function PerformanceChart() {
         return;
       }
 
-      const chartPoints: Record<string, ChartDataPoint> = {};
+      const chartPoints: Record<number, ChartDataPoint> = {};
       const foundSlaveIds = new Set<string>();
       const slaveCumulativePnL: Record<string, number> = {};
       
       let totalVolume = 0;
       let totalFlow = 0;
 
+      // Ensure all accounts are pre-seeded to avoid undefined series
       rawTrades.forEach(t => {
         foundSlaveIds.add(t.slave_id);
         if (slaveCumulativePnL[t.slave_id] === undefined) slaveCumulativePnL[t.slave_id] = 0;
@@ -55,21 +56,27 @@ export function PerformanceChart() {
       setSlavesFound(Array.from(foundSlaveIds));
 
       rawTrades.forEach((trade) => {
-         const timeKey = new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+         const ts = Math.floor(trade.timestamp / 1000) * 1000; // Round to second
+         const timeStr = new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
          const tradeValue = trade.price * trade.quantity;
          totalVolume += tradeValue;
 
-         if (!chartPoints[timeKey]) {
-            chartPoints[timeKey] = { time: timeKey, timestamp: trade.timestamp, TotalNetFlow: totalFlow };
-            Array.from(foundSlaveIds).forEach(id => { chartPoints[timeKey][id] = slaveCumulativePnL[id] || 0; });
+         const flowChange = (trade.side.toLowerCase() === 'sell' ? 1 : -1) * tradeValue;
+         slaveCumulativePnL[trade.slave_id] += flowChange;
+         totalFlow += flowChange;
+
+         if (!chartPoints[ts]) {
+            chartPoints[ts] = { 
+              time: timeStr, 
+              timestamp: ts, 
+              TotalNetFlow: totalFlow 
+            };
+            Array.from(foundSlaveIds).forEach(id => { chartPoints[ts][id] = slaveCumulativePnL[id]; });
+         } else {
+            // Update existing tick
+            chartPoints[ts][trade.slave_id] = slaveCumulativePnL[trade.slave_id];
+            chartPoints[ts].TotalNetFlow = totalFlow;
          }
-
-         const flow = (trade.side.toLowerCase() === 'sell' ? 1 : -1) * tradeValue;
-         slaveCumulativePnL[trade.slave_id] += flow;
-         totalFlow += flow;
-
-         chartPoints[timeKey][trade.slave_id] = slaveCumulativePnL[trade.slave_id];
-         chartPoints[timeKey].TotalNetFlow = totalFlow;
       });
 
       const finalData = Object.values(chartPoints).sort((a, b) => a.timestamp - b.timestamp);
@@ -140,12 +147,16 @@ export function PerformanceChart() {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 10, right: 30, bottom: 0, left: 10 }}>
                 <defs>
-                  {slavesFound.map((id, idx) => (
-                    <linearGradient key={`grad-${id}`} id={`color-${idx}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={colors[idx % colors.length]} stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor={colors[idx % colors.length]} stopOpacity={0}/>
-                    </linearGradient>
-                  ))}
+                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ffffff" stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor="#ffffff" stopOpacity={0}/>
+                </linearGradient>
+                {slavesFound.map((id, idx) => (
+                  <linearGradient key={`grad-${id}`} id={`color-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={colors[idx % colors.length]} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={colors[idx % colors.length]} stopOpacity={0}/>
+                  </linearGradient>
+                ))}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                 <XAxis 
@@ -167,18 +178,29 @@ export function PerformanceChart() {
                 />
                 <Tooltip content={<CustomTooltip colors={colors} />} cursor={{ stroke: '#ffffff30', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 
-                {slavesFound.map((slaveId, idx) => (
-                  <Area 
-                      key={slaveId}
-                      type="monotone" 
-                      dataKey={slaveId} 
-                      stroke={colors[idx % colors.length]} 
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill={`url(#color-${idx})`}
-                      activeDot={{ r: 5, stroke: '#05070a', strokeWidth: 2, fill: colors[idx % colors.length] }}
-                  />
-                ))}
+                <Area 
+                  type="monotone" 
+                  dataKey="TotalNetFlow" 
+                  stroke="#ffffff20" 
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  fillOpacity={1}
+                  fill="url(#colorTotal)"
+                  name="NET FLOW"
+              />
+              
+              {slavesFound.map((slaveId, idx) => (
+                <Area 
+                    key={slaveId}
+                    type="monotone" 
+                    dataKey={slaveId} 
+                    stroke={colors[idx % colors.length]} 
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill={`url(#color-${idx})`}
+                    activeDot={{ r: 5, stroke: '#05070a', strokeWidth: 2, fill: colors[idx % colors.length] }}
+                />
+              ))}
               </AreaChart>
             </ResponsiveContainer>
           </div>
