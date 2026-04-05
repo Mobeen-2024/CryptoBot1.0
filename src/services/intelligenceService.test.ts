@@ -112,20 +112,22 @@ describe('IntelligenceService', () => {
     const entryA = 50000;
     const entryB = 49950; // 50 USDT offset for LONG
     const qtyA = 1.0;
+    const slA = 49500; // Sample SL
 
     it('should return 0 if trigger price not reached (LONG case)', () => {
-      const hedge = service.calculateRequiredHedge(49960, entryA, entryB, qtyA, 'buy');
+      const hedge = service.calculateRequiredHedge(49960, entryA, entryB, qtyA, 'buy', slA);
       expect(hedge).toBe(0);
     });
 
     it('should return qtyA if trigger price is hit (LONG case)', () => {
-      const hedge = service.calculateRequiredHedge(49950, entryA, entryB, qtyA, 'buy');
+      const hedge = service.calculateRequiredHedge(49950, entryA, entryB, qtyA, 'buy', slA);
       expect(hedge).toBe(qtyA);
     });
 
     it('should return qtyA if trigger price is hit (SHORT case)', () => {
       const entryBShort = 50050; // 50 USDT offset for SHORT
-      const hedge = service.calculateRequiredHedge(50051, entryA, entryBShort, qtyA, 'sell');
+      const slAShort = 50500;
+      const hedge = service.calculateRequiredHedge(50051, entryA, entryBShort, qtyA, 'sell', slAShort);
       expect(hedge).toBe(qtyA);
     });
   });

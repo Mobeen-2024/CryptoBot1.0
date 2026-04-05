@@ -105,9 +105,9 @@ async function startServer() {
   const deltaNeutralBot = new DeltaNeutralBot(io);
   deltaNeutralBot.setTradeCopier(tradeCopier);
 
-  // Initialize Delta Master Bot (Account A/B Insurance System)
-  const deltaMasterBot = new DeltaMasterBot(io);
-  const binanceMasterBot = new BinanceMasterBot(io);
+  // Initialize Delta Master Orchestrators (Account A/B Insurance System)
+  const deltaMasterBots = new Map<string, DeltaMasterBot>();
+  const binanceMasterBots = new Map<string, BinanceMasterBot>();
 
   let isPendingEngineRunning = false;
   // ─── Shadow Pending Order Price-Matching Engine ────────────────────
@@ -559,8 +559,15 @@ async function startServer() {
       if (!config.symbol || !config.qtyA) {
         return res.status(400).json({ error: 'Missing required parameters: symbol, qtyA' });
       }
-      await deltaMasterBot.start(config);
-      res.json({ message: 'Delta Master Agent Deployed', status: deltaMasterBot.getStatus() });
+      
+      let bot = deltaMasterBots.get(config.symbol);
+      if (!bot) {
+        bot = new DeltaMasterBot(io);
+        deltaMasterBots.set(config.symbol, bot);
+      }
+      
+      await bot.start(config);
+      res.json({ message: `Delta Master Agent Deployed for ${config.symbol}`, status: bot.getStatus() });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to start Delta Master' });
     }
@@ -568,15 +575,27 @@ async function startServer() {
 
   app.post('/api/delta-master/stop', async (req, res) => {
     try {
-      await deltaMasterBot.stop();
-      res.json({ message: 'Delta Master Agent Stopped', status: deltaMasterBot.getStatus() });
+      const { symbol } = req.body;
+      if (!symbol) return res.status(400).json({ error: 'Symbol is required' });
+      
+      const bot = deltaMasterBots.get(symbol);
+      if (!bot) return res.status(404).json({ error: 'Bot instance not found for this symbol' });
+      
+      await bot.stop();
+      res.json({ message: 'Delta Master Agent Stopped', symbol: symbol, status: bot.getStatus() });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to stop Delta Master' });
     }
   });
 
   app.get('/api/delta-master/status', (req, res) => {
-    res.json(deltaMasterBot.getStatus());
+    const symbol = req.query.symbol as string;
+    if (!symbol) return res.status(400).json({ error: 'Symbol query parameter required' });
+    
+    const bot = deltaMasterBots.get(symbol);
+    if (!bot) return res.status(404).json({ error: 'Bot not running for this symbol' });
+    
+    res.json(bot.getStatus());
   });
 
   // ─── Binance Master (Account A/B Insurance System) Endpoints ───
@@ -586,8 +605,15 @@ async function startServer() {
       if (!config.symbol || !config.qtyA) {
         return res.status(400).json({ error: 'Missing required parameters: symbol, qtyA' });
       }
-      await binanceMasterBot.start(config);
-      res.json({ message: 'Binance Master Agent Deployed', status: binanceMasterBot.getStatus() });
+      
+      let bot = binanceMasterBots.get(config.symbol);
+      if (!bot) {
+        bot = new BinanceMasterBot(io);
+        binanceMasterBots.set(config.symbol, bot);
+      }
+      
+      await bot.start(config);
+      res.json({ message: `Binance Master Agent Deployed for ${config.symbol}`, status: bot.getStatus() });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to start Binance Master' });
     }
@@ -595,11 +621,27 @@ async function startServer() {
 
   app.post('/api/binance-master/stop', async (req, res) => {
     try {
-      await binanceMasterBot.stop();
-      res.json({ message: 'Binance Master Agent Stopped', status: binanceMasterBot.getStatus() });
+      const { symbol } = req.body;
+      if (!symbol) return res.status(400).json({ error: 'Symbol is required' });
+      
+      const bot = binanceMasterBots.get(symbol);
+      if (!bot) return res.status(404).json({ error: 'Bot instance not found for this symbol' });
+      
+      await bot.stop();
+      res.json({ message: 'Binance Master Agent Stopped', symbol: symbol, status: bot.getStatus() });
     } catch (error: any) {
       res.status(500).json({ error: error.message || 'Failed to stop Binance Master' });
     }
+  });
+
+  app.get('/api/binance-master/status', (req, res) => {
+    const symbol = req.query.symbol as string;
+    if (!symbol) return res.status(400).json({ error: 'Symbol query parameter required' });
+    
+    const bot = binanceMasterBots.get(symbol);
+    if (!bot) return res.status(404).json({ error: 'Bot not running for this symbol' });
+    
+    res.json(bot.getStatus());
   });
 
   // ─── Phase 9: Simulation Service Endpoints ───
@@ -622,9 +664,6 @@ async function startServer() {
     res.json({ success: true, message: 'Simulation halted.' });
   });
 
-  app.get('/api/binance-master/status', (req, res) => {
-    res.json(binanceMasterBot.getStatus());
-  });
 
   // ─── Intelligence & Agentic Reasoning Endpoints ───
   app.post('/api/intelligence/sentiment-override', (req, res) => {
@@ -641,27 +680,7 @@ async function startServer() {
   });
 
   // ─── Simulation & Stress Test Endpoints ───
-  app.post('/api/simulation/run', async (req, res) => {
-    try {
-      const { scenario, symbol } = req.body;
-      if (!scenario || !symbol) {
-        return res.status(400).json({ error: 'scenario and symbol are required' });
-      }
-      await SimulationService.getInstance().runScenario(scenario, symbol);
-      res.json({ message: `Simulation ${scenario} started.` });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
 
-  app.post('/api/simulation/stop', (req, res) => {
-    try {
-      SimulationService.getInstance().stopScenario();
-      res.json({ message: 'Simulation stopped.' });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   const handleBinanceError = (error: any, res: express.Response, defaultMessage: string) => {
     Logger.error(`${defaultMessage}:`, error);
@@ -846,8 +865,37 @@ async function startServer() {
         symbol, side, type, quantity, price, stopPrice, limitPrice,
         marginMode, leverage, autoBorrow, autoRepay,
         takeProfit, slTrigger, slLimit, isIceberg,
+        slave_id,
         params = {}
       } = req.body;
+
+      // ─── Managed Bot Interceptor ───
+      // If this is a termination request for a Master Agent, route it to the bot's Atomic Exit logic.
+      if (params.isClosingPosition) {
+        const cleanSymbol = symbol.split('-')[0].replace('/', ''); // Support both raw and master tags
+        
+        if (slave_id === 'delta_master_a') {
+          const matchingSymbol = [...deltaMasterBots.keys()].find(k => k.replace('/', '') === cleanSymbol);
+          const bot = matchingSymbol ? deltaMasterBots.get(matchingSymbol) : null;
+          
+          if (bot) {
+            Logger.info(`[SERVER] Manual termination detected for Delta Master (Account A - ${matchingSymbol}). Activating Bot Exit Sequence...`);
+            await bot.stop();
+            return res.json({ message: 'Delta Master Agent Terminated via Node List', status: bot.getStatus() });
+          }
+        }
+        if (slave_id === 'binance_master_a') {
+          const matchingSymbol = [...binanceMasterBots.keys()].find(k => k.replace('/', '') === cleanSymbol);
+          const bot = matchingSymbol ? binanceMasterBots.get(matchingSymbol) : null;
+          
+          if (bot) {
+            Logger.info(`[SERVER] Manual termination detected for Binance Master (Account A - ${matchingSymbol}). Activating Bot Exit Sequence...`);
+            await bot.stop();
+            return res.json({ message: 'Binance Master Agent Terminated via Node List', status: bot.getStatus() });
+          }
+        }
+      }
+
       const ccxtSymbol = formatSymbol(symbol);
       const isShadow = process.env.BINANCE_SHADOW_MODE === 'true' || process.env.BINANCE_SHADOW_MODE === '1';
 
@@ -1185,7 +1233,7 @@ async function startServer() {
       const trades = db.prepare(`
         SELECT slave_id, symbol, side, quantity, price
         FROM copied_fills_v2
-        WHERE slave_id IN ('master', 'slave_1')
+        WHERE slave_id IN ('master', 'slave_1', 'delta_master_a', 'delta_master_b')
         ORDER BY timestamp ASC
       `).all() as any[];
       db.close();
@@ -1194,9 +1242,12 @@ async function startServer() {
 
       trades.forEach(trade => {
         const { slave_id, symbol, side, quantity, price } = trade;
-        // Partition Voltron Hands
+        // Partition Voltron and Delta Master Hands
+        let internalSymbol = symbol;
         const isVoltron = slave_id === 'slave_1';
-        const internalSymbol = isVoltron ? `${symbol}-BEAR` : symbol;
+        if (isVoltron) internalSymbol = `${symbol}-BEAR`;
+        if (slave_id === 'delta_master_a') internalSymbol = `${symbol}-MASTER_A`;
+        if (slave_id === 'delta_master_b') internalSymbol = `${symbol}-MASTER_B`;
 
         if (!positions[internalSymbol]) {
           positions[internalSymbol] = { symbol: internalSymbol, netQuantity: 0, totalCost: 0, averageEntryPrice: 0, isVoltron };

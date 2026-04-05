@@ -86,7 +86,7 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch('/api/binance-master/status');
+        const res = await fetch(`/api/binance-master/status?symbol=${encodeURIComponent(symbol)}`);
         if (res.ok) {
           const data = await res.json();
           setState(data);
@@ -107,7 +107,7 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
         fetchStatus();
       });
       socket.on('disconnect', () => setWsConnected(false));
-      socket.on('binance_master_status', handleStatusUpdate);
+      socket.on('binance_master_status_' + symbol, handleStatusUpdate);
       
       const interval = setInterval(() => {
         if (socket.connected) {
@@ -157,7 +157,11 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
   const handleStop = async () => {
     setLoading(true);
     try {
-      await fetch('/api/binance-master/stop', { method: 'POST' });
+      await fetch('/api/binance-master/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol })
+      });
       toast.success('Agent Terminated');
     } catch {} finally {
       setLoading(false);

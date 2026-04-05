@@ -136,50 +136,52 @@ export function PerformanceChart() {
             </div>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 30, bottom: 0, left: 10 }}>
-              <defs>
-                {slavesFound.map((id, idx) => (
-                  <linearGradient key={`grad-${id}`} id={`color-${idx}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors[idx % colors.length]} stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor={colors[idx % colors.length]} stopOpacity={0}/>
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-              <XAxis 
-                dataKey="time" 
-                stroke="#ffffff30" 
-                fontSize={10} 
-                tickMargin={12}
-                tick={{ fill: '#ffffff60', fontFamily: 'monospace' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis 
-                stroke="#ffffff30" 
-                fontSize={10} 
-                tickFormatter={(val) => `$${val.toLocaleString()}`}
-                tick={{ fill: '#ffffff60', fontFamily: 'monospace' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<CustomTooltip colors={colors} />} cursor={{ stroke: '#ffffff30', strokeWidth: 1, strokeDasharray: '4 4' }} />
-              
-              {slavesFound.map((slaveId, idx) => (
-                <Area 
-                    key={slaveId}
-                    type="monotone" 
-                    dataKey={slaveId} 
-                    stroke={colors[idx % colors.length]} 
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill={`url(#color-${idx})`}
-                    activeDot={{ r: 5, stroke: '#05070a', strokeWidth: 2, fill: colors[idx % colors.length] }}
+          <div className="absolute inset-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 10, right: 30, bottom: 0, left: 10 }}>
+                <defs>
+                  {slavesFound.map((id, idx) => (
+                    <linearGradient key={`grad-${id}`} id={`color-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={colors[idx % colors.length]} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={colors[idx % colors.length]} stopOpacity={0}/>
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                <XAxis 
+                  dataKey="time" 
+                  stroke="#ffffff30" 
+                  fontSize={10} 
+                  tickMargin={12}
+                  tick={{ fill: '#ffffff60', fontFamily: 'monospace' }}
+                  axisLine={false}
+                  tickLine={false}
                 />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
+                <YAxis 
+                  stroke="#ffffff30" 
+                  fontSize={10} 
+                  tickFormatter={(val) => `$${val.toLocaleString()}`}
+                  tick={{ fill: '#ffffff60', fontFamily: 'monospace' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<CustomTooltip colors={colors} />} cursor={{ stroke: '#ffffff30', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                
+                {slavesFound.map((slaveId, idx) => (
+                  <Area 
+                      key={slaveId}
+                      type="monotone" 
+                      dataKey={slaveId} 
+                      stroke={colors[idx % colors.length]} 
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill={`url(#color-${idx})`}
+                      activeDot={{ r: 5, stroke: '#05070a', strokeWidth: 2, fill: colors[idx % colors.length] }}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
     </div>

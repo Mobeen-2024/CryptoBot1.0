@@ -1,0 +1,4 @@
+﻿src/services/intelligenceService.test.ts(117,29): error TS2554: Expected 6 arguments, but got 5.
+src/services/intelligenceService.test.ts(122,29): error TS2554: Expected 6 arguments, but got 5.
+src/services/intelligenceService.test.ts(128,29): error TS2554: Expected 6 arguments, but got 5.
+test_recursive_vigilance.ts(1,32): error TS2307: Cannot find module '../src/services/deltaMasterBot.js' or its corresponding type declarations.

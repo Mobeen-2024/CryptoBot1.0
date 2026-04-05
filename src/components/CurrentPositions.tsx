@@ -32,11 +32,19 @@ export function CurrentPositions() {
   const [marginType, setMarginType] = useState<'CROSS' | 'ISOLATED'>('CROSS');
   const [isSubmittingLeverage, setIsSubmittingLeverage] = useState(false);
 
-  const handleClosePosition = async (sym: string, netQty: number) => {
+  const handleClosePosition = async (sym: string, netQty: number, slaveId?: string) => {
     try {
       const side = netQty > 0 ? 'SELL' : 'BUY';
       const quantity = Math.abs(netQty);
-      const cleanSymbol = sym.replace('-ISOLATED', '').replace('-CROSS', '');
+      
+      // Cyber Sanitization: Remove ALL bot-specific suffixes and margin tags
+      const cleanSymbol = sym
+        .replace('-ISOLATED', '')
+        .replace('-CROSS', '')
+        .replace('-MASTER_A', '')
+        .replace('-MASTER_B', '')
+        .replace('-BEAR', '');
+
       const marginMode = sym.includes('-ISOLATED') ? 'isolated' : sym.includes('-CROSS') ? 'cross' : undefined;
       
       const toastId = toast.loading(`Initiating termination sequence on ${cleanSymbol}...`, {
@@ -52,6 +60,7 @@ export function CurrentPositions() {
           type: 'MARKET',
           quantity: quantity,
           marginMode: marginMode,
+          slave_id: slaveId,
           params: { isClosingPosition: true }
         })
       });
@@ -243,7 +252,7 @@ export function CurrentPositions() {
                     className="flex-1 py-1.5 rounded border border-white/10 text-[10px] font-black font-mono tracking-widest uppercase text-gray-300 hover:text-[var(--holo-gold)] hover:border-[var(--holo-gold)]/50 transition-colors bg-white/[0.01]">Overrides</button>
                     <button onClick={() => { const currentLev = parseInt(marginTag?.match(/\d+/)?.[0] || '10'); setLeverageValue(currentLev); setMarginType(pos.symbol.includes('-ISOLATED') ? 'ISOLATED' : 'CROSS'); setLeverageModal({ symbol: pos.symbol, totalCost: pos.totalCost }); }}
                     className="flex-1 py-1.5 rounded border border-white/10 text-[10px] font-black font-mono tracking-widest uppercase text-gray-300 hover:text-[var(--holo-cyan)] hover:border-[var(--holo-cyan)]/50 transition-colors bg-white/[0.01]">Lev</button>
-                  <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
+                  <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity, pos.slave_id)}
                     className="flex-1 py-1.5 rounded border border-[var(--holo-magenta)]/30 text-[10px] font-black font-mono tracking-widest uppercase text-[var(--holo-magenta)] hover:bg-[var(--holo-magenta)] hover:text-white transition-all shadow-[inset_0_0_10px_var(--holo-magenta-glow)] cursor-crosshair">Term</button>
                 </div>
               </div>
@@ -325,7 +334,7 @@ export function CurrentPositions() {
                     className="p-2 bg-white/[0.02] border border-white/10 hover:border-white/30 text-gray-400 hover:text-white rounded-lg font-black tracking-widest text-[9px] uppercase font-mono flex items-center transition-all">
                     Overrides
                   </button>
-                  <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity)}
+                  <button onClick={() => handleClosePosition(pos.symbol, pos.netQuantity, pos.slave_id)}
                     className="group relative items-center justify-center p-2 bg-[var(--holo-magenta)]/10 border border-[var(--holo-magenta)]/30 hover:bg-[var(--holo-magenta)] rounded-lg transition-all cursor-crosshair ml-1 shadow-[inset_0_0_10px_var(--holo-magenta-glow)] hover:shadow-[0_0_20px_var(--holo-magenta-glow)]" title="Terminate Position">
                     <svg className="w-3.5 h-3.5 text-[var(--holo-magenta)] group-hover:text-black transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>

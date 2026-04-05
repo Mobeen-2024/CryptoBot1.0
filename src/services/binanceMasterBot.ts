@@ -24,6 +24,8 @@ export interface BinanceMasterState {
   phase: 'IDLE' | 'SYMMETRIC_DEPLOY' | 'HEDGE_ACTIVE' | 'PRINCIPAL_RECOVERY' | 'CLOSED';
   pnlA: number;
   pnlB: number;
+  realizedPnLA: number;
+  realizedPnLB: number;
   netPnl: number;
   lastPrice: number;
   entryA: number;
@@ -57,6 +59,10 @@ export interface BinanceMasterState {
     };
   };
   accumulatedFees: number;
+  marginStats?: {
+    accountA: { balance: number; used: number; free: number; pnlPct: number };
+    accountB: { balance: number; used: number; free: number; pnlPct: number };
+  };
 }
 
 export class BinanceMasterBot extends EventEmitter {
@@ -68,6 +74,8 @@ export class BinanceMasterBot extends EventEmitter {
     phase: 'IDLE',
     pnlA: 0,
     pnlB: 0,
+    realizedPnLA: 0,
+    realizedPnLB: 0,
     netPnl: 0,
     lastPrice: 0,
     entryA: 0,
@@ -80,11 +88,18 @@ export class BinanceMasterBot extends EventEmitter {
     hedgeStatus: 'inactive',
     hedgeQty: 0,
     netExposureDelta: 0,
-    accumulatedFees: 0
+    accumulatedFees: 0,
+    marginStats: {
+      accountA: { balance: 1000, used: 0, free: 1000, pnlPct: 0 },
+      accountB: { balance: 1000, used: 0, free: 1000, pnlPct: 0 }
+    }
   };
   private monitorInterval: NodeJS.Timeout | null = null;
   private sentimentInterval: NodeJS.Timeout | null = null;
   private config: BinanceMasterConfig | null = null;
+  private sessionBalanceA: number = 1000;
+  private sessionBalanceB: number = 1000;
+  private priceUpdateListener: ((data: { symbol: string; price: number }) => void) | null = null;
 
   constructor(io?: SocketIOServer) {
     super();
@@ -101,6 +116,8 @@ export class BinanceMasterBot extends EventEmitter {
     this.state.isActive = true;
     this.state.symbol = config.symbol;
     this.state.phase = 'SYMMETRIC_DEPLOY';
+    this.state.realizedPnLA = 0;
+    this.state.realizedPnLB = 0;
     this.emitStatus();
 
     const startTime = Date.now();
@@ -131,20 +148,22 @@ export class BinanceMasterBot extends EventEmitter {
       this.state.phase = 'HEDGE_ACTIVE';
       this.startMonitoring();
       
-      await this.logShadowFill('binance_master_a', config.symbol, config.sideA, config.qtyA, currentPrice);
-
-      // Simulation Service Bridge
-      SimulationService.getInstance().on('price_update', async (data: { symbol: string; price: number }) => {
+      this.priceUpdateListener = async (data: { symbol: string; price: number }) => {
         if (this.state.isActive && data.symbol === this.state.symbol) {
           try {
-            const [positionsA, positionsB] = await Promise.all([
-              this.binanceService.fetchPositions(this.binanceService.getClientA(), this.state.symbol),
-              this.binanceService.fetchPositions(this.binanceService.getClientB(), this.state.symbol)
-            ]);
-            await this.processTick(data.price, positionsA, positionsB);
+             const [positionsA, positionsB] = await Promise.all([
+                this.binanceService.fetchPositions(this.binanceService.getClientA(), this.state.symbol),
+                this.binanceService.fetchPositions(this.binanceService.getClientB(), this.state.symbol)
+             ]);
+             await this.processTick(data.price, positionsA, positionsB);
           } catch(e) {}
         }
-      });
+      };
+      if (this.priceUpdateListener) {
+        SimulationService.getInstance().on('price_update', this.priceUpdateListener);
+      }
+      
+      await this.logShadowFill('binance_master_a', config.symbol, config.sideA, config.qtyA, currentPrice);
 
       const speed = Date.now() - startTime;
       if (!this.state.telemetry) {
@@ -180,6 +199,11 @@ export class BinanceMasterBot extends EventEmitter {
       }
     }
 
+    if (this.priceUpdateListener) {
+      SimulationService.getInstance().off('price_update', this.priceUpdateListener);
+      this.priceUpdateListener = null;
+    }
+
     this.state.isActive = false;
     this.state.phase = 'CLOSED';
     this.state.hmacStatus = 'inactive';
@@ -198,8 +222,20 @@ export class BinanceMasterBot extends EventEmitter {
       if (currentQtyB > 0) closeTasks.push(this.binanceService.closePosition(this.binanceService.getClientB(), this.state.symbol, sideB_close, currentQtyB));
       await Promise.allSettled(closeTasks);
 
-      if (currentQtyA > 0) await this.logShadowFill('binance_master_a', this.state.symbol, sideA_close, currentQtyA, this.state.lastPrice);
-      if (currentQtyB > 0) await this.logShadowFill('binance_master_b', this.state.symbol, sideB_close, currentQtyB, this.state.lastPrice);
+      if (currentQtyA > 0) {
+        const closedPnlA = (this.config.sideA === 'buy' ? this.state.lastPrice - this.state.entryA : this.state.entryA - this.state.lastPrice) * currentQtyA;
+        this.state.realizedPnLA += closedPnlA;
+        await this.logShadowFill('binance_master_a', this.state.symbol, sideA_close, currentQtyA, this.state.lastPrice);
+      }
+      if (currentQtyB > 0) {
+        const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
+        const closedPnlB = (sideB === 'buy' ? this.state.lastPrice - this.state.entryB : this.state.entryB - this.state.lastPrice) * currentQtyB;
+        this.state.realizedPnLB += closedPnlB;
+        await this.logShadowFill('binance_master_b', this.state.symbol, sideB_close, currentQtyB, this.state.lastPrice);
+      }
+      
+      this.sessionBalanceA += this.state.realizedPnLA;
+      this.sessionBalanceB += this.state.realizedPnLB;
     }
 
     Logger.info('[BINANCE_MASTER] Sequence Terminated.');
@@ -285,6 +321,8 @@ export class BinanceMasterBot extends EventEmitter {
       if (this.state.slOrder && ((isBuy && currentPrice <= this.state.slOrder.price) || (!isBuy && currentPrice >= this.state.slOrder.price))) {
         Logger.info(`[BINANCE_MASTER] STOP LOSS ACTIVATED @ ${currentPrice}`);
         const slQty = this.state.slOrder.qty;
+        const closedPnlA = (isBuy ? currentPrice - this.state.entryA : this.state.entryA - currentPrice) * slQty;
+        this.state.realizedPnLA += closedPnlA;
         await this.binanceService.closePosition(this.binanceService.getClientA(), this.state.symbol, closeSideA, slQty);
         await this.logShadowFill('binance_master_a', this.state.symbol, closeSideA, slQty, currentPrice);
         this.state.slOrder.status = 'filled';
@@ -300,6 +338,8 @@ export class BinanceMasterBot extends EventEmitter {
       for (const tp of this.state.tpTiers) {
         if (tp.status === 'waiting' && ((isBuy && currentPrice >= tp.price) || (!isBuy && currentPrice <= tp.price))) {
           tp.status = 'filled';
+          const closedPnlA = (isBuy ? currentPrice - this.state.entryA : this.state.entryA - currentPrice) * tp.qty;
+          this.state.realizedPnLA += closedPnlA;
           await this.binanceService.closePosition(this.binanceService.getClientA(), this.state.symbol, closeSideA, tp.qty);
           await this.logShadowFill('binance_master_a', this.state.symbol, closeSideA, tp.qty, currentPrice);
           
@@ -318,12 +358,31 @@ export class BinanceMasterBot extends EventEmitter {
 
       if (trendRecovered) {
         const closeSideB = sideB === 'buy' ? 'sell' : 'buy';
+        const closedPnlB = (sideB === 'buy' ? currentPrice - this.state.entryB : this.state.entryB - currentPrice) * currentQtyB;
+        this.state.realizedPnLB += closedPnlB;
         await this.binanceService.closePosition(this.binanceService.getClientB(), this.state.symbol, closeSideB, currentQtyB);
         await this.logShadowFill('binance_master_b', this.state.symbol, closeSideB, currentQtyB, currentPrice);
         this.state.hedgeStatus = 'pending';
         await this.redeployHedge();
       }
     }
+    
+    // --- MODERN TELEMETRY INJECTION ---
+    const leverage = 10; // Binance default mock
+    const usedA = (currentQtyA * currentPrice) / leverage;
+    const balanceA = this.sessionBalanceA + this.state.realizedPnLA + this.state.pnlA;
+    const freeA = Math.max(0, balanceA - usedA);
+    const pnlPctA = this.state.entryA > 0 ? (this.state.pnlA / (usedA || 1)) * 100 : 0;
+
+    const usedB = (currentQtyB * currentPrice) / leverage;
+    const balanceB = this.sessionBalanceB + this.state.realizedPnLB + this.state.pnlB;
+    const freeB = Math.max(0, balanceB - usedB);
+    const pnlPctB = this.state.entryB > 0 ? (this.state.pnlB / (usedB || 1)) * 100 : 0;
+
+    this.state.marginStats = {
+      accountA: { balance: balanceA, used: usedA, free: freeA, pnlPct: pnlPctA },
+      accountB: { balance: balanceB, used: usedB, free: freeB, pnlPct: pnlPctB }
+    };
 
     if (telemetry) {
       const execLatency = performance.now() - tExecStart;
@@ -429,7 +488,7 @@ export class BinanceMasterBot extends EventEmitter {
   public getStatus() { return this.state; }
 
   private emitStatus() {
-    if (this.io) this.io.emit('binance_master_status', this.state);
+    if (this.io) this.io.emit('binance_master_status_' + this.state.symbol, this.state);
     this.emit('status', this.state);
   }
 
@@ -438,7 +497,7 @@ export class BinanceMasterBot extends EventEmitter {
       const db = new Database('trades.db');
       const ts = Date.now();
       const tradeId = `shadow_${ts}_${Math.random().toString(36).substring(2, 7)}`;
-      const ccxtSymbol = symbol.replace('USDT', '/USDT');
+      const ccxtSymbol = (symbol.includes('/') || !symbol.includes('USDT')) ? symbol : symbol.replace('USDT', '/USDT');
       const fee = (quantity * price) * 0.0005;
       this.state.accumulatedFees = (this.state.accumulatedFees || 0) + fee;
 

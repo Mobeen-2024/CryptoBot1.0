@@ -1,4 +1,4 @@
-import { DeltaMasterBot } from '../src/services/deltaMasterBot.js';
+import { DeltaMasterBot } from './src/services/deltaMasterBot.js';
 import { Logger } from './logger.js';
 
 async function verifyRecursiveVigilance() {
