@@ -15,7 +15,7 @@ interface TradeRecord {
 
 // RecentTrades is now the full Trade History panel
 // It ignores `trades` prop and self-fetches the full history from the backend
-export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
+export const RecentTrades = React.memo(({ trades }: { trades?: any[] }) => {
   const [history, setHistory] = useState<TradeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
@@ -199,4 +199,4 @@ export const RecentTrades: React.FC<{ trades?: any[] }> = () => {
       )}
     </div>
   );
-};
+});

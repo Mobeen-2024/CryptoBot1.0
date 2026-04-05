@@ -14,7 +14,7 @@ interface TickerData {
   q: string; // Quote volume
 }
 
-export const CoinInfo: React.FC<CoinInfoProps> = ({ symbol }) => {
+export const CoinInfo = React.memo(({ symbol }: CoinInfoProps) => {
   const [data, setData] = useState<TickerData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -132,4 +132,4 @@ export const CoinInfo: React.FC<CoinInfoProps> = ({ symbol }) => {
       )}
     </div>
   );
-};
+});

@@ -21,13 +21,13 @@ interface PerformanceHUDProps {
   dynamicFriction?: number;
 }
 
-export const PerformanceHUD: React.FC<PerformanceHUDProps> = ({ 
+export const PerformanceHUD = React.memo(({ 
   telemetry, 
   netExposureDelta, 
   accumulatedFees = 0,
   atr,
   dynamicFriction
-}) => {
+}: PerformanceHUDProps) => {
   const breakdown = telemetry?.latencyBreakdown || {
     exchangeFetch: telemetry?.avgLatency || 0,
     logicProcessing: 0,
@@ -157,4 +157,4 @@ export const PerformanceHUD: React.FC<PerformanceHUDProps> = ({
       </div>
     </div>
   );
-};
+});

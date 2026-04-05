@@ -165,7 +165,7 @@ const saveTPSL = (data: { takeProfit: number | ''; slTrigger: number | ''; slLim
 };
 
 
-export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, balance, baseBalance, onPlaceOrder }) => {
+export const OrderPanel = React.memo(({ symbol, currentPrice, balance, baseBalance, onPlaceOrder }: OrderPanelProps) => {
   const baseAsset = symbol.replace('USDT', '');
   const quoteAsset = 'USDT';
   
@@ -254,6 +254,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
       }
     }
   }, [currentPrice, os.orderType]);
+
 
   // Handlers
   const handlePriceChange = (val: string) => {
@@ -855,4 +856,4 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ symbol, currentPrice, ba
       />
     </div>
   );
-};
+});

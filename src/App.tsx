@@ -250,7 +250,7 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  const refreshBalance = async () => {
+  const refreshBalance = React.useCallback(async () => {
     try {
       const data = await fetchBinanceBalance();
       const usdtBalance = data.balances?.find((b: any) => b.asset === 'USDT');
@@ -276,7 +276,7 @@ export default function App() {
         });
       }
     }
-  };
+  }, [symbol, error?.code]);
 
   useEffect(() => {
     const handleToggleStyle = () => setIsStyleModalOpen(prev => !prev);
@@ -421,12 +421,20 @@ export default function App() {
     ws.onopen = () => setApiConnected(true);
     ws.onclose = () => setApiConnected(false);
 
+    // Throttling state updates for performance
+    const lastUpdateTimes = {
+      depth: 0,
+      trade: 0,
+      ticker: 0,
+    };
+
     ws.onmessage = (event) => {
       const payload = JSON.parse(event.data);
       if (!payload.stream) return;
 
       const { stream, data } = payload;
       const interval = canonicalInterval(chartInterval);
+      const now = Date.now();
 
       if (stream.endsWith(`@kline_${interval}`)) {
         const kline = data.k;
@@ -455,26 +463,35 @@ export default function App() {
           }
         });
       } else if (stream.endsWith('@depth20@100ms')) {
-        setOrderBook({ bids: data.bids, asks: data.asks });
+        if (now - lastUpdateTimes.depth > 250) {
+          setOrderBook({ bids: data.bids, asks: data.asks });
+          lastUpdateTimes.depth = now;
+        }
       } else if (stream.endsWith('@trade')) {
-        setRecentTrades(prev => {
-          const newTrade = {
-            id: data.t,
-            price: data.p,
-            quantity: data.q,
-            time: data.T,
-            isBuyerMaker: data.m
-          };
-          return [newTrade, ...prev].slice(0, 50);
-        });
+        if (now - lastUpdateTimes.trade > 250) {
+          setRecentTrades(prev => {
+            const newTrade = {
+              id: data.t,
+              price: data.p,
+              quantity: data.q,
+              time: data.T,
+              isBuyerMaker: data.m
+            };
+            return [newTrade, ...prev].slice(0, 50);
+          });
+          lastUpdateTimes.trade = now;
+        }
       } else if (stream.endsWith('@ticker')) {
-        setTicker24h({
-          high: data.h,
-          low: data.l,
-          volume: data.v,
-          priceChangePercent: data.P
-        });
-        setPriceChange(parseFloat(data.P));
+        if (now - lastUpdateTimes.ticker > 500) {
+          setTicker24h({
+            high: data.h,
+            low: data.l,
+            volume: data.v,
+            priceChangePercent: data.P
+          });
+          setPriceChange(parseFloat(data.P));
+          lastUpdateTimes.ticker = now;
+        }
       }
     };
 
@@ -485,7 +502,7 @@ export default function App() {
     };
   }, [symbol, chartInterval, isSandbox, lastRefreshed]);
 
-  const handlePlaceOrder = async (order: any) => {
+  const handlePlaceOrder = React.useCallback(async (order: any) => {
     setIsPlacingOrder(true);
     setError(null);
     const orderToast = toast.loading('Transmitting order to exchange...');
@@ -521,7 +538,16 @@ export default function App() {
     } finally {
       setIsPlacingOrder(false);
     }
-  };
+  }, [symbol, refreshBalance]);
+
+  const onSelectSymbol = React.useCallback((s: string) => setSymbol(s), []);
+  const onChartIntervalChange = React.useCallback((tf: string) => {
+    if (tf === 'OPEN_SELECTOR') {
+      setIsTimeSelectorOpen(true);
+    } else {
+      setChartInterval(tf);
+    }
+  }, []);
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-2050-gradient text-[#eaecef] font-sans selection:bg-[var(--holo-cyan)]/20 selection:text-white flex flex-col">
@@ -555,7 +581,7 @@ export default function App() {
               {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <span className="hidden sm:flex">
-              <CandleCountdown interval={chartInterval} onChange={(val) => setChartInterval(val)} />
+              <CandleCountdown interval={chartInterval} onChange={onChartIntervalChange} />
             </span>
           </div>
 
@@ -981,7 +1007,7 @@ export default function App() {
         <div className="flex flex-col lg:flex-row gap-2 shrink-0">
           {/* Market Watchlist */}
           <div className="flex-1 glass-panel rounded-2xl overflow-hidden min-h-[320px]">
-            <MarketWatchlist onSelectSymbol={setSymbol} activeSymbol={symbol} />
+            <MarketWatchlist onSelectSymbol={onSelectSymbol} activeSymbol={symbol} />
           </div>
           {/* Order Book */}
           <div className="lg:w-[320px] shrink-0 glass-panel rounded-2xl overflow-hidden min-h-[320px]">

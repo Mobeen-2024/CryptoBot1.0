@@ -13,7 +13,7 @@ interface OpenOrder {
   timestamp?: number;
 }
 
-export const OpenOrdersPanel: React.FC<{ symbol?: string }> = ({ symbol }) => {
+export const OpenOrdersPanel = React.memo(({ symbol }: { symbol?: string }) => {
   const [orders, setOrders] = useState<OpenOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -138,4 +138,4 @@ export const OpenOrdersPanel: React.FC<{ symbol?: string }> = ({ symbol }) => {
       </div>
     </div>
   );
-};
+});

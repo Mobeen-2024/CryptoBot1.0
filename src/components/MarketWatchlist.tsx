@@ -12,7 +12,7 @@ interface WatchlistItem {
 
 const WATCH_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT'];
 
-export const MarketWatchlist: React.FC<{ onSelectSymbol?: (s: string) => void; activeSymbol?: string }> = ({ onSelectSymbol, activeSymbol }) => {
+export const MarketWatchlist = React.memo(({ onSelectSymbol, activeSymbol }: { onSelectSymbol?: (s: string) => void; activeSymbol?: string }) => {
   const [items, setItems] = useState<Map<string, WatchlistItem>>(new Map());
   const [sortBy, setSortBy] = useState<'symbol' | 'change' | 'volume'>('change');
   const [sortDir, setSortDir] = useState<1 | -1>(-1);
@@ -175,4 +175,4 @@ export const MarketWatchlist: React.FC<{ onSelectSymbol?: (s: string) => void; a
       </div>
     </div>
   );
-};
+});

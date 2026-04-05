@@ -15,7 +15,7 @@ interface Position {
   slPrice?: number;
 }
 
-export function CurrentPositions() {
+export const CurrentPositions = React.memo(() => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   
@@ -627,4 +627,4 @@ export function CurrentPositions() {
       })()}
     </div>
   );
-}
+});

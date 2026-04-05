@@ -8,7 +8,7 @@ interface OrderBookProps {
 
 type ViewMode = 'FULL' | 'BIDS' | 'ASKS';
 
-export const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
+export const OrderBook = React.memo(({ bids, asks }: OrderBookProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('FULL');
   const [precision, setPrecision] = useState<number>(2);
 
@@ -147,4 +147,4 @@ export const OrderBook: React.FC<OrderBookProps> = ({ bids, asks }) => {
       </div>
     </div>
   );
-};
+});
