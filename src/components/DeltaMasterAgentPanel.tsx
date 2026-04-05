@@ -34,6 +34,9 @@ interface DeltaMasterState {
   };
   distanceToHedge?: number;
   events: DeltaEvent[];
+  hedgeStrategy?: 'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC';
+  gridLayers?: number;
+  gridGapPct?: number;
   intelligence?: {
     sentiment: number;
     regime: string;
@@ -59,6 +62,8 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   });
 
   const [wsConnected, setWsConnected] = useState(false);
+  const [pnlHistoryA, setPnlHistoryA] = useState<number[]>([]);
+  const [pnlHistoryB, setPnlHistoryB] = useState<number[]>([]);
   
   // Configuration State
   const [qtyA, setQtyA] = useState('0.1');
@@ -67,7 +72,9 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   const [slPercent, setSlPercent] = useState('1.0');
   const [tpTiers, setTpTiers] = useState('2,3,4,5');
   const [sideA, setSideA] = useState<'buy' | 'sell'>('buy');
-  const [autoHedgeMode, setAutoHedgeMode] = useState<'OFF' | 'CONDITIONAL' | 'INSTANT'>('INSTANT');
+  const [hedgeStrategy, setHedgeStrategy] = useState<'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC'>('MIRROR');
+  const [gridLayers, setGridLayers] = useState('3');
+  const [gridGapPct, setGridGapPct] = useState('0.5');
   const [maxDrawdown, setMaxDrawdown] = useState('3.0');
   const [logFilter, setLogFilter] = useState<'ALL' | 'TRADE' | 'HEDGE' | 'ERROR'>('ALL');
 
@@ -85,10 +92,14 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
 
     if ((window as any).socket) {
       const socket = (window as any).socket;
-      const handleStatusUpdate = (data: DeltaMasterState) => {
+      const handleStatusUpdate = (data: any) => {
         const now = Date.now();
         if (now - lastUpdate > 500 || data.isActive !== state.isActive || (data.events?.length !== state.events?.length)) {
           setState(data);
+          if (data.isActive) {
+            setPnlHistoryA(prev => [...prev, data.pnlA].slice(-30));
+            setPnlHistoryB(prev => [...prev, data.pnlB].slice(-30));
+          }
           lastUpdate = now;
         }
         setWsConnected(true);
@@ -124,7 +135,9 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
           entryOffset: Number(entryOffset), 
           slPercent: Number(slPercent),
           tpTiersArray: tpTiers.split(',').map(Number),
-          autoHedgeMode,
+          hedgeStrategy,
+          gridLayers: Number(gridLayers),
+          gridGapPct: Number(gridGapPct),
           maxDrawdownPct: Number(maxDrawdown),
           leverA: 10, leverB: 20
         })
@@ -155,11 +168,86 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
         throw new Error(errData.error || 'Termination failed');
       }
       toast.success('Agent Terminated', { id: tId });
+      setPnlHistoryA([]);
+      setPnlHistoryB([]);
     } catch (err: any) {
       toast.error(err.message, { id: tId });
     } finally {
       setLoading(false);
     }
+  };
+
+  const MicroSparkline: React.FC<{ data: number[], color: string }> = ({ data, color }) => {
+    if (data.length < 2) return <div className="h-4 w-full bg-white/5 animate-pulse rounded-sm" />;
+    
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const height = 16;
+    const width = 80;
+    
+    const points = data.map((val, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((val - min) / range) * height;
+      return `${x},${y}`;
+    }).join(' ');
+
+    return (
+      <svg width={width} height={height} className="overflow-visible">
+        <polyline
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+          className="drop-shadow-[0_0_3px_rgba(0,229,255,0.5)]"
+          style={{ filter: `drop-shadow(0 0 2px ${color}80)` }}
+        />
+      </svg>
+    );
+  };
+
+  const RiskMeter: React.FC<{ risk: number }> = ({ risk }) => {
+    const bars = 10;
+    const activeBars = Math.ceil((risk / 100) * bars);
+    const barString = '█'.repeat(activeBars) + '░'.repeat(bars - activeBars);
+    
+    let color = 'text-[#848e9c]';
+    if (risk > 75) color = 'text-rose-500 animate-pulse';
+    else if (risk > 40) color = 'text-[var(--holo-gold)]';
+    else if (risk > 0) color = 'text-[var(--holo-cyan)]';
+
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c]">Risk Matrix</span>
+        <div className={cn("font-mono text-[10px] tracking-tighter flex items-center gap-2", color)}>
+          <span className="opacity-40">[{barString}]</span>
+          <span className="font-black">{risk.toFixed(0)}%</span>
+        </div>
+      </div>
+    );
+  };
+
+  const calculateRisk = () => {
+    if (!state.isActive || !state.entryA) return 0;
+    
+    // Risk factor 1: Price proximity to stop loss
+    const sl = state.slOrder?.price || 0;
+    if (sl) {
+      const totalRange = Math.abs(state.entryA - sl);
+      const currentDist = Math.abs(state.lastPrice - state.entryA);
+      const slRisk = Math.min(100, (currentDist / totalRange) * 100);
+      
+      // Risk factor 2: Drawdown risk
+      const maxDD = Number(maxDrawdown) || 3;
+      const ddThreshold = state.entryA * (maxDD / 100);
+      const ddDist = Math.abs(state.lastPrice - state.entryA);
+      const ddRisk = Math.min(100, (ddDist / ddThreshold) * 100);
+      
+      return Math.max(slRisk, ddRisk);
+    }
+    return 0;
   };
 
   // Agent State Badge color mapper
@@ -240,13 +328,37 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                </div>
             </div>
             
-            {state.autoHedgeMode !== 'OFF' && (
-               <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-6 bg-[var(--holo-gold)]" style={{ left: `${hedgePct}%` }}>
-                  <div className="absolute -bottom-7 -translate-x-1/2 flex flex-col items-center">
-                    <span className="text-[8px] font-black tracking-widest text-[var(--holo-gold)] uppercase">Hedge</span>
-                    <span className="font-mono text-[9px] text-[var(--holo-gold)]">${state.entryB.toFixed(1)}</span>
-                  </div>
-               </div>
+            {state.hedgeStrategy !== 'OFF' && (
+               <>
+                 {state.hedgeStrategy === 'GRID_HEDGE' ? (
+                   // Render Grid Layers
+                   Array.from({ length: state.gridLayers || 3 }).map((_, i) => {
+                     const gap = state.gridGapPct || 0.5;
+                     const layerOffset = (state.entryB ? Math.abs(state.entryA - state.entryB) : 5) + (state.entryA * (gap * i / 100));
+                     const layerPrice = isBuy ? state.entryA - layerOffset : state.entryA + layerOffset;
+                     const layerPct = calculatePositionPercentage(layerPrice, min, max);
+                     
+                     return (
+                        <div key={i} className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[var(--holo-gold)]/40" style={{ left: `${layerPct}%` }}>
+                           {i === 0 && (
+                             <div className="absolute -bottom-7 -translate-x-1/2 flex flex-col items-center">
+                               <span className="text-[8px] font-black tracking-widest text-[var(--holo-gold)] uppercase">Grid Start</span>
+                               <span className="font-mono text-[9px] text-[var(--holo-gold)]">${layerPrice.toFixed(1)}</span>
+                             </div>
+                           )}
+                        </div>
+                     );
+                   })
+                 ) : (
+                   // Render Single Hedge Marker
+                   <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-6 bg-[var(--holo-gold)]" style={{ left: `${hedgePct}%` }}>
+                      <div className="absolute -bottom-7 -translate-x-1/2 flex flex-col items-center">
+                        <span className="text-[8px] font-black tracking-widest text-[var(--holo-gold)] uppercase">Hedge</span>
+                        <span className="font-mono text-[9px] text-[var(--holo-gold)]">${state.entryB.toFixed(1)}</span>
+                      </div>
+                   </div>
+                 )}
+               </>
             )}
 
             <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-8 bg-rose-500" style={{ left: `${slPct}%` }}>
@@ -287,6 +399,9 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Risk Matrix HUD */}
+          <RiskMeter risk={calculateRisk()} />
+          
           {/* Agent State Badge */}
           <div className={cn("px-2.5 py-1 rounded-md border text-[9px] font-black tracking-widest flex items-center gap-1.5 transition-colors duration-500", badge.color)}>
              {badge.icon}
@@ -315,6 +430,10 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                        ({state.marginStats?.accountA.pnlPct.toFixed(2)}%)
                     </span>
                   </div>
+                  {/* Micro Sparkline A */}
+                  <div className="mt-1 h-4 flex items-center">
+                    <MicroSparkline data={pnlHistoryA} color={state.pnlA >= 0 ? "#00e5ff" : "#f43f5e"} />
+                  </div>
                   <div className="flex flex-col gap-1 mt-2 text-[9px] font-mono tracking-widest text-white/50">
                      <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Balance:</span> <span className="text-white font-bold">${state.marginStats?.accountA.balance.toFixed(0)}</span></div>
                      <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Used Margin:</span> <span className="text-white font-bold">${state.marginStats?.accountA.used.toFixed(1)}</span></div>
@@ -338,6 +457,10 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
                           ({state.marginStats?.accountB.pnlPct.toFixed(2)}%)
                        </span>
                     )}
+                  </div>
+                  {/* Micro Sparkline B */}
+                  <div className="mt-1 h-4 flex items-center">
+                    <MicroSparkline data={pnlHistoryB} color={state.pnlB >= 0 ? "#fcd535" : "#f43f5e"} />
                   </div>
                   <div className="flex flex-col gap-1 mt-2 text-[9px] font-mono tracking-widest text-white/50">
                      <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Balance:</span> <span className="text-white font-bold">${state.marginStats?.accountB.balance.toFixed(0)}</span></div>
@@ -379,18 +502,33 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
 
                <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-[#848e9c] tracking-widest ml-1">Hedge Mode</label>
-                     <select value={autoHedgeMode} onChange={(e: any) => setAutoHedgeMode(e.target.value)} className="bg-black/60 border border-white/10 focus:border-[var(--holo-gold)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] text-[var(--holo-gold)] outline-none transition-colors shadow-inner appearance-none custom-select">
-                        <option value="OFF">OFF (Unprotected)</option>
-                        <option value="CONDITIONAL">CONDITIONAL (Near SL)</option>
-                        <option value="INSTANT">INSTANT (Mirror)</option>
+                     <label className="text-[8px] font-black uppercase text-[#848e9c] tracking-widest ml-1">Hedge Strategy</label>
+                     <select value={hedgeStrategy} onChange={(e: any) => setHedgeStrategy(e.target.value)} className="bg-black/60 border border-white/10 focus:border-[var(--holo-gold)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] text-[var(--holo-gold)] outline-none transition-colors shadow-inner appearance-none custom-select">
+                        <option value="OFF">OFF (Manual)</option>
+                        <option value="MIRROR">MIRROR (Instant)</option>
+                        <option value="DELAYED">DELAYED (Safer)</option>
+                        <option value="GRID_HEDGE">GRID (Advanced)</option>
+                        <option value="DYNAMIC">DYNAMIC (AI/ATR)</option>
                      </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-[var(--holo-magenta)] tracking-widest ml-1">Drawdown Halt (%)</label>
+                     <label className="text-[8px] font-black uppercase text-[var(--holo-magenta)] tracking-widest ml-1">Drawdown Max (%)</label>
                      <input type="number" step="0.5" value={maxDrawdown} onChange={(e) => setMaxDrawdown(e.target.value)} className="bg-[var(--holo-magenta)]/5 border border-[var(--holo-magenta)]/20 focus:border-[var(--holo-magenta)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner text-[var(--holo-magenta)]" />
                   </div>
                </div>
+
+               {hedgeStrategy === 'GRID_HEDGE' && (
+                  <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                     <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase text-[var(--holo-gold)] tracking-widest ml-1">Grid Layers</label>
+                        <input type="number" value={gridLayers} onChange={(e) => setGridLayers(e.target.value)} className="bg-[var(--holo-gold)]/5 border border-[var(--holo-gold)]/20 focus:border-[var(--holo-gold)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner text-[var(--holo-gold)]" />
+                     </div>
+                     <div className="flex flex-col gap-1">
+                        <label className="text-[8px] font-black uppercase text-[var(--holo-gold)] tracking-widest ml-1">Gap per Layer (%)</label>
+                        <input type="number" step="0.1" value={gridGapPct} onChange={(e) => setGridGapPct(e.target.value)} className="bg-[var(--holo-gold)]/5 border border-[var(--holo-gold)]/20 focus:border-[var(--holo-gold)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner text-[var(--holo-gold)]" />
+                     </div>
+                  </div>
+               )}
 
                <div className="flex gap-2 mt-2">
                   {!state.isActive ? (

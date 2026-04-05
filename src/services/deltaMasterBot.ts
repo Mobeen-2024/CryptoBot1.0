@@ -20,7 +20,9 @@ export interface DeltaMasterConfig {
   slPercent?: number; 
   tpTiersArray?: number[]; 
   entryPrice?: number;
-  autoHedgeMode?: 'OFF' | 'CONDITIONAL' | 'INSTANT';
+  hedgeStrategy?: 'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC';
+  gridLayers?: number;
+  gridGapPct?: number;
   maxDrawdownPct?: number;
   minVolatilityThreshold?: number;
 }
@@ -85,6 +87,9 @@ export interface DeltaMasterState {
     accountB: { balance: number; used: number; free: number; pnlPct: number };
   };
   distanceToHedge?: number;
+  hedgeStrategy?: 'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC';
+  gridLayers?: number;
+  gridGapPct?: number;
 }
 
 export class DeltaMasterBot extends EventEmitter {
@@ -160,6 +165,9 @@ export class DeltaMasterBot extends EventEmitter {
     this.state.phase = 'SYMMETRIC_DEPLOY';
     this.state.realizedPnLA = 0;
     this.state.realizedPnLB = 0;
+    this.state.hedgeStrategy = config.hedgeStrategy || 'MIRROR';
+    this.state.gridLayers = config.gridLayers || 3;
+    this.state.gridGapPct = config.gridGapPct || 0.5;
     this.emitStatus();
 
     const startTime = Date.now();
@@ -590,8 +598,8 @@ export class DeltaMasterBot extends EventEmitter {
        return; // Re-arm cooldown active
     }
 
-    const mode = this.config.autoHedgeMode || 'INSTANT';
-    if (mode === 'OFF') {
+    const strategy = this.config.hedgeStrategy || 'MIRROR';
+    if (strategy === 'OFF') {
       this.state.hedgeStatus = 'inactive';
       return;
     }
@@ -599,41 +607,61 @@ export class DeltaMasterBot extends EventEmitter {
     const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
     const intel = this.intelligenceService.getIntelligence(this.state.symbol);
     const baseOffset = this.config.entryOffset || 5;
-    const dynamicOffset = intel ? this.intelligenceService.recommendOffset(baseOffset, intel, this.config.sideA) : baseOffset;
+    
+    // Strategy Logic: DYNAMIC Offset Calculation
+    let dynamicOffset = baseOffset;
+    if (strategy === 'DYNAMIC' && intel) {
+      dynamicOffset = this.intelligenceService.recommendOffset(baseOffset, intel, this.config.sideA);
+    }
     
     this.state.entryB = this.intelligenceService.calculateSymmetricalOffset(this.state.entryA, dynamicOffset, this.config.sideA);
     
-    if (mode === 'CONDITIONAL') {
-       // Do not place order yet, wait until price approaches SL
-       const distanceToSL = Math.abs(this.state.lastPrice - (this.state.slOrder ? this.state.slOrder.price : 0));
-       const distanceToEntry = Math.abs(this.state.lastPrice - this.state.entryA);
-       // Only place hedge if we are more than 50% towards SL
-       if (distanceToSL > distanceToEntry) {
+    // Strategy Logic: DELAYED Trigger Gate
+    if (strategy === 'DELAYED') {
+       const slPrice = this.state.slOrder?.price || 0;
+       if (!slPrice) return;
+       const totalRange = Math.abs(this.state.entryA - slPrice);
+       const distanceToSL = Math.abs(this.state.lastPrice - slPrice);
+       // Only place hedge if we are more than 50% towards SL (trigger zone)
+       if (distanceToSL > (totalRange * 0.5)) {
          this.state.hedgeStatus = 'inactive';
          return; 
        }
     }
 
     try {
-      const orderB = await this.deltaService.placeOrder(this.deltaService.getClientB(), this.state.symbol, 'stop_limit', sideB, this.state.hedgeQty, this.state.entryB, { stopPrice: this.state.entryB, leverage: 20 });
+      if (strategy === 'GRID_HEDGE') {
+        const layers = this.config.gridLayers || 3;
+        const gap = this.config.gridGapPct || 0.5;
+        const qtyPerLayer = Number((this.state.hedgeQty / layers).toFixed(3));
+        
+        for (let i = 0; i < layers; i++) {
+          const layerOffset = dynamicOffset + (this.state.entryA * (gap * i / 100));
+          const layerPrice = this.intelligenceService.calculateSymmetricalOffset(this.state.entryA, layerOffset, this.config.sideA);
+          await this.deltaService.placeOrder(this.deltaService.getClientB(), this.state.symbol, 'stop_limit', sideB, qtyPerLayer, layerPrice, { stopPrice: layerPrice, leverage: 20 });
+        }
+        this.emitEventLog('grid_deployed', `[GRID_HEDGE] ${layers} layers armed starting at $${this.state.entryB.toFixed(2)}`);
+      } else {
+        const orderB = await this.deltaService.placeOrder(this.deltaService.getClientB(), this.state.symbol, 'stop_limit', sideB, this.state.hedgeQty, this.state.entryB, { stopPrice: this.state.entryB, leverage: 20 });
+        this.state.hedgeOrderId = orderB.id || 'hedge_reentry';
+        this.emitEventLog('hedge_ready', `[${strategy}] Shield dynamically mapped to $${this.state.entryB.toFixed(2)}`);
+      }
       this.state.hedgeStatus = 'pending';
-      this.state.hedgeOrderId = orderB.id || 'hedge_reentry';
-      this.emitEventLog('hedge_ready', `Hedge Shield dynamically mapped to $${this.state.entryB.toFixed(2)}`);
     } catch (e) {
-      Logger.error('[DELTA_MASTER] Shield Redeplyment Failure:', e);
+      Logger.error('[DELTA_MASTER] Strategy Deployment Failure:', e);
     }
   }
 
   private async syncTargetExposure(markPrice: number, currentQtyA: number) {
     if (!this.config || !this.state.slOrder) return;
     
-    // Auto Hedge OFF guard
-    if (this.config.autoHedgeMode === 'OFF') {
+    // OFF guard
+    if (this.config.hedgeStrategy === 'OFF') {
        return;
     }
     
-    // Re-attempt conditional hedge placement if active
-    if (this.state.hedgeStatus === 'inactive' && this.config.autoHedgeMode === 'CONDITIONAL') {
+    // Re-attempt DELAYED or DYNAMIC hedge placement if price enters trigger zone
+    if (this.state.hedgeStatus === 'inactive' && (this.config.hedgeStrategy === 'DELAYED' || this.config.hedgeStrategy === 'DYNAMIC')) {
        await this.redeployHedge();
     }
     
@@ -645,7 +673,7 @@ export class DeltaMasterBot extends EventEmitter {
        const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
        if (targetQty > 0 && currentQtyB === 0) {
           this.state.hedgeStatus = 'active';
-          this.emitEventLog('hedge_activated', `⚠️ Hedge Activated! Shorting $${markPrice.toFixed(2)} to protect downside.`);
+          this.emitEventLog('hedge_activated', `⚠️ Strategy Triggered! Executing $${markPrice.toFixed(2)} protection.`);
           await this.logShadowFill('delta_master_b', this.state.symbol, sideB, targetQty, markPrice);
        }
     }
