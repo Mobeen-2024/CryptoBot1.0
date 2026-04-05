@@ -872,24 +872,27 @@ async function startServer() {
       // ─── Managed Bot Interceptor ───
       // If this is a termination request for a Master Agent, route it to the bot's Atomic Exit logic.
       if (params.isClosingPosition) {
-        const cleanSymbol = symbol.split('-')[0].replace('/', ''); // Support both raw and master tags
+        const cleanSymbol = symbol.split('-')[0].replace('/', ''); 
         
-        if (slave_id === 'delta_master_a') {
+        // Handle Delta Master (any account A or B)
+        if (slave_id && slave_id.startsWith('delta_master_')) {
           const matchingSymbol = [...deltaMasterBots.keys()].find(k => k.replace('/', '') === cleanSymbol);
           const bot = matchingSymbol ? deltaMasterBots.get(matchingSymbol) : null;
           
           if (bot) {
-            Logger.info(`[SERVER] Manual termination detected for Delta Master (Account A - ${matchingSymbol}). Activating Bot Exit Sequence...`);
+            Logger.info(`[SERVER] Manual termination detected for Delta Master (${slave_id} - ${matchingSymbol}). Activating Bot Exit Sequence...`);
             await bot.stop();
             return res.json({ message: 'Delta Master Agent Terminated via Node List', status: bot.getStatus() });
           }
         }
-        if (slave_id === 'binance_master_a') {
+        
+        // Handle Binance Master (any account A or B)
+        if (slave_id && slave_id.startsWith('binance_master_')) {
           const matchingSymbol = [...binanceMasterBots.keys()].find(k => k.replace('/', '') === cleanSymbol);
           const bot = matchingSymbol ? binanceMasterBots.get(matchingSymbol) : null;
           
           if (bot) {
-            Logger.info(`[SERVER] Manual termination detected for Binance Master (Account A - ${matchingSymbol}). Activating Bot Exit Sequence...`);
+            Logger.info(`[SERVER] Manual termination detected for Binance Master (${slave_id} - ${matchingSymbol}). Activating Bot Exit Sequence...`);
             await bot.stop();
             return res.json({ message: 'Binance Master Agent Terminated via Node List', status: bot.getStatus() });
           }

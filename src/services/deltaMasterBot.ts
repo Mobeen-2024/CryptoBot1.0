@@ -253,6 +253,8 @@ export class DeltaMasterBot extends EventEmitter {
   }
 
   public async stop() {
+    if (!this.state.isActive && this.state.phase === 'CLOSED') return;
+    this.state.isActive = false;
     Logger.info('[DELTA_MASTER] Initiating Atomic Exit Sequence...');
     
     try {
