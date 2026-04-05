@@ -412,8 +412,37 @@ export class DeltaMasterBot extends EventEmitter {
           reasoningSnippet: intel.reasoningSnippet
         };
 
-        const balanceB = await this.deltaService.fetchBalance(this.deltaService.getClientB());
-        this.state.availableMarginB = (balanceB as any).total || 0;
+        const [balanceA, balanceB] = await Promise.all([
+           this.deltaService.fetchBalance(this.deltaService.getClientA()),
+           this.deltaService.fetchBalance(this.deltaService.getClientB())
+        ]);
+        
+        const totalA = (balanceA as any).total || 1000;
+        const totalB = (balanceB as any).total || 1000;
+        const freeA = (balanceA as any).free || 1000;
+        const freeB = (balanceB as any).free || 1000;
+        
+        // Account A: Primary (leverA)
+        // Account B: Hedge (leverB)
+        const usedA = totalA - freeA;
+        const usedB = totalB - freeB;
+        
+        this.state.marginStats = {
+          accountA: { 
+            balance: totalA, 
+            used: usedA, 
+            free: freeA, 
+            pnlPct: totalA > 0 ? (this.state.pnlA / totalA) * 100 : 0 
+          },
+          accountB: { 
+            balance: totalB, 
+            used: usedB, 
+            free: freeB, 
+            pnlPct: totalB > 0 ? (this.state.pnlB / totalB) * 100 : 0 
+          }
+        };
+
+        this.state.availableMarginB = totalB;
 
         if (this.state.availableMarginB < 50 && this.state.isActive) {
            try {

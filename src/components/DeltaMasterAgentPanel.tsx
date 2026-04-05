@@ -210,17 +210,23 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
 
   const RiskMeter: React.FC<{ risk: number }> = ({ risk }) => {
     const bars = 10;
-    const activeBars = Math.ceil((risk / 100) * bars);
+    const activeBars = Math.ceil((Math.min(100, risk) / 100) * bars);
     const barString = '█'.repeat(activeBars) + '░'.repeat(bars - activeBars);
     
-    let color = 'text-[#848e9c]';
-    if (risk > 75) color = 'text-rose-500 animate-pulse';
-    else if (risk > 40) color = 'text-[var(--holo-gold)]';
-    else if (risk > 0) color = 'text-[var(--holo-cyan)]';
+    let color = 'text-emerald-400';
+    let label = '🟢 SAFE';
+    
+    if (risk > 60) {
+      color = 'text-rose-500 animate-pulse';
+      label = '🔴 HIGH RISK';
+    } else if (risk > 30) {
+      color = 'text-[var(--holo-gold)]';
+      label = '🟡 MODERATE';
+    }
 
     return (
       <div className="flex flex-col items-center gap-0.5">
-        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c]">Risk Matrix</span>
+        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c]">Risk Matrix - {label}</span>
         <div className={cn("font-mono text-[10px] tracking-tighter flex items-center gap-2", color)}>
           <span className="opacity-40">[{barString}]</span>
           <span className="font-black">{risk.toFixed(0)}%</span>
@@ -230,24 +236,18 @@ export const DeltaMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) 
   };
 
   const calculateRisk = () => {
-    if (!state.isActive || !state.entryA) return 0;
+    if (!state.isActive || !state.marginStats) return 0;
     
-    // Risk factor 1: Price proximity to stop loss
-    const sl = state.slOrder?.price || 0;
-    if (sl) {
-      const totalRange = Math.abs(state.entryA - sl);
-      const currentDist = Math.abs(state.lastPrice - state.entryA);
-      const slRisk = Math.min(100, (currentDist / totalRange) * 100);
-      
-      // Risk factor 2: Drawdown risk
-      const maxDD = Number(maxDrawdown) || 3;
-      const ddThreshold = state.entryA * (maxDD / 100);
-      const ddDist = Math.abs(state.lastPrice - state.entryA);
-      const ddRisk = Math.min(100, (ddDist / ddThreshold) * 100);
-      
-      return Math.max(slRisk, ddRisk);
-    }
-    return 0;
+    const used = (state.marginStats.accountA.used || 0) + (state.marginStats.accountB.used || 0);
+    const balance = (state.marginStats.accountA.balance || 0) + (state.marginStats.accountB.balance || 0);
+    const marginRisk = (used / (balance || 1)) * 100;
+    
+    const loss = Math.max(0, -state.pnlA) + Math.max(0, -state.pnlB);
+    const pnlRisk = (loss / (balance || 1)) * 100;
+    
+    const volFactor = (state.intelligence?.volatilityScore || 0) / 10;
+    
+    return Math.min(100, marginRisk + pnlRisk + volFactor);
   };
 
   // Agent State Badge color mapper

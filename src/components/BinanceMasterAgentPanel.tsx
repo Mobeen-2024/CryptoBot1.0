@@ -23,29 +23,29 @@ interface BinanceMasterState {
   hedgeStatus: 'inactive' | 'pending' | 'active';
   hedgeQty: number;
   netExposureDelta: number;
-  accumulatedFees?: number; // Phase 9
+  accumulatedFees?: number;
+  marginStats?: {
+    accountA: { balance: number; used: number; free: number; pnlPct: number };
+    accountB: { balance: number; used: number; free: number; pnlPct: number };
+  };
   intelligence?: {
     sentiment: number;
-    sentimentConfidence?: number;
-    reasoningSnippet?: string;
     regime: string;
     volatilityScore: number;
     liquidityScore: number;
     atr?: number;
     dynamicFriction?: number;
-    lastNewsUpdate?: number;
+    reasoningSnippet?: string;
   };
   telemetry?: {
     avgLatency: number;
-    lastSlippage?: number;
     executionSpeed: number;
     heartbeat: number;
-    latencyBreakdown?: { // Phase 9
-      exchangeFetch: number;
-      logicProcessing: number;
-      orderExecution: number;
-    };
   };
+  hedgeStrategy?: 'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC';
+  gridLayers?: number;
+  gridGapPct?: number;
+  distanceToHedge?: number;
 }
 
 export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }) => {
@@ -66,8 +66,7 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
     slOrder: null,
     hedgeStatus: 'inactive',
     hedgeQty: 0,
-    netExposureDelta: 0,
-    intelligence: undefined
+    netExposureDelta: 0
   });
 
   const [wsConnected, setWsConnected] = useState(false);
@@ -80,8 +79,137 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
   const [atrMultiplier, setAtrMultiplier] = useState(1.0);
   const [slPercent, setSlPercent] = useState('1.0');
   const [tpTiers, setTpTiers] = useState('2,3,4,5');
+  const [hedgeStrategy, setHedgeStrategy] = useState<'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC'>('MIRROR');
+  const [gridLayers, setGridLayers] = useState('3');
+  const [gridGapPct, setGridGapPct] = useState('0.5');
+  const [pnlHistoryA, setPnlHistoryA] = useState<number[]>([]);
+  const [pnlHistoryB, setPnlHistoryB] = useState<number[]>([]);
   const [showPilotSetup, setShowPilotSetup] = useState(false);
   const [isPilotArmed, setIsPilotArmed] = useState(false);
+
+  useEffect(() => {
+    setPnlHistoryA(prev => [...prev.slice(-29), state.pnlA]);
+    setPnlHistoryB(prev => [...prev.slice(-29), state.pnlB]);
+  }, [state.pnlA, state.pnlB]);
+
+  const PnLSparkline: React.FC<{ data: number[]; color: string }> = ({ data, color }) => {
+    if (data.length < 2) return <div className="h-4 w-12 bg-white/5 rounded-sm animate-pulse" />;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const points = data.map((d, i) => `${(i / (data.length - 1)) * 50},${15 - ((d - min) / range) * 15}`).join(' ');
+    
+    return (
+      <svg width="50" height="15" className="overflow-visible">
+        <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={points} />
+      </svg>
+    );
+  };
+
+  const RiskMeter: React.FC<{ risk: number }> = ({ risk }) => {
+    const bars = 10;
+    const activeBars = Math.ceil((Math.min(100, risk) / 100) * bars);
+    const barString = '█'.repeat(activeBars) + '░'.repeat(bars - activeBars);
+    let color = 'text-emerald-400';
+    let label = '🟢 SAFE';
+    if (risk > 60) { color = 'text-rose-500 animate-pulse'; label = '🔴 HIGH'; }
+    else if (risk > 30) { color = 'text-[var(--holo-gold)]'; label = '🟡 MODERATE'; }
+
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <span className="text-[6px] font-black uppercase text-gray-500 tracking-widest">{label}</span>
+        <div className={cn("font-mono text-[9px] tracking-tighter flex items-center gap-1.5", color)}>
+          <span className="opacity-30">[{barString}]</span>
+          <span className="font-black">{risk.toFixed(0)}%</span>
+        </div>
+      </div>
+    );
+  };
+
+  const calculateRisk = () => {
+    if (!state.isActive || !state.marginStats) return 0;
+    const used = (state.marginStats.accountA.used || 0) + (state.marginStats.accountB.used || 0);
+    const balance = (state.marginStats.accountA.balance || 0) + (state.marginStats.accountB.balance || 0);
+    const marginRisk = (used / (balance || 1)) * 100;
+    const loss = Math.max(0, -state.pnlA) + Math.max(0, -state.pnlB);
+    const pnlRisk = (loss / (balance || 1)) * 100;
+    const volFactor = (state.intelligence?.volatilityScore || 0) / 10;
+    return Math.min(100, marginRisk + pnlRisk + volFactor);
+  };
+
+  const renderVisualHUD = () => {
+    if (!state.isActive) return null;
+    const isBuy = sideA === 'buy';
+    const range = (state.slOrder?.price || 0) - state.entryA || 1000;
+    const start = state.entryA - range * 0.2;
+    const end = (state.slOrder?.price || 0) + range * 0.2;
+    const scale = (p: number) => ((p - start) / (end - start)) * 100;
+
+    return (
+      <div className="glass-panel p-3 rounded-xl border-white/5 bg-black/40 mb-3 relative overflow-hidden h-24">
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-gray-500">Tactical Rail · Binance</span>
+          <div className="flex gap-4">
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-fuchsia-500" />
+              <span className="text-[6px] font-black text-gray-400 uppercase">Primary</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span className="text-[6px] font-black text-gray-400 uppercase">Hedge</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative w-full h-1.5 bg-white/5 rounded-full mt-4">
+          {/* Rail Track */}
+          <div className="absolute w-full h-full border-y border-white/5 opacity-20" />
+          
+          {/* SL Marker */}
+          {state.slOrder && (
+            <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)] z-20" style={{ left: `${scale(state.slOrder.price)}%` }}>
+              <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[6px] font-bold text-rose-500">SL</span>
+            </div>
+          )}
+
+          {/* TP Markers */}
+          {state.tpTiers.map((tp, i) => (
+            <div key={i} className={cn("absolute top-1/2 -translate-y-1/2 w-0.5 h-3 z-10", tp.status === 'filled' ? "bg-emerald-500" : "bg-emerald-500/30 font-black")} style={{ left: `${scale(tp.price)}%` }}>
+              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[5px] text-emerald-500">TP{tp.tier}</span>
+            </div>
+          ))}
+
+          {/* Entry A */}
+          <div className="absolute top-1/2 -translate-y-1/2 w-1 h-3 bg-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,0.5)] z-30" style={{ left: `${scale(state.entryA)}%` }}>
+             <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[6px] font-black text-fuchsia-400">ENTRY</span>
+          </div>
+
+          {/* Hedge Marker(s) */}
+          {state.hedgeStrategy === 'GRID_HEDGE' ? (
+            Array.from({ length: Number(gridLayers) }).map((_, i) => {
+               const gap = Number(gridGapPct) || 0.5;
+               const offset = i * (state.entryA * (gap / 100));
+               const price = isBuy ? state.entryB - offset : state.entryB + offset; // Simplified projection
+               return (
+                 <div key={i} className="absolute top-1/2 -translate-y-1/2 w-0.5 h-2.5 bg-amber-500/50 border border-amber-500/30 z-20" style={{ left: `${scale(price)}%` }} />
+               );
+            })
+          ) : (
+            <div className="absolute top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] z-30" style={{ left: `${scale(state.entryB)}%` }}>
+               <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[6px] font-black text-amber-500">HEDGE</span>
+            </div>
+          )}
+
+          {/* Current Price */}
+          <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white shadow-[0_0_15px_white] z-40 transition-all duration-300 ring-2 ring-white/20" style={{ left: `${scale(state.lastPrice)}%` }}>
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white text-black px-1 rounded text-[7px] font-black tabular-nums">
+              ${state.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 1 })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -142,7 +270,10 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
           protectionRatio: 1.0, 
           atrMultiplier,
           slPercent: Number(slPercent),
-          tpTiers
+          tpTiers,
+          hedgeStrategy,
+          gridLayers: Number(gridLayers),
+          gridGapPct: Number(gridGapPct)
         })
       });
       if (!res.ok) throw new Error('Deployment failed');
@@ -198,30 +329,13 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-            {!isPilotArmed ? (
-              <button 
-                onClick={() => setShowPilotSetup(true)} 
-                className="p-1.5 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-lg hover:bg-fuchsia-500/40 transition-all text-fuchsia-400"
-                title="Arm Bot Pilot"
-              >
-                 <Zap className="w-3 h-3" />
-              </button>
-            ) : (
-              <div className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400">
-                <ShieldCheck className="w-3 h-3" />
-              </div>
-            )}
+        <div className="flex items-center gap-4">
+           <RiskMeter risk={calculateRisk()} />
            <div className={cn(
-              "px-3 py-1 rounded-full border text-[9px] font-black tracking-widest flex items-center gap-2",
-              wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400 animate-pulse"
+              "px-3 py-1 rounded-lg border text-[9px] font-black tracking-widest bg-black/40",
+              wsConnected ? "border-emerald-500/20 text-emerald-400" : "border-rose-500/20 text-rose-400 animate-pulse"
            )}>
-              <div className="flex flex-col items-end">
-                 <div className="flex items-center gap-1.5">
-                    <Activity className="w-3 h-3" />
-                    {wsConnected ? `SYNCED: ${latency}ms` : 'OFFLINE'}
-                 </div>
-              </div>
+              {wsConnected ? `SYNCED · ${latency}ms` : 'OFFLINE'}
            </div>
         </div>
       </div>
@@ -238,7 +352,10 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
         {/* Account A PnL */}
         <div className="glass-panel border-fuchsia-500/20 p-2 rounded-xl col-span-1">
           <div className="flex justify-between items-center mb-1">
-             <span className="text-[7px] font-black uppercase tracking-widest text-gray-500">Spot Alpha (A)</span>
+             <div className="flex flex-col">
+                <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">Spot Alpha (A)</span>
+                <PnLSparkline data={pnlHistoryA} color="#f472b6" />
+             </div>
              <span className="text-[6px] font-bold text-fuchsia-400 px-1 bg-fuchsia-500/10 rounded">LIVE</span>
           </div>
           <span className={cn("text-lg font-black font-mono tracking-tighter", state.pnlA >= 0 ? "text-emerald-400" : "text-rose-400")}>
@@ -285,7 +402,10 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
         {/* Account B PnL */}
         <div className="glass-panel border-amber-500/20 p-2 rounded-xl relative overflow-hidden col-span-1">
           <div className="flex justify-between items-center mb-1">
-             <span className="text-[7px] font-black uppercase tracking-widest text-gray-500">Insurance (B)</span>
+             <div className="flex flex-col">
+                <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">Insurance (B)</span>
+                <PnLSparkline data={pnlHistoryB} color="#fbbf24" />
+             </div>
              <div className={cn(
                "px-1 py-0.5 rounded text-[5px] font-black uppercase",
                state.hedgeStatus === 'active' ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
@@ -308,6 +428,8 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
           </div>
         </div>
       </div>
+
+      {renderVisualHUD()}
 
       <div className="grid grid-cols-4 gap-2 mb-3">
          {/* Volatility & ATR HUD */}
@@ -402,6 +524,28 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
                     className="bg-black/60 border border-white/10 focus:border-fuchsia-500/50 rounded px-2 py-1.5 font-mono text-[9px] outline-none text-emerald-400" 
                   />
                </div>
+               <div className="flex flex-col gap-1">
+                   <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">Strategy</label>
+                   <select value={hedgeStrategy} onChange={(e: any) => setHedgeStrategy(e.target.value)} className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-[9px] text-[var(--holo-gold)] outline-none appearance-none">
+                      <option value="MIRROR">MIRROR</option>
+                      <option value="DELAYED">DELAYED</option>
+                      <option value="GRID_HEDGE">GRID</option>
+                      <option value="DYNAMIC">DYNAMIC</option>
+                   </select>
+                </div>
+
+                {hedgeStrategy === 'GRID_HEDGE' && (
+                  <>
+                     <div className="flex flex-col gap-1">
+                        <label className="text-[7px] font-black uppercase text-[var(--holo-gold)] ml-1">Grid Lyrs</label>
+                        <input type="number" value={gridLayers} onChange={(e) => setGridLayers(e.target.value)} className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-[9px] text-[var(--holo-gold)] outline-none" />
+                     </div>
+                     <div className="flex flex-col gap-1">
+                        <label className="text-[7px] font-black uppercase text-[var(--holo-gold)] ml-1">Gap (%)</label>
+                        <input type="number" step="0.1" value={gridGapPct} onChange={(e) => setGridGapPct(e.target.value)} className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-[9px] text-[var(--holo-gold)] outline-none" />
+                     </div>
+                  </>
+                )}
 
                <div className="flex flex-col gap-1 col-span-1">
                   <label className="text-[7px] font-black uppercase text-fuchsia-400 ml-1">Side (A)</label>
@@ -412,9 +556,9 @@ export const BinanceMasterAgentPanel: React.FC<{ symbol: string }> = ({ symbol }
                </div>
             </div>
            
-            <button onClick={handleStart} disabled={loading} className="w-full py-2 bg-fuchsia-600 text-black font-black uppercase tracking-widest text-[9px] rounded hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
-               <Play className="w-3.5 h-3.5 fill-black" />
-               Deploy Agentic HMAC
+            <button onClick={handleStart} disabled={loading} className="w-full py-3 bg-[var(--holo-cyan)] text-black font-black uppercase tracking-[0.2em] text-[10px] rounded-lg hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] transition-all flex items-center justify-center gap-2">
+               <Play className="w-4 h-4 fill-black" />
+               Deploy Strategy Engine
             </button>
          </div>
       ) : (

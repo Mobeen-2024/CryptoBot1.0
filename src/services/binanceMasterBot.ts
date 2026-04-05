@@ -17,6 +17,9 @@ export interface BinanceMasterConfig {
   atrMultiplier?: number;
   slPercent?: number;
   tpTiersArray?: number[];
+  hedgeStrategy?: 'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC';
+  gridLayers?: number;
+  gridGapPct?: number;
 }
 
 export interface BinanceMasterState {
@@ -63,6 +66,10 @@ export interface BinanceMasterState {
     accountA: { balance: number; used: number; free: number; pnlPct: number };
     accountB: { balance: number; used: number; free: number; pnlPct: number };
   };
+  hedgeStrategy?: 'OFF' | 'MIRROR' | 'DELAYED' | 'GRID_HEDGE' | 'DYNAMIC';
+  gridLayers?: number;
+  gridGapPct?: number;
+  distanceToHedge?: number;
 }
 
 export class BinanceMasterBot extends EventEmitter {
@@ -116,9 +123,11 @@ export class BinanceMasterBot extends EventEmitter {
     this.config = config;
     this.state.isActive = true;
     this.state.symbol = config.symbol;
-    this.state.phase = 'SYMMETRIC_DEPLOY';
     this.state.realizedPnLA = 0;
     this.state.realizedPnLB = 0;
+    this.state.hedgeStrategy = config.hedgeStrategy || 'MIRROR';
+    this.state.gridLayers = config.gridLayers || 3;
+    this.state.gridGapPct = config.gridGapPct || 0.5;
     this.emitStatus();
 
     const startTime = Date.now();
@@ -288,8 +297,35 @@ export class BinanceMasterBot extends EventEmitter {
           reasoningSnippet: intel.reasoningSnippet
         };
 
-        const balanceB = await this.binanceService.fetchBalance(this.binanceService.getClientB());
-        this.state.availableMarginB = (balanceB as any).USDT?.free || 0;
+        const [balanceA, balanceB] = await Promise.all([
+           this.binanceService.fetchBalance(this.binanceService.getClientA()),
+           this.binanceService.fetchBalance(this.binanceService.getClientB())
+        ]);
+        
+        const totalA = (balanceA as any).USDT?.total || 1000;
+        const totalB = (balanceB as any).USDT?.total || 1000;
+        const freeA = (balanceA as any).USDT?.free || 1000;
+        const freeB = (balanceB as any).USDT?.free || 1000;
+        
+        const usedA = totalA - freeA;
+        const usedB = totalB - freeB;
+        
+        this.state.marginStats = {
+          accountA: { 
+            balance: totalA, 
+            used: usedA, 
+            free: freeA, 
+            pnlPct: totalA > 0 ? (this.state.pnlA / totalA) * 100 : 0 
+          },
+          accountB: { 
+            balance: totalB, 
+            used: usedB, 
+            free: freeB, 
+            pnlPct: totalB > 0 ? (this.state.pnlB / totalB) * 100 : 0 
+          }
+        };
+
+        this.state.availableMarginB = totalB;
 
         if (!this.sentimentInterval) this.startAgenticReasoning();
         this.emitStatus();
@@ -434,26 +470,40 @@ export class BinanceMasterBot extends EventEmitter {
   }
 
   private async redeployHedge() {
-    if (!this.config) return;
+    if (!this.config || this.state.hedgeStrategy === 'OFF') return;
+    
     const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
     const baseOffset = this.config.entryOffset;
     let finalOffset = baseOffset;
     
     const intel = this.intelligenceService.getIntelligence(this.config.symbol);
-    if (intel) {
+    if (this.state.hedgeStrategy === 'DYNAMIC' && intel) {
       finalOffset = this.intelligenceService.recommendOffset(baseOffset, intel, this.config.sideA);
-      this.state.entryB = this.intelligenceService.calculateSymmetricalOffset(this.state.entryA, finalOffset, this.config.sideA);
+    }
+    
+    this.state.entryB = this.intelligenceService.calculateSymmetricalOffset(this.state.entryA, finalOffset, this.config.sideA);
+
+    if (this.state.hedgeStrategy === 'DELAYED') {
+      this.state.hedgeStatus = 'pending';
+      return;
     }
 
-    await this.binanceService.placeOrder(
-      this.binanceService.getClientB(),
-      this.config.symbol,
-      'limit',
-      sideB,
-      this.state.hedgeQty,
-      this.state.entryB
-    );
+    if (this.state.hedgeStrategy === 'GRID_HEDGE') {
+      const layers = this.config.gridLayers || 3;
+      const gap = this.config.gridGapPct || 0.5;
+      const qtyPerLayer = Number((this.state.hedgeQty / layers).toFixed(3));
+      
+      for (let i = 0; i < layers; i++) {
+        const layerOffset = finalOffset + (this.state.entryA * (gap * i / 100));
+        const layerPrice = this.intelligenceService.calculateSymmetricalOffset(this.state.entryA, layerOffset, this.config.sideA);
+        await this.binanceService.placeOrder(this.binanceService.getClientB(), this.config.symbol, 'limit', sideB, qtyPerLayer, layerPrice);
+      }
+      this.state.hedgeStatus = 'pending';
+      return;
+    }
 
+    // MIRROR or Default Strategy
+    await this.binanceService.placeOrder(this.binanceService.getClientB(), this.config.symbol, 'limit', sideB, this.state.hedgeQty, this.state.entryB);
     this.state.hedgeStatus = 'pending';
   }
 
@@ -472,8 +522,19 @@ export class BinanceMasterBot extends EventEmitter {
     const positionsB = await this.binanceService.fetchPositions(this.binanceService.getClientB(), this.state.symbol);
     const currentQtyB = positionsB.length > 0 ? Math.abs((positionsB[0] as any).contracts) : 0;
 
+    const isBuy = this.config.sideA === 'buy';
+    if (this.state.hedgeStrategy === 'DELAYED') {
+      const distToSL = Math.abs(this.state.entryA - (this.state.slOrder?.price || 0));
+      const distToEntry = Math.abs(markPrice - this.state.entryA);
+      const isArmedRange = distToEntry >= (distToSL * 0.5);
+      
+      if (!isArmedRange && currentQtyB === 0) return;
+    }
+    
+    this.state.distanceToHedge = Math.abs(markPrice - this.state.entryB);
+
     if (Math.abs(targetQty - currentQtyB) > 0.001) {
-       const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
+       const sideB = isBuy ? 'sell' : 'buy';
        if (targetQty > 0 && currentQtyB === 0) {
           this.state.hedgeStatus = 'active';
           await this.logShadowFill('binance_master_b', this.state.symbol, sideB, targetQty, markPrice);
