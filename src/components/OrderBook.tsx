@@ -1,14 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { AlignJustify, ArrowDown, ArrowUp } from 'lucide-react';
+import { useOrderBookStream } from '../hooks/useBinanceStreams';
 
 interface OrderBookProps {
-  bids: [string, string][]; // [price, quantity]
-  asks: [string, string][];
+  symbol: string;
+  bids?: [string, string][]; // [price, quantity]
+  asks?: [string, string][];
 }
 
 type ViewMode = 'FULL' | 'BIDS' | 'ASKS';
 
-export const OrderBook = React.memo(({ bids, asks }: OrderBookProps) => {
+export const OrderBook = React.memo(({ symbol, bids: propsBids, asks: propsAsks }: OrderBookProps) => {
+  const streamData = useOrderBookStream(symbol);
+  const bids = propsBids || streamData.bids;
+  const asks = propsAsks || streamData.asks;
   const [viewMode, setViewMode] = useState<ViewMode>('FULL');
   const [precision, setPrecision] = useState<number>(2);
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
+import { useTradesStream } from '../hooks/useBinanceStreams';
 
 interface TradeRecord {
   id?: number;
@@ -14,9 +15,11 @@ interface TradeRecord {
 }
 
 // RecentTrades is now the full Trade History panel
-// It ignores `trades` prop and self-fetches the full history from the backend
-export const RecentTrades = React.memo(({ trades }: { trades?: any[] }) => {
+// It uses `useTradesStream` for the live tape and fetches history from the backend
+export const RecentTrades = React.memo(({ symbol, trades: propsTrades }: { symbol: string, trades?: any[] }) => {
+  const liveTrades = useTradesStream(symbol);
   const [history, setHistory] = useState<TradeRecord[]>([]);
+  const [view, setView] = useState<'HISTORY' | 'TAPE'>('TAPE');
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
   const [searchSymbol, setSearchSymbol] = useState('');
@@ -76,6 +79,12 @@ export const RecentTrades = React.memo(({ trades }: { trades?: any[] }) => {
             />
           </div>
 
+          {/* View Toggle */}
+          <div className="flex bg-white/5 border border-white/5 rounded-lg p-0.5 mr-2">
+            <button onClick={() => setView('TAPE')} className={`px-2.5 py-0.5 text-[9px] font-bold rounded-md transition-all ${view === 'TAPE' ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-500'}`}>Tape</button>
+            <button onClick={() => setView('HISTORY')} className={`px-2.5 py-0.5 text-[9px] font-bold rounded-md transition-all ${view === 'HISTORY' ? 'bg-amber-500/20 text-amber-400' : 'text-gray-500'}`}>History</button>
+          </div>
+
           {/* Filter pills */}
           <div className="flex bg-white/5 border border-white/5 rounded-lg p-0.5">
             {(['ALL', 'BUY', 'SELL'] as const).map(f => (
@@ -115,24 +124,18 @@ export const RecentTrades = React.memo(({ trades }: { trades?: any[] }) => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <div className="w-6 h-6 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-            <span className="text-[11px] text-gray-600 font-mono">Loading history…</span>
+            <span className="text-[11px] text-gray-600 font-mono">Loading...</span>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3">
-            <svg className="w-12 h-12 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 17H5a2 2 0 0 0-2 2v2h18v-2a2 2 0 0 0-2-2h-4"/><path d="M12 3v14"/><path d="M8 7l4-4 4 4"/></svg>
-            <span className="text-[11px] text-gray-600">No trades found</span>
-          </div>
-        ) : (
-          filtered.map((trade, i) => {
-            const isBuy = trade.side?.toUpperCase() === 'BUY';
+        ) : (view === 'HISTORY' ? filtered : liveTrades.filter(t => filter === 'ALL' || (t.isBuyerMaker ? 'SELL' : 'BUY') === filter)).map((trade: any, i: number) => {
+            const isBuy = view === 'HISTORY' ? trade.side?.toUpperCase() === 'BUY' : !trade.isBuyerMaker;
             const price = parseFloat(String(trade.price));
             const qty = parseFloat(String(trade.quantity));
             const total = price * qty;
-            const date = new Date(trade.timestamp);
+            const date = new Date(trade.time || trade.timestamp);
 
             return (
               <div
-                key={trade.id ?? trade.master_trade_id ?? i}
+                key={trade.id || i}
                 className="grid grid-cols-6 items-center px-4 py-2 border-b border-white/[0.03] hover:bg-white/[0.02] group transition-all cursor-default"
               >
                 {/* Side badge */}
@@ -183,7 +186,7 @@ export const RecentTrades = React.memo(({ trades }: { trades?: any[] }) => {
               </div>
             );
           })
-        )}
+        }
       </div>
 
       {/* ── Footer Summary ── */}

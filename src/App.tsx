@@ -24,6 +24,7 @@ import { placeOrder, fetchBalance as fetchBinanceBalance } from './services/api'
 import { ChartStyleModal } from './components/ChartStyleModal';
 import { ChartConfig, DEFAULT_CHART_CONFIG } from './types/chart';
 import toast, { Toaster } from 'react-hot-toast';
+import { useTickerStream, useKlinesStream, useOrderBookStream, useTradesStream, useBinanceStatus } from './hooks/useBinanceStreams';
 
 /** Utility for Tailwind class merging */
 function cn(...inputs: ClassValue[]) {
@@ -205,11 +206,17 @@ export default function App() {
   const [ticker24h, setTicker24h] = useState<any>(null);
   const [orderBook, setOrderBook] = useState<{ bids: [string, string][], asks: [string, string][] }>({ bids: [], asks: [] });
   const [recentTrades, setRecentTrades] = useState<any[]>([]);
-  const [apiConnected, setApiConnected] = useState(false);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [isSandbox, setIsSandbox] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(Date.now());
   const [error, setError] = useState<{ message: string, details?: string, code?: string } | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  // New Multiplexed Stream Hooks
+  const apiConnected = useBinanceStatus();
+  const ticker = useTickerStream(symbol);
+  const orderBookData = useOrderBookStream(symbol);
+  const recentTradesData = useTradesStream(symbol);
+  const lastKline = useKlinesStream(symbol, chartInterval);
 
   const [activeTab, setActiveTab] = useState<'positions' | 'analytics' | 'history' | 'ai' | 'database' | 'delta' | 'bot'>('positions');
 
@@ -223,8 +230,38 @@ export default function App() {
   const [isTimeSelectorOpen, setIsTimeSelectorOpen] = useState(false);
   const [isIndicatorLegendVisible, setIsIndicatorLegendVisible] = useState(true);
   const [isVerticalChart, setIsVerticalChart] = useState(false);
+  
+  // Sync real-time updates from hooks into local state to bridge legacy components
+  useEffect(() => {
+    if (ticker) {
+      setTicker24h({
+        high: ticker.high,
+        low: ticker.low,
+        volume: ticker.volume,
+        priceChangePercent: ticker.priceChangePercent,
+      });
+      setPriceChange(parseFloat(ticker.priceChangePercent));
+      setCurrentPrice(parseFloat(ticker.lastPrice));
+    }
+  }, [ticker]);
 
-  const wsRef = useRef<WebSocket | null>(null);
+  useEffect(() => {
+    if (lastKline) {
+      setCurrentPrice(lastKline.close);
+      if (lastKline.isClosed) {
+        setLastClosedCandle({ price: lastKline.close, time: lastKline.time });
+      }
+      setMarketData(prev => {
+        if (prev.length === 0) return [lastKline];
+        const lastCandle = prev[prev.length - 1];
+        if (lastCandle.time === lastKline.time) {
+          return [...prev.slice(0, -1), lastKline];
+        } else {
+          return [...prev, lastKline];
+        }
+      });
+    }
+  }, [lastKline]);
 
   useEffect(() => {
     // Check environment on mount
@@ -336,21 +373,18 @@ export default function App() {
     setMarketData([]);
   }, [chartInterval]);
 
-  useEffect(() => {
+    useEffect(() => {
+    // Only fetch historical data here. Real-time updates now handled by useBinanceStreams hooks.
     const fetchHistoricalData = async () => {
       try {
         const interval = canonicalInterval(chartInterval);
         const response = await fetch(`/api/binance/klines?symbol=${symbol}&interval=${interval}&limit=1000`);
         const result = await response.json();
 
-        // Handle both old and new backend responses gracefully
         const data = result.klines || result;
         const ind = result.indicators || {};
 
-        if (!Array.isArray(data)) {
-          console.error('Historical data format error:', data);
-          return;
-        }
+        if (!Array.isArray(data)) return;
 
         const emaOffset = data.length - (ind.ema200?.length || 0);
         const rsiOffset = data.length - (ind.rsi?.length || 0);
@@ -382,15 +416,12 @@ export default function App() {
           obv: i >= obvOffset ? ind.obv[i - obvOffset] : undefined,
           stochRsi: i >= stochRsiOffset ? ind.stochRsi[i - stochRsiOffset] : undefined,
           kdj: i >= kdjOffset ? ind.kdj[i - kdjOffset] : undefined,
-          // Alligator is already index-aligned to klines (same length)
           alligator: ind.alligator ? ind.alligator[i] : undefined,
         }));
 
         setMarketData(formattedData);
         if (formattedData.length > 0) {
           setCurrentPrice(formattedData[formattedData.length - 1].close);
-          const openPrice = formattedData[0].open;
-          setPriceChange(((formattedData[formattedData.length - 1].close - openPrice) / openPrice) * 100);
         }
       } catch (error) {
         console.error('Failed to fetch historical data:', error);
@@ -398,108 +429,6 @@ export default function App() {
     };
 
     fetchHistoricalData();
-
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-
-    const interval = canonicalInterval(chartInterval);
-    const streams = [
-      `${symbol.toLowerCase()}@kline_${interval}`,
-      `${symbol.toLowerCase()}@depth20@100ms`,
-      `${symbol.toLowerCase()}@trade`,
-      `${symbol.toLowerCase()}@ticker`
-    ].join('/');
-
-    const wsUrl = isSandbox
-      ? `wss://testnet.binance.vision/stream?streams=${streams}`
-      : `wss://stream.binance.com:9443/stream?streams=${streams}`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => setApiConnected(true);
-    ws.onclose = () => setApiConnected(false);
-
-    // Throttling state updates for performance
-    const lastUpdateTimes = {
-      depth: 0,
-      trade: 0,
-      ticker: 0,
-    };
-
-    ws.onmessage = (event) => {
-      const payload = JSON.parse(event.data);
-      if (!payload.stream) return;
-
-      const { stream, data } = payload;
-      const interval = canonicalInterval(chartInterval);
-      const now = Date.now();
-
-      if (stream.endsWith(`@kline_${interval}`)) {
-        const kline = data.k;
-        const updatedCandle = {
-          time: kline.t / 1000,
-          open: parseFloat(kline.o),
-          high: parseFloat(kline.h),
-          low: parseFloat(kline.l),
-          close: parseFloat(kline.c),
-        };
-
-        if (kline.x) {
-          setLastClosedCandle({ price: updatedCandle.close, time: updatedCandle.time });
-        }
-
-        setCurrentPrice(updatedCandle.close);
-
-        setMarketData((prev) => {
-          if (prev.length === 0) return [updatedCandle];
-
-          const lastCandle = prev[prev.length - 1];
-          if (lastCandle.time === updatedCandle.time) {
-            return [...prev.slice(0, -1), updatedCandle];
-          } else {
-            return [...prev, updatedCandle];
-          }
-        });
-      } else if (stream.endsWith('@depth20@100ms')) {
-        if (now - lastUpdateTimes.depth > 250) {
-          setOrderBook({ bids: data.bids, asks: data.asks });
-          lastUpdateTimes.depth = now;
-        }
-      } else if (stream.endsWith('@trade')) {
-        if (now - lastUpdateTimes.trade > 250) {
-          setRecentTrades(prev => {
-            const newTrade = {
-              id: data.t,
-              price: data.p,
-              quantity: data.q,
-              time: data.T,
-              isBuyerMaker: data.m
-            };
-            return [newTrade, ...prev].slice(0, 50);
-          });
-          lastUpdateTimes.trade = now;
-        }
-      } else if (stream.endsWith('@ticker')) {
-        if (now - lastUpdateTimes.ticker > 500) {
-          setTicker24h({
-            high: data.h,
-            low: data.l,
-            volume: data.v,
-            priceChangePercent: data.P
-          });
-          setPriceChange(parseFloat(data.P));
-          lastUpdateTimes.ticker = now;
-        }
-      }
-    };
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
   }, [symbol, chartInterval, isSandbox, lastRefreshed]);
 
   const handlePlaceOrder = React.useCallback(async (order: any) => {
@@ -995,7 +924,7 @@ export default function App() {
           <div className="flex-1 overflow-hidden bg-[#0b0e11]">
             {activeTab === 'positions' && <CurrentPositions />}
             {activeTab === 'analytics' && <PerformanceChart />}
-            {activeTab === 'history' && <RecentTrades trades={recentTrades} />}
+            {activeTab === 'history' && <RecentTrades symbol={symbol} trades={recentTrades} />}
             {activeTab === 'ai' && <AIAgentPanel marketData={marketData} symbol={symbol} />}
             {activeTab === 'database' && <DatabasePanel />}
             {activeTab === 'delta' && <DeltaNeutralPanel symbol={symbol} currentPrice={currentPrice} />}
@@ -1011,7 +940,7 @@ export default function App() {
           </div>
           {/* Order Book */}
           <div className="lg:w-[320px] shrink-0 glass-panel rounded-2xl overflow-hidden min-h-[320px]">
-            <OrderBook bids={orderBook.bids} asks={orderBook.asks} />
+            <OrderBook symbol={symbol} />
           </div>
           {/* Open Orders */}
           <div className="lg:w-[440px] xl:w-[480px] shrink-0 glass-panel rounded-2xl overflow-hidden min-h-[320px]">

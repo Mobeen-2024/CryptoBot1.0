@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Activity, Radio, Cpu, BarChart2, ShieldAlert } from 'lucide-react';
+import { useTickerStream } from '../hooks/useBinanceStreams';
 
 interface CoinInfoProps {
   symbol: string;
@@ -15,26 +16,27 @@ interface TickerData {
 }
 
 export const CoinInfo = React.memo(({ symbol }: CoinInfoProps) => {
-  const [data, setData] = useState<TickerData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const ticker = useTickerStream(symbol);
+  const loading = !ticker;
 
-  useEffect(() => {
-    setLoading(true);
-    setData(null);
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@ticker`);
-    
-    ws.onmessage = (event) => {
-      const parsed = JSON.parse(event.data);
-      if (parsed.e === '24hrTicker') {
-        setData(parsed);
-        setLoading(false);
-      }
-    };
+  if (!ticker) {
+    return (
+      <div className="glass-panel backdrop-blur-2xl p-4 rounded-xl border border-[var(--holo-cyan)]/20 shadow-[0_0_30px_rgba(0,0,0,0.6)] relative overflow-hidden group h-full flex flex-col items-center justify-center">
+        <Activity className="w-6 h-6 text-[var(--holo-cyan)]/50 animate-bounce mb-2" />
+        <span className="text-[10px] font-mono text-[var(--holo-cyan)]/50 uppercase tracking-[0.2em] font-bold">Establishing Uplink...</span>
+      </div>
+    );
+  }
 
-    return () => {
-      ws.close();
-    };
-  }, [symbol]);
+  // Map stream data to local component expected format
+  const data = {
+    c: ticker.lastPrice,
+    P: ticker.priceChangePercent,
+    h: ticker.high,
+    l: ticker.low,
+    v: ticker.volume,
+    q: '0' // Quote volume not available in simple ticker stream without extra data, but we can mock or ignore
+  };
 
   const formatVol = (val: string) => {
     const v = parseFloat(val);
