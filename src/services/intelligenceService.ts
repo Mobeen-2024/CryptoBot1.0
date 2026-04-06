@@ -20,7 +20,9 @@ export class IntelligenceService {
   private static instance: IntelligenceService;
   private data: Map<string, IntelligenceData> = new Map();
   private genAI: GoogleGenerativeAI | null = null;
-  private model: any | null = null;
+  private researchKernel: any | null = null;
+  private executionKernel: any | null = null;
+  private liveKernel: any | null = null;
 
   private constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -32,10 +34,19 @@ export class IntelligenceService {
   public setGeminiKey(key: string) {
     try {
       this.genAI = new GoogleGenerativeAI(key);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1' });
-      Logger.info('[INTELLIGENCE] Gemini Reasoning Kernel Initialized (v1).');
+      
+      // Research Kernel: High Context (1M)
+      this.researchKernel = this.genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" }, { apiVersion: 'v1' });
+      
+      // Execution Kernel: High RPD (Logical Reasoning)
+      this.executionKernel = this.genAI.getGenerativeModel({ model: "gemma-3-27b" }, { apiVersion: 'v1' });
+      
+      // Live Kernel: Sub-second (Hedge Reactivity)
+      this.liveKernel = this.genAI.getGenerativeModel({ model: "gemini-3-flash-live" }, { apiVersion: 'v1' });
+
+      Logger.info('[INTELLIGENCE] Multi-Kernel Matrix Initialized (Gemini 3.1 FL / Gemma 3 27B / Gemini 3 Flash Live).');
     } catch (e) {
-      Logger.error('[INTELLIGENCE] Gemini Initialization Failed:', e);
+      Logger.error('[INTELLIGENCE] Multi-Kernel Initialization Failed:', e);
     }
   }
 
@@ -47,14 +58,14 @@ export class IntelligenceService {
   }
 
   public async applyAgenticConsensus(symbol: string, news: string) {
-    if (!this.model) {
-      Logger.warn('[INTELLIGENCE] Gemini Mode Unavailable. Falling back to Phase 9 math.');
+    if (!this.researchKernel) {
+      Logger.warn('[INTELLIGENCE] Research Kernel Unavailable. Falling back to Phase 9 math.');
       return;
     }
 
     try {
       const prompt = AgenticSearchService.createSentimentPrompt(symbol, news);
-      const result = await this.model.generateContent(prompt);
+      const result = await this.researchKernel.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
       
@@ -82,7 +93,7 @@ export class IntelligenceService {
         lastNewsUpdate: Date.now()
       });
 
-      Logger.info(`[INTELLIGENCE] Bot Pilot Consensus for ${symbol}: ${analysis.sentiment} (${(analysis.confidence * 100).toFixed(0)}% Conf)`);
+      Logger.info(`[INTELLIGENCE] Research Consensus (${this.researchKernel.model}) for ${symbol}: ${analysis.sentiment} (${(analysis.confidence * 100).toFixed(0)}% Conf)`);
       if (analysis.isHighRisk) {
         Logger.warn(`[INTELLIGENCE] AI WARNING: HIGH RISK DETECTED FOR ${symbol}!`);
       }
@@ -90,6 +101,36 @@ export class IntelligenceService {
       Logger.error('[INTELLIGENCE] Agentic Consensus Error:', error);
     }
   }
+
+  public async applyHedgeConsensus(symbol: string, hedgePrice: number, currentPrice: number): Promise<boolean> {
+    if (!this.liveKernel) return true; // Default to allow hedge if model unavailable
+
+    try {
+      const prompt = `LIVESTREAM HEDGE DECISION:
+      Pair: ${symbol}
+      Target Hedge: ${hedgePrice}
+      Mark Price: ${currentPrice}
+      
+      Mission: Protect Capital. Should we engage the sub-second shield? 
+      Return JSON: { "engage": boolean, "reason": string }`;
+
+      const result = await this.liveKernel.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}') + 1;
+      const jsonStr = text.substring(jsonStart, jsonEnd);
+      const decision = JSON.parse(jsonStr);
+
+      Logger.info(`[INTELLIGENCE] Live Shield Consensus (${this.liveKernel.model}): ${decision.engage ? 'ENGAGE' : 'HOLD'} - ${decision.reason}`);
+      return decision.engage;
+    } catch (e) {
+      Logger.error('[INTELLIGENCE] Live Shield Error:', e);
+      return true;
+    }
+  }
+
 
   public async analyzeSymbol(symbol: string, lastPrice: number, spread: number): Promise<IntelligenceData> {
     const existing = this.data.get(symbol);

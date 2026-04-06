@@ -701,6 +701,13 @@ export class DeltaMasterBot extends EventEmitter {
     if (Math.abs(targetQty - currentQtyB) > 0.001) {
        const sideB = this.config.sideA === 'buy' ? 'sell' : 'buy';
        if (targetQty > 0 && currentQtyB === 0) {
+          // Live Shield Consensus (Phase 12)
+          const allowHedge = await this.intelligenceService.applyHedgeConsensus(this.state.symbol, this.state.entryB, markPrice);
+          if (!allowHedge) {
+             this.emitEventLog('hedge_deferred', `[SHIELD] Gemini Live deferred hedge engagement. Awaiting better entry.`);
+             return;
+          }
+
           this.state.hedgeStatus = 'active';
           this.emitEventLog('hedge_activated', `⚠️ Strategy Triggered! Executing $${markPrice.toFixed(2)} protection.`);
           await this.logShadowFill('delta_master_b', this.state.symbol, sideB, targetQty, markPrice);

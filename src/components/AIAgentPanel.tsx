@@ -44,9 +44,10 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
     const bootSequence = async () => {
       setIsAnalyzing(true);
       const initialLogs = [
-        { id: '1', agent: 'System' as const, text: `[CORE] Initializing Neural Link: ${symbol}`, timestamp: Date.now() },
-        { id: '2', agent: 'Risk Sentinel' as const, text: 'Scanning localized volatility matrices...', timestamp: Date.now() + 500 },
-        { id: '3', agent: 'Apex Aggressor' as const, text: 'Identifying breakout liquidity pools...', timestamp: Date.now() + 1000 },
+        { id: '1', agent: 'System' as const, text: `[CORE] Initializing Multi-Kernel Matrix: ${symbol}`, timestamp: Date.now() },
+        { id: '2', agent: 'Risk Sentinel' as const, text: 'Gemma 3 27B: Logic reasoning engine online.', timestamp: Date.now() + 500 },
+        { id: '3', agent: 'Apex Aggressor' as const, text: 'Gemini 3.1 Flash Lite: 1M Token research window open.', timestamp: Date.now() + 1000 },
+        { id: '4', agent: 'System' as const, text: 'Gemini 3 Flash Live: Sub-second reactivity engaged.', timestamp: Date.now() + 1500 },
       ];
 
       for (const log of initialLogs) {
@@ -204,7 +205,14 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
                 {isAnalyzing ? 'REASONING...' : 'SYNCED'}
               </span>
             </h2>
-            <p className="text-[10px] text-gray-500 font-mono tracking-widest mt-0.5">MODEL: HIVE_MIND_v5.0 // UPTIME: 99.9%</p>
+            <div className="flex flex-col">
+              <p className="text-[10px] text-gray-500 font-mono tracking-widest mt-0.5 uppercase">MODEL: Gemini 3.1 Flash Lite // UPTIME: 99.9%</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <div className="px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded text-[7px] font-black tracking-[0.2em] text-indigo-400 animate-pulse">
+                  HIGH CONTEXT MODE: 1M TOKEN WINDOW ENABLED
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

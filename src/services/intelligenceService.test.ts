@@ -1,6 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { IntelligenceService } from './intelligenceService';
 
+// Mock GoogleGenerativeAI
+const mockGetGenerativeModel = vi.fn().mockImplementation((config) => ({
+  generateContent: vi.fn().mockResolvedValue({
+    response: {
+      text: () => config.model === 'gemini-3-flash-live' 
+        ? JSON.stringify({ engage: true, reason: 'Test Reason' })
+        : JSON.stringify({ sentiment: 0.5, confidence: 0.9, reasoningSnippet: 'Test' })
+    }
+  }),
+  model: config.model
+}));
+
+vi.mock('@google/generative-ai', () => ({
+  GoogleGenerativeAI: vi.fn().mockImplementation(() => ({
+    getGenerativeModel: mockGetGenerativeModel
+  }))
+}));
+
 // Mock Logger
 vi.mock('../../logger', () => ({
   Logger: {
@@ -14,11 +32,31 @@ describe('IntelligenceService', () => {
   let service: IntelligenceService;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     service = IntelligenceService.getInstance();
     // Clear data between tests (since it's a singleton)
     (service as any).data = new Map();
-    vi.clearAllMocks();
   });
+
+  describe('setGeminiKey', () => {
+    it('should initialize three distinct kernels', () => {
+      mockGetGenerativeModel.mockClear();
+      service.setGeminiKey('test-key');
+      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(3);
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith({ model: 'gemini-3.1-flash-lite' }, { apiVersion: 'v1' });
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith({ model: 'gemma-3-27b' }, { apiVersion: 'v1' });
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith({ model: 'gemini-3-flash-live' }, { apiVersion: 'v1' });
+    });
+  });
+
+  describe('applyHedgeConsensus', () => {
+    it('should return true when live kernel approves hedge', async () => {
+      service.setGeminiKey('test-key');
+      const result = await service.applyHedgeConsensus('BTC/USDT', 50000, 49950);
+      expect(result).toBe(true);
+    });
+  });
+
 
   describe('updateATR', () => {
     it('should correctly calculate ATR from OHLCV data', () => {

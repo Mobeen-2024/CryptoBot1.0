@@ -536,6 +536,14 @@ export class BinanceMasterBot extends EventEmitter {
     if (Math.abs(targetQty - currentQtyB) > 0.001) {
        const sideB = isBuy ? 'sell' : 'buy';
        if (targetQty > 0 && currentQtyB === 0) {
+          // Live Shield Consensus (Phase 12)
+          const allowHedge = await this.intelligenceService.applyHedgeConsensus(this.state.symbol, this.state.entryB, markPrice);
+          if (!allowHedge) {
+             // We don't have event logs in BinanceMasterBot like in DeltaMasterBot, but we can add one or just return
+             Logger.info(`[BINANCE_MASTER] Shield Consensus deferred hedge engagement.`);
+             return;
+          }
+
           this.state.hedgeStatus = 'active';
           await this.logShadowFill('binance_master_b', this.state.symbol, sideB, targetQty, markPrice);
        }
