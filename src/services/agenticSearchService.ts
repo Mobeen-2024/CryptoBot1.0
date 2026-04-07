@@ -73,7 +73,8 @@ CRITICAL RULES:
 1. Sentiment Score: Output exactly between -1.0 (extreme bearish/panic) and 1.0 (extreme bullish/hype).
 2. Confidence Score: Output between 0.0 and 1.0. If news is ambiguous, use a low confidence.
 3. Reasoning: Provide a one-sentence technical justification for the bias.
-4. ATR Override Check: If the news mentions a "Flash Crash", "Hack", or "Sudden Liquidity Drain", flag as HIGH_RISK.
+4. Regime Consensus: Identify the current market regime (STABLE_TREND, RANGE_BOUND, HIGH_VOLATILITY, LIQUIDITY_HUNT).
+5. ATR Override Check: If the news mentions a "Flash Crash", "Hack", or "Sudden Liquidity Drain", flag as HIGH_RISK.
 
 HEADLINES TO ANALYZE:
 ${sanitizedNews}
@@ -82,6 +83,7 @@ RESPONSE FORMAT (JSON ONLY):
 {
   "sentiment": number,
   "confidence": number,
+  "regime": "STABLE_TREND" | "RANGE_BOUND" | "HIGH_VOLATILITY" | "LIQUIDITY_HUNT",
   "reasoningSnippet": "string",
   "isHighRisk": boolean
 }

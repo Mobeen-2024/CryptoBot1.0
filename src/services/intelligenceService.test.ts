@@ -7,7 +7,7 @@ const mockGetGenerativeModel = vi.fn().mockImplementation((config) => ({
     response: {
       text: () => config.model === 'gemini-3-flash-live' 
         ? JSON.stringify({ engage: true, reason: 'Test Reason' })
-        : JSON.stringify({ sentiment: 0.5, confidence: 0.9, reasoningSnippet: 'Test' })
+        : JSON.stringify({ sentiment: 0.5, confidence: 0.9, regime: 'STABLE_TREND', reasoningSnippet: 'Test' })
     }
   }),
   model: config.model
@@ -46,6 +46,17 @@ describe('IntelligenceService', () => {
       expect(mockGetGenerativeModel).toHaveBeenCalledWith({ model: 'gemini-3.1-flash-lite' }, { apiVersion: 'v1' });
       expect(mockGetGenerativeModel).toHaveBeenCalledWith({ model: 'gemma-3-27b' }, { apiVersion: 'v1' });
       expect(mockGetGenerativeModel).toHaveBeenCalledWith({ model: 'gemini-3-flash-live' }, { apiVersion: 'v1' });
+    });
+  });
+
+  describe('applyAgenticConsensus', () => {
+    it('should update regime and sentiment from AI response', async () => {
+      service.setGeminiKey('test-key');
+      await service.applyAgenticConsensus('BTC/USDT', 'Bullish news headlines');
+      
+      const intel = service.getIntelligence('BTC/USDT');
+      expect(intel?.sentiment).toBe(0.5);
+      expect(intel?.regime).toBe('STABLE_TREND');
     });
   });
 

@@ -89,11 +89,12 @@ export class IntelligenceService {
         ...current,
         sentiment: analysis.sentiment,
         sentimentConfidence: analysis.confidence,
+        regime: analysis.regime || current.regime,
         reasoningSnippet: analysis.reasoningSnippet,
         lastNewsUpdate: Date.now()
       });
 
-      Logger.info(`[INTELLIGENCE] Research Consensus (${this.researchKernel.model}) for ${symbol}: ${analysis.sentiment} (${(analysis.confidence * 100).toFixed(0)}% Conf)`);
+      Logger.info(`[INTELLIGENCE] Research Consensus (${this.researchKernel.model}) for ${symbol}: ${analysis.sentiment} (${(analysis.confidence * 100).toFixed(0)}% Conf) - REGIME: ${analysis.regime}`);
       if (analysis.isHighRisk) {
         Logger.warn(`[INTELLIGENCE] AI WARNING: HIGH RISK DETECTED FOR ${symbol}!`);
       }

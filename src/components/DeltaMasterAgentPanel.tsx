@@ -401,14 +401,14 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
                 <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Logic Kernel</span>
                 <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded">
                    <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
-                   <span className="text-[8px] font-mono font-bold text-blue-400 select-none uppercase">Gemma 3 27B</span>
+                   <span className="text-[8px] font-mono font-bold text-blue-400 select-none uppercase">Gemma 3 27B (14.4k RPD / Monitoring Optimized)</span>
                 </div>
              </div>
              <div className="flex flex-col items-end">
                 <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Shield Kernel</span>
                 <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded">
                    <div className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
-                   <span className="text-[8px] font-mono font-bold text-amber-400 select-none uppercase">Gemini 3 Flash Live</span>
+                   <span className="text-[8px] font-mono font-bold text-amber-400 select-none uppercase">Gemini 3 Flash Live (Sub-second / Unlimited Reactivity)</span>
                 </div>
              </div>
           </div>

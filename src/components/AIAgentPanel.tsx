@@ -314,7 +314,7 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({ symbol }) => {
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={isVoiceActive ? "LISTENING..." : "QUERY HIVE MIND..."}
+                placeholder={isVoiceActive ? "LISTENING..." : "QUERY RESEARCH KERNEL..."}
                 className="w-full bg-transparent border-none text-[12px] font-mono text-[var(--holo-cyan)] pl-8 focus:ring-0 placeholder-white/10 uppercase tracking-widest"
               />
             </div>
