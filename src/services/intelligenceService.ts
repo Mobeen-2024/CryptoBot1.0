@@ -1,19 +1,21 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Logger } from '../../logger';
-import { AgenticSearchService } from './agenticSearchService';
+import { Logger } from '../../logger.js';
+import { AdvisorySignal } from './decisionEngine.js';
 
-export type MarketRegime = 'STABLE_TREND' | 'RANGE_BOUND' | 'HIGH_VOLATILITY' | 'LIQUIDITY_HUNT';
+export type MarketRegime = 'TREND' | 'RANGE' | 'VOLATILE';
 
 interface IntelligenceData {
-  sentiment: number; 
-  sentimentConfidence: number; // 0.0 to 1.0 (Phase 11)
-  reasoningSnippet?: string; // Phase 11
   regime: MarketRegime;
   volatilityScore: number; 
   liquidityScore: number; 
   lastUpdate: number;
-  lastNewsUpdate?: number; // Phase 11
+  lastNewsUpdate?: number;
   atr?: number;
+  executionAdvisory?: {
+    friction: number;
+    offset: number;
+    reason: string;
+  };
 }
 
 export class IntelligenceService {
@@ -34,16 +36,9 @@ export class IntelligenceService {
   public setGeminiKey(key: string) {
     try {
       this.genAI = new GoogleGenerativeAI(key);
-      
-      // Research Kernel: High Context (1M)
       this.researchKernel = this.genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" }, { apiVersion: 'v1' });
-      
-      // Execution Kernel: High RPD (Logical Reasoning)
       this.executionKernel = this.genAI.getGenerativeModel({ model: "gemma-3-27b" }, { apiVersion: 'v1' });
-      
-      // Live Kernel: Sub-second (Hedge Reactivity)
       this.liveKernel = this.genAI.getGenerativeModel({ model: "gemini-3-flash-live" }, { apiVersion: 'v1' });
-
       Logger.info('[INTELLIGENCE] Multi-Kernel Matrix Initialized (Gemini 3.1 FL / Gemma 3 27B / Gemini 3 Flash Live).');
     } catch (e) {
       Logger.error('[INTELLIGENCE] Multi-Kernel Initialization Failed:', e);
@@ -57,236 +52,176 @@ export class IntelligenceService {
     return IntelligenceService.instance;
   }
 
-  public async applyAgenticConsensus(symbol: string, news: string) {
-    if (!this.researchKernel) {
-      Logger.warn('[INTELLIGENCE] Research Kernel Unavailable. Falling back to Phase 9 math.');
-      return;
-    }
+  /**
+   * RESEARCH KERNEL: Strictly defines Market Regime.
+   */
+  public async detectMarketRegime(symbol: string, news: string) {
+    if (!this.researchKernel) return;
 
     try {
-      const prompt = AgenticSearchService.createSentimentPrompt(symbol, news);
-      const result = await this.researchKernel.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      
-      // Attempt to parse JSON safely
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}') + 1;
-      const jsonStr = text.substring(jsonStart, jsonEnd);
-      
-      const analysis = JSON.parse(jsonStr);
-      
-      const current = this.data.get(symbol) || { 
-        sentiment: 0, 
-        sentimentConfidence: 0, 
-        regime: 'STABLE_TREND' as MarketRegime, 
-        volatilityScore: 0, 
-        liquidityScore: 100, 
-        lastUpdate: Date.now() 
-      };
-
-      this.data.set(symbol, {
-        ...current,
-        sentiment: analysis.sentiment,
-        sentimentConfidence: analysis.confidence,
-        regime: analysis.regime || current.regime,
-        reasoningSnippet: analysis.reasoningSnippet,
-        lastNewsUpdate: Date.now()
-      });
-
-      Logger.info(`[INTELLIGENCE] Research Consensus (${this.researchKernel.model}) for ${symbol}: ${analysis.sentiment} (${(analysis.confidence * 100).toFixed(0)}% Conf) - REGIME: ${analysis.regime}`);
-      if (analysis.isHighRisk) {
-        Logger.warn(`[INTELLIGENCE] AI WARNING: HIGH RISK DETECTED FOR ${symbol}!`);
-      }
-    } catch (error) {
-      Logger.error('[INTELLIGENCE] Agentic Consensus Error:', error);
-    }
-  }
-
-  public async applyHedgeConsensus(symbol: string, hedgePrice: number, currentPrice: number): Promise<boolean> {
-    if (!this.liveKernel) return true; // Default to allow hedge if model unavailable
-
-    try {
-      const prompt = `LIVESTREAM HEDGE DECISION:
+      const prompt = `MARKET REGIME ANALYSIS:
       Pair: ${symbol}
-      Target Hedge: ${hedgePrice}
-      Mark Price: ${currentPrice}
-      
-      Mission: Protect Capital. Should we engage the sub-second shield? 
-      Return JSON: { "engage": boolean, "reason": string }`;
+      Recent Intel: ${news}
+      Identify regime: TREND | RANGE | VOLATILE.
+      Return JSON: { "regime": "TREND" | "RANGE" | "VOLATILE", "confidence": number, "reason": string }`;
 
-      const result = await this.liveKernel.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const result = await this.researchKernel.generateContent(prompt);
+      const text = (await result.response).text();
+      const analysis = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
       
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}') + 1;
-      const jsonStr = text.substring(jsonStart, jsonEnd);
-      const decision = JSON.parse(jsonStr);
-
-      Logger.info(`[INTELLIGENCE] Live Shield Consensus (${this.liveKernel.model}): ${decision.engage ? 'ENGAGE' : 'HOLD'} - ${decision.reason}`);
-      return decision.engage;
+      const current = this.data.get(symbol) || this.getDefaultData();
+      this.data.set(symbol, { ...current, regime: analysis.regime, lastNewsUpdate: Date.now() });
+      Logger.info(`[RESEARCH_ADVISORY] Market State: ${analysis.regime}`);
     } catch (e) {
-      Logger.error('[INTELLIGENCE] Live Shield Error:', e);
-      return true;
+      Logger.error('[INTELLIGENCE] Research Error:', e);
     }
   }
 
+  /**
+   * EXECUTION KERNEL: Calculates ATR friction and Entry offsets.
+   */
+  public async calculateExecutionAdvisory(symbol: string, price: number, spread: number, atr: number) {
+    if (!this.executionKernel) return;
 
-  public async analyzeSymbol(symbol: string, lastPrice: number, spread: number): Promise<IntelligenceData> {
-    const existing = this.data.get(symbol);
-    
-    const sentiment = existing ? existing.sentiment : 0;
-    const confidence = existing ? existing.sentimentConfidence : 0;
-    const volatility = Math.min(100, Math.max(10, (spread / lastPrice) * 10000));
-    
-    let regime: MarketRegime = 'STABLE_TREND';
-    if (volatility > 60) regime = 'HIGH_VOLATILITY';
-    else if (volatility < 20) regime = 'RANGE_BOUND';
-    
-    const intelligence: IntelligenceData = {
-      sentiment,
-      sentimentConfidence: confidence,
-      reasoningSnippet: existing?.reasoningSnippet,
-      regime,
-      volatilityScore: volatility,
-      liquidityScore: Math.max(0, 100 - volatility),
-      lastUpdate: Date.now(),
-      lastNewsUpdate: existing?.lastNewsUpdate,
-      atr: existing?.atr
-    };
+    try {
+      const prompt = `EXECUTION OPTIMIZATION (GEMMA 3):
+      Symbol: ${symbol} Price: ${price} Spread: ${spread} ATR: ${atr}
+      Calculate optimal: "friction" (shield buffer) and "offset" (entry distance).
+      Return JSON: { "friction": number, "offset": number, "reason": string }`;
 
-    this.data.set(symbol, intelligence);
-    return intelligence;
-  }
-
-  public setSentiment(symbol: string, score: number) {
-    const current = this.data.get(symbol) || { sentiment: 0, sentimentConfidence: 0, regime: 'STABLE_TREND' as MarketRegime, volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
-    this.data.set(symbol, { ...current, sentiment: Math.max(-1, Math.min(1, score)), lastUpdate: Date.now() });
-    Logger.info(`[INTELLIGENCE] Manual Sentiment Override for ${symbol}: ${score}`);
+      const result = await this.executionKernel.generateContent(prompt);
+      const text = (await result.response).text();
+      const advisory = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+      
+      const current = this.data.get(symbol) || this.getDefaultData();
+      this.data.set(symbol, { ...current, executionAdvisory: advisory, lastUpdate: Date.now() });
+      Logger.info(`[EXECUTION_ADVISORY] Friction: ${advisory.friction}, Offset: ${advisory.offset}`);
+    } catch (e) {
+      Logger.error('[INTELLIGENCE] Execution Error:', e);
+    }
   }
 
   public getIntelligence(symbol: string): IntelligenceData | undefined {
     return this.data.get(symbol);
   }
 
-  /**
-   * Recommends a dynamic offset based on Intelligence Data
-   * @param baseOffset The user-defined base offset (e.g., 5 USDT)
-   * @param intelligence The current intelligence state
-   * @param botSide "buy" or "sell" (Account A side)
-   */
-  public recommendOffset(baseOffset: number, intelligence: IntelligenceData, botSide: string): number {
-    let offset = baseOffset;
-
-    // 1. Volatility Adjustment
-    if (intelligence.regime === 'HIGH_VOLATILITY') {
-      offset *= 1.5; 
-    }
-
-    // 2. Agentic Sentiment Modulation (Phase 11)
-    // Only apply if confidence is high (>= 0.7)
-    if (intelligence.sentimentConfidence >= 0.7) {
-      // If we are LONG (buy) and sentiment is BEARISH (-1), we tighten the shield trigger
-      if (botSide === 'buy' && intelligence.sentiment < -0.3) {
-        offset *= 0.7; // Tighten trigger (move closer to entry)
-      } else if (botSide === 'sell' && intelligence.sentiment > 0.3) {
-        offset *= 0.7; // Tighten trigger for Shorts if sentiment is Bullish
-      }
-    }
-
-    // 3. ATR Sanity Check (Flash Crash Override)
-    // If ATR is surging while Sentiment is bullish, we force tighter offsets regardless of AI bias
-    if (intelligence.atr && intelligence.atr > (baseOffset * 2)) {
-      Logger.warn('[INTELLIGENCE] ATR Surge Detected! Overriding AI bias for safety.');
-      offset *= 0.5; // Force tight protection
-    }
-
-    return parseFloat(offset.toFixed(2));
-  }
-
-  /**
-   * Centralizes the trigger price calculation for Account B
-   * @param entryA Account A entry price
-   * @param baseOffset The baseline 5 USDT offset or dynamic variant
-   * @param sideA Direction of Account A ('buy' = Long, 'sell' = Short)
-   */
   public calculateSymmetricalOffset(entryA: number, baseOffset: number, sideA: 'buy' | 'sell'): number {
-    // Bullish: Hedge is below EntryA (Sell-Stop)
-    // Bearish: Hedge is above EntryA (Buy-Stop)
     return sideA === 'buy' ? entryA - baseOffset : entryA + baseOffset;
   }
 
-  public getFrictionOffset(sideA: 'buy' | 'sell', symbol: string, k: number = 1.0): number {
-    return this.getDynamicFriction(symbol, k) * (sideA === 'buy' ? 1 : -1);
-  }
-
-  /**
-   * Returns a dynamic offset based on the current ATR and user multiplier.
-   * Standardizes Phase 9 "Dynamic Friction" architecture.
-   */
-  public getDynamicFriction(symbol: string, k: number = 1.0): number {
-    const intel = this.data.get(symbol);
-    if (intel && intel.atr) {
-      return intel.atr * k;
-    }
-    return 2.0; // Default hard fallback
-  }
-
-  /**
-   * Fetches real-time ATR from a provided exchange service instance.
-   */
-  public async fetchATR(service: any, symbol: string, timeframe: string = '1m', period: number = 20) {
-    try {
-      if (service && typeof service.fetchOHLCV === 'function') {
-        const ohlcv = await service.fetchOHLCV(symbol, timeframe, undefined, period);
-        if (ohlcv && ohlcv.length > 0) {
-          this.updateATR(symbol, ohlcv);
-        }
-      }
-    } catch (e) {
-      Logger.error(`[INTELLIGENCE] ATR Fetch Failed for ${symbol}:`, e);
-    }
-  }
-
-  /**
-   * Calculates ATR(14) from OHLCV data
-   */
-  public updateATR(symbol: string, ohlcv: number[][]) {
-    if (ohlcv.length < 15) return;
-    
-    let trSum = 0;
-    for (let i = 1; i < ohlcv.length; i++) {
-        const [,, high, low, close] = ohlcv[i];
-        const prevClose = ohlcv[i-1][4];
-        const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-        trSum += tr;
-    }
-    const atr = trSum / (ohlcv.length - 1);
-    const current = this.data.get(symbol) || { sentiment: 0, sentimentConfidence: 0, regime: 'STABLE_TREND' as MarketRegime, volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
-    this.data.set(symbol, { ...current, atr, lastUpdate: Date.now() });
-    Logger.info(`[INTELLIGENCE] ATR Updated for ${symbol}: ${atr.toFixed(2)}`);
-  }
-
-  /**
-   * Calculates the target hedge exposure based on the current price state.
-   * Mission: Always Protected.
-   * Standardizes the Phase 9 State-Based Exposure Model.
-   */
-  public calculateRequiredHedge(markPrice: number, entryA: number, entryB: number, qtyA: number, sideA: 'buy' | 'sell', slA: number): number {
+  public calculateRequiredHedge(markPrice: number, entryA: number, entryB: number, qtyA: number, sideA: 'buy' | 'sell'): number {
     const isBuy = sideA === 'buy';
     const triggerCrossed = isBuy ? markPrice <= entryB : markPrice >= entryB;
+    return triggerCrossed ? qtyA : 0;
+  }
+
+  /**
+   * LIVE KERNEL: Sub-second safety gate.
+   */
+  public async applyHedgeConsensus(symbol: string, hedgePrice: number, currentPrice: number): Promise<boolean> {
+    if (!this.liveKernel) return true;
+
+    try {
+      const prompt = `LIVE SHIELD GATE: Symbol: ${symbol} Hedge: ${hedgePrice} Mark: ${currentPrice} 
+      Is it safe to hedge NOW? Return JSON: { "safe": boolean, "reason": string }`;
+
+      const result = await this.liveKernel.generateContent(prompt);
+      const text = (await result.response).text();
+      const decision = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+
+      Logger.info(`[LIVE_GATE] ${decision.safe ? 'GRANTED' : 'DENIED'} - ${decision.reason}`);
+      return decision.safe;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  public async applyAgenticConsensus(symbol: string, news: string) {
+    Logger.info(`[INTELLIGENCE] Applying Agentic Consensus for ${symbol}...`);
+    // Pass it to the research kernel to update the regime
+    await this.detectMarketRegime(symbol, news);
+  }
+
+  public updateATR(symbol: string, ohlcv: any[]) {
+    // This is a mock/helper for simulation to force ATR changes
+    // In production, fetchATR calculates it from real candles
+    const current = this.data.get(symbol) || this.getDefaultData();
+    // Simulate ATR calculation (e.g., avg range of last few candles)
+    const ranges = ohlcv.slice(-14).map(c => c[2] - c[3]);
+    const avgRange = ranges.reduce((a, b) => a + b, 0) / (ranges.length || 1);
+    this.data.set(symbol, { ...current, atr: avgRange, lastUpdate: Date.now() });
+    Logger.info(`[INTELLIGENCE] ATR for ${symbol} synthetically updated to ${avgRange.toFixed(2)}`);
+  }
+
+  public setSentiment(symbol: string, score: number) {
+    const data = this.data.get(symbol) || this.getDefaultData();
+    // Normalize sentiment into regime or volatility adjustment
+    if (score > 0.5) data.regime = 'TREND';
+    else if (score < -0.5) data.regime = 'VOLATILE';
+    else data.regime = 'RANGE';
     
-    if (!triggerCrossed) return 0;
+    this.data.set(symbol, data);
+    Logger.info(`[INTELLIGENCE] Sentiment for ${symbol} overridden to ${score} (${data.regime})`);
+  }
+
+  public async analyzeSymbol(symbol: string, lastPrice: number, spread: number): Promise<IntelligenceData> {
+    const volatility = Math.min(100, Math.max(10, (spread / lastPrice) * 10000));
+    let regime: MarketRegime = 'TREND';
+    if (volatility > 60) regime = 'VOLATILE';
+    else if (volatility < 20) regime = 'RANGE';
     
-    // Phase 9: Dynamic Hedge Scaling
-    // If we are between EntryB and SL_A, we want to maintain the hedge.
-    // In advanced mode, we scale from 0.5 to 1.0 or just 1.0 for institutional safety.
-    const distanceToStop = Math.abs(entryA - slA);
-    const currentDistance = Math.abs(entryA - markPrice);
-    
-    // If price is 50% towards SL, we must have at least 50% hedge.
-    // But for institutional standard, we aim for full Delta Neutrality immediately upon trigger.
-    return qtyA; 
+    const existing = this.data.get(symbol) || this.getDefaultData();
+    const current: IntelligenceData = { 
+      ...existing, 
+      regime, 
+      volatilityScore: volatility, 
+      liquidityScore: 100 - volatility, 
+      lastUpdate: Date.now() 
+    };
+    this.data.set(symbol, current);
+    return current;
+  }
+
+  public recommendOffset(baseOffset: number, intel: IntelligenceData): number {
+    let offset = baseOffset;
+    if (intel.executionAdvisory) offset = intel.executionAdvisory.offset;
+    else if (intel.regime === 'VOLATILE') offset *= 1.5;
+    return parseFloat(offset.toFixed(2));
+  }
+
+  public getFrictionOffset(sideA: 'buy' | 'sell', symbol: string, k: number = 1.0): number {
+    const intel = this.data.get(symbol);
+    const friction = (intel?.executionAdvisory?.friction || (intel?.atr || 2.0)) * k;
+    return friction * (sideA === 'buy' ? 1 : -1);
+  }
+
+  public async fetchATR(service: any, symbol: string) {
+    if (service?.fetchOHLCV) {
+      const ohlcv = await service.fetchOHLCV(symbol, '1m', undefined, 20);
+      if (ohlcv?.length > 15) {
+        let trSum = 0;
+        for (let i = 1; i < ohlcv.length; i++) {
+          const tr = Math.max(ohlcv[i][2] - ohlcv[i][3], Math.abs(ohlcv[i][2] - ohlcv[i-1][4]), Math.abs(ohlcv[i][3] - ohlcv[i-1][4]));
+          trSum += tr;
+        }
+        const current = this.data.get(symbol) || this.getDefaultData();
+        this.data.set(symbol, { ...current, atr: trSum / (ohlcv.length - 1), lastUpdate: Date.now() });
+      }
+    }
+  }
+
+  public getAdvisorySignal(symbol: string): AdvisorySignal | undefined {
+    const intel = this.data.get(symbol);
+    if (!intel) return undefined;
+    return {
+      source: 'RESEARCH_REGIME',
+      bias: 'NEUTRAL',
+      confidence: 0.8,
+      reason: `Market State: ${intel.regime}`
+    };
+  }
+
+  private getDefaultData(): IntelligenceData {
+    return { regime: 'RANGE', volatilityScore: 0, liquidityScore: 100, lastUpdate: Date.now() };
   }
 }

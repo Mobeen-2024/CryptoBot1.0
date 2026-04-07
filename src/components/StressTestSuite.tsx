@@ -15,8 +15,18 @@ const StressTestSuite: React.FC<StressTestSuiteProps> = ({ symbol, onScenarioCha
     { id: 'V_REVERSAL', name: 'V-Reversal', icon: <Activity className="w-4 h-4" />, desc: 'Rapid drop and recovery' },
     { id: 'LIQUIDITY_SWEEP', name: 'Liquidity Sweep', icon: <Zap className="w-4 h-4" />, desc: 'High-frequency noise' },
     { id: 'SENTIMENT_SHOCK', name: 'Sentiment Shock', icon: <AlertTriangle className="w-4 h-4" />, desc: 'AI Bullish vs Market Crash' },
-    { id: 'WHIPSAW', name: 'Whipsaw Stress', icon: <Wind className="w-4 h-4" />, desc: 'Fast +/- ATR oscillation' }
+    { id: 'WHIPSAW', name: 'Whipsaw Stress', icon: <Wind className="w-4 h-4" />, desc: 'Fast +/- ATR oscillation' },
+    { id: 'LIQUIDITY_HUNT', name: 'Liquidity Hunt', icon: <Zap className="w-4 h-4 text-red-500" />, desc: 'Aggressive Wick Spikes' },
+    { id: 'AI_DISAGREEMENT', name: 'AI Conflict', icon: <AlertTriangle className="w-4 h-4 text-orange-500" />, desc: 'Research vs Execution' }
   ];
+
+  const handleLatencyChange = async (ms: string) => {
+    try {
+      await axios.post('http://localhost:3000/api/simulation/latency', { ms, jitter: 0.2 });
+    } catch (err) {
+      console.error('Failed to set latency:', err);
+    }
+  };
 
   const runScenario = async (id: string) => {
     setLoading(true);
@@ -84,6 +94,19 @@ const StressTestSuite: React.FC<StressTestSuiteProps> = ({ symbol, onScenarioCha
             <p className="text-[10px] text-slate-500 leading-tight">{s.desc}</p>
           </button>
         ))}
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-slate-700/50">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Synthetic Latency (ms)</label>
+          <span className="text-[10px] font-mono text-amber-500 font-bold">100ms - 1000ms</span>
+        </div>
+        <input 
+          type="range" 
+          min="0" max="1000" step="50"
+          className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+          onChange={(e) => handleLatencyChange(e.target.value)}
+        />
       </div>
 
       {activeScenario && (

@@ -1,6 +1,7 @@
 import ccxt from 'ccxt';
 import dotenv from 'dotenv';
 import { Logger } from '../../logger.js';
+import { SimulationService } from './simulationService.js';
 
 dotenv.config({ quiet: true });
 
@@ -9,13 +10,14 @@ export class DeltaExchangeService {
   private clientB: any;
   private isTestnet: boolean;
   private isShadowMode: boolean;
+  private simulationService: SimulationService;
   private rateLimitInfoA: { limit: number; remaining: number; reset: number } = { limit: 0, remaining: 100, reset: 0 };
   private rateLimitInfoB: { limit: number; remaining: number; reset: number } = { limit: 0, remaining: 100, reset: 0 };
 
   constructor() {
     this.isTestnet = process.env.DELTA_USE_TESTNET === 'true' || process.env.DELTA_USE_TESTNET === '1';
     this.isShadowMode = process.env.DELTA_SHADOW_MODE === 'true' || process.env.DELTA_SHADOW_MODE === '1';
-    this.isTestnet = process.env.DELTA_USE_TESTNET === 'true' || process.env.DELTA_USE_TESTNET === '1';
+    this.simulationService = SimulationService.getInstance();
 
     if (!this.isShadowMode) {
       // Account A: Primary Account
@@ -88,9 +90,12 @@ export class DeltaExchangeService {
 
   public async placeOrder(client: any, symbol: string, type: string, side: 'buy' | 'sell', amount: number, price?: number, params: any = {}) {
     if (this.isShadowMode) {
+      const wait = this.simulationService.getLatency();
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+      
       const simulatedId = `sim_delta_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
       const triggerInfo = params.stopPrice ? ` (STOP: ${params.stopPrice})` : '';
-      Logger.info(`[DELTA_SHADOW] ${type.toUpperCase()} ${side.toUpperCase()} ${amount} ${symbol} @ ${price || 'MARKET'}${triggerInfo}`);
+      Logger.info(`[DELTA_SHADOW] ${type.toUpperCase()} ${side.toUpperCase()} ${amount} ${symbol} @ ${price || 'MARKET'}${triggerInfo} (Lat: ${wait.toFixed(0)}ms)`);
       return { id: simulatedId, symbol, side, amount, price, status: 'open', simulated: true, type, params };
     }
 
@@ -149,7 +154,9 @@ export class DeltaExchangeService {
 
   public async transferSubaccountFunds(fromId: string, toId: string, asset: string, amount: number) {
     if (this.isShadowMode) {
-      Logger.info(`[DELTA_SHADOW] Subaccount Transfer: Main(${fromId}) -> Hedge(${toId}) | ${amount} ${asset}`);
+      const wait = this.simulationService.getLatency();
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+      Logger.info(`[DELTA_SHADOW] Subaccount Transfer: Main(${fromId}) -> Hedge(${toId}) | ${amount} ${asset} (Lat: ${wait.toFixed(0)}ms)`);
       return { status: 'success', simulated: true };
     }
 

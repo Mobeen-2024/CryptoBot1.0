@@ -20,6 +20,8 @@ import { IntelligenceService } from './src/services/intelligenceService.js';
 import { SimulationService } from './src/services/simulationService.js';
 import { AgenticSearchService } from './src/services/agenticSearchService.js';
 import { Logger as LoggerJs } from './logger.js';
+import { DeltaExchangeService } from './src/services/deltaExchangeService.js';
+import { DecisionEngine } from './src/services/decisionEngine.js';
 
 dotenv.config({ quiet: true });
 
@@ -98,7 +100,12 @@ async function startServer() {
   });
 
   // Start Trade Copier Service
-  const tradeCopier = new TradeCopier(io);
+  const tradeCopier = new TradeCopier();
+  
+  // Initialize Global Execution Bridge (Event Bus Refactor)
+  const globalDeltaService = new DeltaExchangeService();
+  await globalDeltaService.initialize();
+  DecisionEngine.initGlobalExecution(globalDeltaService);
   tradeCopier.start().catch(err => Logger.error('Failed to start Trade Copier:', err));
 
   // Initialize Delta Neutral Bot
@@ -596,6 +603,17 @@ async function startServer() {
     if (!bot) return res.status(404).json({ error: 'Bot not running for this symbol' });
     
     res.json(bot.getStatus());
+  });
+
+  app.post('/api/delta-master/reset-lock', (req, res) => {
+    const { symbol } = req.body;
+    if (!symbol) return res.status(400).json({ error: 'Symbol is required' });
+    
+    const bot = deltaMasterBots.get(symbol);
+    if (!bot) return res.status(404).json({ error: 'Bot not running for this symbol' });
+    
+    bot.resetShieldLock();
+    res.json({ message: 'Shield Lock Manually Reset', symbol: symbol, status: bot.getStatus() });
   });
 
   // ─── Binance Master (Account A/B Insurance System) Endpoints ───

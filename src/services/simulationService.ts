@@ -2,7 +2,7 @@ import { IntelligenceService } from './intelligenceService.js';
 import { Logger } from '../../logger.js';
 import EventEmitter from 'events';
 
-export type SimulationScenario = 'V_REVERSAL' | 'LIQUIDITY_SWEEP' | 'CONNECTION_FAILURE' | 'SENTIMENT_SHOCK' | 'WHIPSAW' | 'STABLE_TREND';
+export type SimulationScenario = 'V_REVERSAL' | 'LIQUIDITY_SWEEP' | 'CONNECTION_FAILURE' | 'SENTIMENT_SHOCK' | 'WHIPSAW' | 'STABLE_TREND' | 'LIQUIDITY_HUNT' | 'AI_DISAGREEMENT';
 
 export class SimulationService extends EventEmitter {
   private static instance: SimulationService;
@@ -10,6 +10,8 @@ export class SimulationService extends EventEmitter {
   private activeScenario: SimulationScenario | null = null;
   private simulationInterval: NodeJS.Timeout | null = null;
   private basePrice: number = 65000;
+  private latency: number = 0;
+  private jitter: number = 0.2; // 20% randomized jitter
 
   private constructor() {
     super();
@@ -21,6 +23,18 @@ export class SimulationService extends EventEmitter {
       SimulationService.instance = new SimulationService();
     }
     return SimulationService.instance;
+  }
+
+  public setLatency(ms: number, jitter: number = 0.2) {
+    this.latency = ms;
+    this.jitter = jitter;
+    Logger.info(`[SIMULATION] Latency set to ${ms}ms (Jitter: ${jitter * 100}%)`);
+  }
+
+  public getLatency(): number {
+    if (this.latency === 0) return 0;
+    const variancy = this.latency * this.jitter;
+    return this.latency + (Math.random() * variancy * 2 - variancy);
   }
 
   public async runScenario(scenario: SimulationScenario, symbol: string) {
@@ -43,6 +57,12 @@ export class SimulationService extends EventEmitter {
         break;
       case 'WHIPSAW':
         await this.simulateWhipsaw(symbol);
+        break;
+      case 'LIQUIDITY_HUNT':
+        await this.simulateLiquidityHunt(symbol);
+        break;
+      case 'AI_DISAGREEMENT':
+        await this.simulateAIDisagreement(symbol);
         break;
       default:
         this.activeScenario = null;
@@ -188,6 +208,61 @@ export class SimulationService extends EventEmitter {
         Logger.info(`[SIMULATION] WHIPSAW Scenario Completed.`);
       }
     }, 400); // Fast 400ms interval for whipsaw stress
+  }
+
+  private async simulateLiquidityHunt(symbol: string) {
+    const initialPrice = 65000;
+    let step = 0;
+    Logger.warn(`[SIMULATION] LIQUIDITY HUNT (Wick Spike) - Price Spike Incoming.`);
+
+    this.simulationInterval = setInterval(() => {
+      step++;
+      let currentPrice = initialPrice;
+
+      if (step === 3) {
+        currentPrice -= 50; // Massively deep spike (-0.07% or more depending on logic)
+      } else if (step === 4) {
+        currentPrice -= 2; // Rapid partial recovery
+      } else if (step > 4) {
+        currentPrice = initialPrice; // Full reversal
+      }
+
+      this.emit('price_update', { symbol, price: currentPrice });
+      this.intelligenceService.analyzeSymbol(symbol, currentPrice, 5);
+
+      if (step > 10) {
+        clearInterval(this.simulationInterval!);
+        Logger.info(`[SIMULATION] LIQUIDITY_HUNT Scenario Completed.`);
+      }
+    }, 1000);
+  }
+
+  private async simulateAIDisagreement(symbol: string) {
+    const initialPrice = 65000;
+    let step = 0;
+    Logger.warn(`[SIMULATION] AI DISAGREEMENT ACTIVATED - Tension between Research & Execution.`);
+
+    this.simulationInterval = setInterval(() => {
+      step++;
+      const currentPrice = initialPrice - (step * 0.5); // Slow bleed to raise tension
+
+      // Force conflict in intelligence
+      this.intelligenceService.setSentiment(symbol, -1); // Execution says BEARISH
+      this.intelligenceService.applyAgenticConsensus(symbol, JSON.stringify({
+         sentiment: 0.8, // Research says BULLISH
+         confidence: 0.9,
+         reasoningSnippet: "Bullish divergence on Weekly but local pressure is down.",
+         isHighRisk: true
+      }));
+
+      this.emit('price_update', { symbol, price: currentPrice });
+      this.intelligenceService.analyzeSymbol(symbol, currentPrice, 2);
+
+      if (step > 15) {
+        clearInterval(this.simulationInterval!);
+        Logger.info(`[SIMULATION] AI_DISAGREEMENT Scenario Completed.`);
+      }
+    }, 1000);
   }
 
   public stopScenario() {

@@ -6,6 +6,7 @@ import { SimulationService } from './simulationService.js';
 import { AgenticSearchService } from './agenticSearchService.js';
 import { Logger } from '../../logger.js';
 import Database from 'better-sqlite3';
+import { eventBus, EventName } from './eventBus.js';
 
 // Mock Dependencies
 vi.mock('./deltaExchangeService.js');
@@ -14,8 +15,23 @@ vi.mock('./simulationService.js');
 vi.mock('./agenticSearchService.js');
 vi.mock('../../logger.js');
 vi.mock('better-sqlite3');
+vi.mock('./eventBus.js', () => ({
+  eventBus: {
+    emitEvent: vi.fn(),
+    on: vi.fn(),
+    emit: vi.fn(),
+  },
+  EventName: {
+    PRIMARY_REQUEST: 'PRIMARY_REQUEST',
+    HEDGE_REQUEST: 'HEDGE_REQUEST',
+    EXIT_REQUEST: 'EXIT_REQUEST',
+    TP_ADJUST_REQUEST: 'TP_ADJUST_REQUEST',
+    EXECUTION_COMPLETED: 'EXECUTION_COMPLETED',
+    EXECUTION_FAILED: 'EXECUTION_FAILED'
+  }
+}));
 
-describe('DeltaMasterBot (Phase 9 Integration)', () => {
+describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
   let bot: DeltaMasterBot;
   let mockDeltaService: any;
   let mockIntelligenceService: any;
@@ -37,11 +53,10 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
       cancelAllOrders: vi.fn().mockResolvedValue(true),
       closePosition: vi.fn().mockResolvedValue(true),
       fetchPositions: vi.fn().mockImplementation(async (client: any) => {
-        // Default: Account A has a live position; Account B is flat
         if (client === mockDeltaService.getClientA()) return [{ symbol: 'BTC/USDT:USDT', contracts: 0.1, side: 'long' }];
         return [];
       }),
-      fetchBalance: vi.fn().mockResolvedValue({ total: 1000 }),
+      fetchBalance: vi.fn().mockResolvedValue({ total: 1000, free: 500 }),
       fetchLiquidityMetrics: vi.fn().mockResolvedValue({ spread: 0.5 }),
       setDeadMansSwitch: vi.fn().mockResolvedValue(true),
       getRateLimitStatus: vi.fn().mockReturnValue({ accountA: {}, accountB: {} }),
@@ -50,26 +65,20 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
 
     mockIntelligenceService = {
       calculateSymmetricalOffset: vi.fn().mockReturnValue(64995),
-      calculateRequiredHedge: vi.fn().mockReturnValue(0.1), // Match qtyA
+      calculateRequiredHedge: vi.fn().mockReturnValue(0.1),
       fetchATR: vi.fn().mockResolvedValue(true),
       getFrictionOffset: vi.fn().mockReturnValue(10),
-      analyzeSymbol: vi.fn().mockResolvedValue({ 
-        sentiment: 0.5, 
-        regime: 'STABLE_TREND', 
-        volatilityScore: 0.1, 
-        liquidityScore: 0.9,
-        atr: 100
-      }),
-      getIntelligence: vi.fn().mockReturnValue({
-        sentiment: 0.5,
-        sentimentConfidence: 0.8,
-        regime: 'STABLE_TREND',
-        volatilityScore: 0.1,
-        liquidityScore: 0.9,
-        atr: 100
+      analyzeSymbol: vi.fn().mockResolvedValue({ regime: 'TREND' }),
+      getIntelligence: vi.fn().mockReturnValue({ regime: 'TREND' }),
+      getAdvisorySignal: vi.fn().mockReturnValue({
+        source: 'RESEARCH_REGIME',
+        bias: 'NEUTRAL',
+        confidence: 0.8,
+        reason: 'Market State: TREND'
       }),
       recommendOffset: vi.fn().mockReturnValue(5.0),
-      applyAgenticConsensus: vi.fn().mockResolvedValue(true),
+      detectMarketRegime: vi.fn().mockResolvedValue(true),
+      calculateExecutionAdvisory: vi.fn().mockResolvedValue(true),
       getInstance: vi.fn().mockReturnThis(),
     };
 
@@ -106,7 +115,7 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
     vi.clearAllMocks();
   });
 
-  it('should execute full V-REVERSAL recovery cycle', async () => {
+  it('should route initial deployment through DHE Authority', async () => {
     const config = {
       symbol: 'BTC/USDT:USDT',
       qtyA: 0.1,
@@ -116,66 +125,50 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
       leverB: 20,
       entryOffset: 5,
       protectionRatio: 1.0,
-      atrMultiplier: 1.0
+      atrMultiplier: 1.0,
+      tpTiersArray: [2, 3, 4, 5]
     };
 
-    // 1. START: Initial Deployment
     await bot.start(config);
-    expect(bot.getStatus().phase).toBe('HEDGE_ACTIVE');
-    expect(bot.getStatus().entryA).toBe(65000);
-    expect(bot.getStatus().entryB).toBe(64995);
 
-    // 2. DROP: Trigger Hedge Activation
-    // Simulate price drop to 64990 (trigger is entryB 64995)
-    mockDeltaService.fetchTicker.mockResolvedValue({ last: 64990 });
-    
-    // Client-aware: Account A still open, Account B now has a hedge position
-    mockDeltaService.fetchPositions.mockImplementation(async (client: any) => {
-      if (client === mockDeltaService.getClientA()) return [{ symbol: config.symbol, contracts: 0.101, side: 'long' }];
-      return [{ symbol: config.symbol, contracts: 0.101, side: 'sell' }]; // hedge active
-    });
-
-    // Run one interval to process logic
-    await vi.advanceTimersByTimeAsync(2100);
-    
-    let status = bot.getStatus();
-    expect(status.hedgeStatus).toBe('active');
-    expect(status.pnlA).toBeLessThan(0);
-    expect(status.pnlB).toBeGreaterThan(0);
-
-    // 3. RECOVERY: V-Reversal back above threshold
-    // Threshold = EntryB(64995) + Friction(10) = 65005
-    mockDeltaService.fetchTicker.mockResolvedValue({ last: 65010 });
-    
-    // Process monitoring logic
-    await vi.advanceTimersByTimeAsync(2100);
-
-    // Verify closePosition was called for Account B with its CLOSING side
-    // hedgeB opened as 'sell' (short) → closing requires 'buy'
-    expect(mockDeltaService.closePosition).toHaveBeenCalledWith(
-        expect.anything(),
-        config.symbol,
-        'buy',    // closeSideB — opposite of hedge opening side ('sell')
-        0.101
-    );
-
-    // Verify Redeployment of Stop Order (Recursive Vigilance)
-    expect(mockDeltaService.placeOrder).toHaveBeenCalledWith(
-        expect.anything(),
-        config.symbol,
-        'stop_limit',
-        'sell',
-        0.101,
-        64995,
-        expect.objectContaining({ stopPrice: 64995 })
-    );
-
-    status = bot.getStatus();
-    expect(status.hedgeStatus).toBe('pending'); // Back to waiting mode
-    expect(status.phase).toBe('HEDGE_ACTIVE'); 
+    // Verify use of DHE: bot should have called resolve Decision then executed the Action
+    // DHE resolve(TRADE_ARMED) -> action OPEN_PRIMARY
+    expect(mockDeltaService.placeBracketOrder).toHaveBeenCalled();
+    expect(bot.getStatus().botState).toBe('PRIMARY_ACTIVE');
   });
 
-  it('should process tick via high-fidelity simulation bridge (Event-Driven)', async () => {
+  it('should trigger EMERGENCY_EXIT on Max Drawdown via DHE Supreme Authority', async () => {
+    const config = {
+      symbol: 'BTC/USDT:USDT',
+      qtyA: 0.1,
+      qtyB: 0.1,
+      sideA: 'buy' as const,
+      leverA: 10,
+      leverB: 20,
+      entryOffset: 5,
+      protectionRatio: 1.0,
+      maxDrawdownPct: 1.0, // 1% DD exit
+    };
+
+    await bot.start(config);
+
+    // Simulate price drop exceeding drawdown (entry 65000 -> current 64000 = 1.5% drop)
+    mockDeltaService.fetchTicker.mockResolvedValue({ last: 64000 });
+    
+    // Process tick (Transitions to EMERGENCY)
+    await vi.advanceTimersByTimeAsync(2100);
+    // Process next tick (Executes handleEmergency -> stop)
+    await vi.advanceTimersByTimeAsync(2100);
+    // Deep wait for all async ops in stop() to finalize
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+
+    // Verification: Bot should have initiated shutdown
+    expect(mockDeltaService.closePosition).toHaveBeenCalled();
+    expect(bot.getStatus().isActive).toBe(false);
+    // Phase might still be transitioning but isActive must be false
+  });
+
+  it('should defer hedge engagement when AI Consensus conflicts (Consensus Gate)', async () => {
     const config = {
       symbol: 'BTC/USDT:USDT',
       qtyA: 0.1,
@@ -187,35 +180,38 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
       protectionRatio: 1.0
     };
 
-    // 1. Setup Simulation Listener Capture
-    let simulationHandler: any = null;
-    mockSimulationService.on.mockImplementation((event: string, handler: any) => {
-      if (event === 'price_update') simulationHandler = handler;
-    });
-
     await bot.start(config);
-    expect(simulationHandler).toBeDefined();
 
-    // 2. Inject Synthetic Price Update (Drop to trigger)
+    // Price enters trigger zone (65000 - 5 = 64995 marker)
     mockDeltaService.fetchTicker.mockResolvedValue({ last: 64990 });
-    mockDeltaService.fetchPositions.mockImplementation(async (client: any) => {
-      if (client === mockDeltaService.getClientA()) return [{ symbol: config.symbol, contracts: 0.1, side: 'long' }];
-      return []; // Account B Flat
-    });
-    
-    // Simulate event emission from SimulationService
-    await simulationHandler({ symbol: config.symbol, price: 64990 });
+    mockDeltaService.fetchLiquidityMetrics.mockResolvedValue({ spread: 1 });
+    mockDeltaService.fetchPositions.mockResolvedValue([{ contracts: 0.1, side: 'long' }]);
 
-    // 3. Verify Logic Processing
-    const status = bot.getStatus();
-    expect(status.lastPrice).toBe(64990);
-    expect(status.pnlA).toBeLessThan(0); // Basic check for drop
-    
-    // 4. Verify Institutional Telemetry (Phase 9)
-    expect(status.telemetry?.latencyBreakdown).toBeDefined();
+    // Research Kernel detects RANGE (Consensus Gate deferral)
+    mockIntelligenceService.analyzeSymbol.mockResolvedValue({
+      regime: 'RANGE',
+      volatilityScore: 100, // 30 pts. Dist(1) + Vol(30) + Risk(10) + AI(10) = 51 (PENDING)
+      liquidityScore: 50,
+      lastUpdate: Date.now()
+    });
+    mockIntelligenceService.getAdvisorySignal.mockReturnValue({
+      source: 'RESEARCH_REGIME',
+      bias: 'BEARISH',
+      confidence: 1.0,
+      reason: 'DHE: Market identifies as RANGE'
+    });
+
+    await vi.advanceTimersByTimeAsync(2100);
+
+    // DHE should resolve to IDLE for HEDGE_ARMED intent due to AI Consensus conflict
+    // Verification: Hedge (placeOrder stop_limit) should NOT have been called again here
+    const hedgeCalls = mockDeltaService.placeOrder.mock.calls.filter((c: any) => c[2] === 'stop_limit');
+    expect(hedgeCalls.length).toBe(0); 
+    expect(bot.getStatus().botState).toBe('HEDGE_PENDING');
+    expect(bot.getStatus().hedgeScore).toBeGreaterThanOrEqual(50);
   });
 
-  it('should apply dynamic friction on reversal (Phase 12 Hardening)', async () => {
+  it('should FORCE hedge via CRM when risk utilization reaches 80%', async () => {
     const config = {
       symbol: 'BTC/USDT:USDT',
       qtyA: 0.1,
@@ -225,65 +221,126 @@ describe('DeltaMasterBot (Phase 9 Integration)', () => {
       leverB: 20,
       entryOffset: 5,
       protectionRatio: 1.0,
-      atrMultiplier: 1.0
+      maxDrawdownPct: 10.0
     };
 
     await bot.start(config);
 
-    // Trigger hedge
-    mockDeltaService.fetchPositions.mockImplementation(async (client: any) => {
-      if (client === mockDeltaService.getClientA()) return [{ symbol: config.symbol, contracts: 0.1, side: 'long' }];
-      return [{ symbol: config.symbol, contracts: 0.1, side: 'sell' }]; // Active hedge
-    });
-
-    // 1. Friction Offset = 10 (as mocked). EntryB = 64995. Reversal Threshold = 65005.
-    // Price recovers to 65002 (Above EntryB but BELOW threshold)
-    mockDeltaService.fetchTicker.mockResolvedValue({ last: 65002 });
+    // Simulate drawdown at 1.6% (80% of 2.0% limit)
+    // Actually, on 2000 balance with 0.1 qty, 1% price move = ~3.25% DD.
+    // Let's set max drawdown to 10% and move price to hit ~8% DD.
+    // 8% of 2000 = 160 USDT. 0.1 qty = 1600 USDT move. Price 63400.
+    mockDeltaService.fetchTicker.mockResolvedValue({ last: 63400 });
     
+    // High Volatility to push score > 70
+    mockIntelligenceService.analyzeSymbol.mockResolvedValue({
+      regime: 'TREND',
+      volatilityScore: 50, // 50 * 0.3 = 15. Dist(40) + Vol(15) + Risk(16) + AI(5) = 76 (ACTIVE)
+      liquidityScore: 20,
+      lastUpdate: Date.now()
+    });
+    mockIntelligenceService.getAdvisorySignal.mockReturnValue({
+       source: 'RESEARCH_REGIME',
+       bias: 'NEUTRAL',
+       confidence: 0.5,
+       reason: 'Neutral'
+    });
+    
+    // Initial tick: PRIMARY_ACTIVE -> HEDGE_PENDING (Shield Zone entered)
     await vi.advanceTimersByTimeAsync(2100);
+    expect(bot.getStatus().botState).toBe('HEDGE_PENDING');
 
-    // Result: Hedge should NOT close yet due to friction buffer
-    expect(mockDeltaService.closePosition).not.toHaveBeenCalled();
-    expect(bot.getStatus().hedgeStatus).toBe('active');
-
-    // 2. Price recovers to 65010 (Above threshold)
-    mockDeltaService.fetchTicker.mockResolvedValue({ last: 65010 });
+    // Second tick: HEDGE_PENDING -> HEDGE_ACTIVE (HedgeScore > 70)
     await vi.advanceTimersByTimeAsync(2100);
-
-    // Result: Hedge closes
-    expect(mockDeltaService.closePosition).toHaveBeenCalledWith(
-        expect.anything(),
-        config.symbol,
-        'buy',
-        0.1
-    );
+    
+    expect(bot.getStatus().botState).toBe('HEDGE_ACTIVE');
+    expect(bot.getStatus().hedgeScore).toBeGreaterThan(70);
+    expect(mockDeltaService.placeOrder).toHaveBeenCalled();
   });
 
-  it('should correctly audit cumulative fees after simulated fills', async () => {
+  it('should PRIORITIZE hedge via CRM when price is >60% towards SL', async () => {
+    const config = {
+      symbol: 'BTC/USDT:USDT',
+      qtyA: 0.1,
+      qtyB: 0.1,
+      sideA: 'buy' as const,
+      leverA: 10,
+      leverB: 20,
+      entryOffset: 5,
+      protectionRatio: 1.0,
+      slPercent: 1.0 // SL at 64350
+    };
+
+    await bot.start(config);
+
+    // Price at 64500 (entry 65000, sl 64350. Diff 650. Progress 500/650 = 76%)
+    mockDeltaService.fetchTicker.mockResolvedValue({ last: 64500 });
+    
+    // High Vol + Reverse AI to push score > 70
+    mockIntelligenceService.analyzeSymbol.mockResolvedValue({
+      regime: 'VOLATILE',
+      volatilityScore: 100, // 100 * 0.3 = 30
+      liquidityScore: 10,
+      lastUpdate: Date.now()
+    });
+    // Dist(30.4) + Vol(30) + Risk(20) + AI(10) = 90.4
+    mockIntelligenceService.getAdvisorySignal.mockReturnValue({
+      source: 'RESEARCH_REGIME',
+      bias: 'BEARISH', // Contrary to Long. 100 * 0.1 = 10.
+      confidence: 1.0,
+      reason: 'AI Analysis Bearish'
+    });
+    // Dist(30.4) + Vol(27) + Risk(10) + AI(10) = 77.4
+    
+    // Initial tick: PRIMARY_ACTIVE -> HEDGE_PENDING (Shield Zone)
+    await vi.advanceTimersByTimeAsync(2100);
+    
+    // Second tick: HEDGE_PENDING -> HEDGE_ACTIVE (CRM PRIORITIZE override AI)
+    await vi.advanceTimersByTimeAsync(2100);
+    
+    expect(bot.getStatus().botState).toBe('HEDGE_ACTIVE');
+    expect(mockDeltaService.placeOrder).toHaveBeenCalled();
+  });
+
+    it('should transition to PRIMARY_ACTIVE on start and emit PRIMARY_REQUEST', async () => {
+      const config = { symbol: 'BTC/USDT:USDT', qtyA: 0.1, sideA: 'buy' as const };
+      await bot.start(config as any);
+      
+      expect(bot.getStatus().botState).toBe('PRIMARY_ACTIVE');
+      expect(eventBus.emitEvent).toHaveBeenCalledWith(EventName.PRIMARY_REQUEST, expect.objectContaining({
+        symbol: 'BTC/USDT:USDT',
+        qtyA: 0.1,
+        sideA: 'buy'
+      }));
+    });
+
+  it('should DELAY hedge via CRM in low volatility regimes', async () => {
      const config = {
       symbol: 'BTC/USDT:USDT',
-      qtyA: 1.0, // 1 BTC for easy fee math
-      qtyB: 1.0,
+      qtyA: 0.1,
+      qtyB: 0.1,
       sideA: 'buy' as const,
       leverA: 10,
       leverB: 20,
-      entryOffset: 100,
+      entryOffset: 5,
       protectionRatio: 1.0
     };
 
     await bot.start(config);
-    // Initial fill: qty 1.0 @ 65000. Fee (0.05%) = 65000 * 1.0 * 0.0005 = 32.5
-    expect(bot.getStatus().accumulatedFees).toBeGreaterThanOrEqual(32.5);
 
-    // Simulate TP fill
-    const tpPrice = 65000 * 1.02; // T1 @ 2% = 66300
-    mockDeltaService.fetchTicker.mockResolvedValue({ last: tpPrice });
-    
-    // Tiers are created as qty 0.25 (for 4 tiers)
-    // Fee = 66300 * 0.25 * 0.0005 = 8.2875
+    // AI says YES, but volatility is 0.5 (< 1.0)
+    mockIntelligenceService.getIntelligence.mockReturnValue({
+      volatilityScore: 0.5,
+      regime: 'TREND'
+    });
+
+    mockDeltaService.fetchTicker.mockResolvedValue({ last: 64990 }); // zone
+
     await vi.advanceTimersByTimeAsync(2100);
 
-    const status = bot.getStatus();
-    expect(status.accumulatedFees).toBeGreaterThanOrEqual(32.5 + 8.2875);
+    // Hedge should be Delayed (Stay in PENDING)
+    const hedgeCalls = mockDeltaService.placeOrder.mock.calls.filter((c: any) => c[2] === 'stop_limit');
+    expect(hedgeCalls.length).toBe(0);
+    expect(bot.getStatus().botState).toBe('HEDGE_PENDING');
   });
 });

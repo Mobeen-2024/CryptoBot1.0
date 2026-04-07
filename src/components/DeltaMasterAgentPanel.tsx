@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { Shield, Zap, TrendingUp, TrendingDown, Activity, StopCircle, Play, ShieldCheck, Wind, TerminalSquare, AlertTriangle, Crosshair, BarChart2 } from 'lucide-react';
+import { Shield, Zap, TrendingUp, TrendingDown, Activity, StopCircle, Play, ShieldCheck, Wind, TerminalSquare, AlertTriangle, Crosshair, BarChart2, Lock } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 interface DeltaEvent {
@@ -27,7 +27,7 @@ interface DeltaMasterState {
   dmsStatus: string;
   tpTiers: { price: number; qty: number; status: 'waiting' | 'filled'; tier: number }[];
   slOrder: { id: string; price: number; qty: number; status: 'open' | 'filled' | 'closed'; isBreakEven: boolean } | null;
-  intent: 'MONITORING' | 'TRADE_ARMED' | 'POSITION_ACTIVE' | 'HEDGE_ARMED' | 'HEDGING_ACTIVE';
+  botState: string;
   marginStats?: {
     accountA: { balance: number; used: number; free: number; pnlPct: number };
     accountB: { balance: number; used: number; free: number; pnlPct: number };
@@ -38,13 +38,26 @@ interface DeltaMasterState {
   gridLayers?: number;
   gridGapPct?: number;
   intelligence?: {
-    sentiment: number;
     regime: string;
     volatilityScore: number;
     liquidityScore: number;
     atr?: number;
     dynamicFriction?: number;
+    executionAdvisory?: {
+      friction: number;
+      offset: number;
+      reason: string;
+    };
   };
+  hedgeScore?: number;
+  scoreComponents?: {
+    distance: number;
+    volatility: number;
+    drawdown: number;
+    ai: number;
+  };
+  hedgeCycleLocked?: boolean;
+  hedgeCooldownUntil?: number;
 }
 
 const MicroSparkline = React.memo(({ data, color }: { data: number[], color: string }) => {
@@ -86,7 +99,10 @@ const RiskMeter = React.memo(({ risk }: { risk: number }) => {
   let color = 'text-emerald-400';
   let label = '🟢 SAFE';
   
-  if (risk > 60) {
+  if (risk > 90) {
+    color = 'text-rose-600 animate-[pulse_0.5s_infinite] font-black scale-110';
+    label = '💀 CRITICAL PANIC';
+  } else if (risk > 60) {
     color = 'text-rose-500 animate-pulse';
     label = '🔴 HIGH RISK';
   } else if (risk > 30) {
@@ -104,6 +120,145 @@ const RiskMeter = React.memo(({ risk }: { risk: number }) => {
     </div>
   );
 });
+
+const IntelligenceMatrix = React.memo(({ intel }: { intel?: DeltaMasterState['intelligence'] }) => {
+  if (!intel) return (
+    <div className="glass-panel p-3 rounded-xl border border-white/5 bg-black/20 flex items-center justify-center min-h-[80px]">
+       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5e6673] animate-pulse">Initializing Neural Link...</span>
+    </div>
+  );
+
+  return (
+    <div className="glass-panel p-3 rounded-xl border border-white/10 bg-black/40 flex flex-col gap-2 shadow-lg">
+       <div className="flex items-center gap-2 mb-1 border-b border-white/5 pb-1.5">
+          <TerminalSquare className="w-3.5 h-3.5 text-[var(--holo-cyan)]" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Intelligence Matrix v3.1</span>
+       </div>
+       
+       <div className="grid grid-cols-3 gap-2">
+          {/* Regime */}
+          <div className="flex flex-col gap-1 p-2 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition-all group">
+             <span className="text-[7px] font-black uppercase text-[#848e9c] tracking-widest">Market State</span>
+             <span className={cn("text-[10px] font-black uppercase", 
+               intel.regime === 'TREND' ? "text-cyan-400" : 
+               intel.regime === 'RANGE' ? "text-amber-400" : "text-rose-400")}>
+               {intel.regime}
+             </span>
+             <div className="h-0.5 w-full bg-white/10 mt-1 rounded-full overflow-hidden">
+                <div className={cn("h-full transition-all duration-1000", 
+                  intel.regime === 'TREND' ? "w-full bg-cyan-400" : 
+                  intel.regime === 'RANGE' ? "w-[60%] bg-amber-400" : "w-[30%] bg-rose-400")} />
+             </div>
+          </div>
+
+          {/* Friction */}
+          <div className="flex flex-col gap-1 p-2 bg-white/5 rounded-lg border border-white/5">
+             <span className="text-[7px] font-black uppercase text-[#848e9c] tracking-widest">ATR Friction</span>
+             <span className="text-[10px] font-black uppercase text-blue-400">
+               {intel.executionAdvisory?.friction ? `${intel.executionAdvisory.friction.toFixed(2)}%` : 'CALC...'}
+             </span>
+             <span className="text-[7px] font-mono text-white/40 truncate">offset: {intel.executionAdvisory?.offset.toFixed(1) || '0'}</span>
+          </div>
+
+          {/* Volatility */}
+          <div className="flex flex-col gap-1 p-2 bg-white/5 rounded-lg border border-white/5">
+             <span className="text-[7px] font-black uppercase text-[#848e9c] tracking-widest">Volatility</span>
+             <div className="flex items-center gap-1.5">
+                <Activity className="w-2.5 h-2.5 text-fuchsia-400" />
+                <span className="text-[10px] font-black uppercase text-white">{intel.volatilityScore?.toFixed(1) || '0'}</span>
+             </div>
+             <span className="text-[7px] font-mono text-white/40">liq: {intel.liquidityScore?.toFixed(0) || '0'}bps</span>
+          </div>
+       </div>
+
+       {intel.executionAdvisory?.reason && (
+          <div className="mt-1 px-2 py-1.5 bg-blue-500/5 border border-blue-500/10 rounded font-mono text-[8px] text-blue-400/80 leading-tight">
+             <span className="font-black text-blue-500 mr-1">EXECUTION_LOG:</span>
+             {intel.executionAdvisory.reason}
+          </div>
+       )}
+    </div>
+  );
+});
+
+const ScorePillar = ({ label, val, weight, color }: { label: string; val: number; weight: number; color: string }) => {
+  const colorMap: any = {
+    cyan: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    purple: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+  };
+
+  return (
+    <div className={cn("flex flex-col items-center gap-1 p-1.5 rounded-lg border", colorMap[color])}>
+      <span className="text-[7px] font-black uppercase tracking-tighter opacity-70">{label} ({(weight*100).toFixed(0)}%)</span>
+      <div className="text-[10px] font-bold font-mono leading-none">{val.toFixed(0)}</div>
+      <div className="w-full h-1 bg-black/40 rounded-full mt-0.5 overflow-hidden">
+        <div className="h-full bg-current opacity-40 rounded-full shadow-[0_0_5px_currentColor]" style={{ width: `${val}%` }} />
+      </div>
+    </div>
+  );
+};
+
+const ShieldScoreHUD = ({ score, Distance, Volatility, Risk, AI, isLocked, cooldown, onReset }: { score: number; Distance: number; Volatility: number; Risk: number; AI: number; isLocked?: boolean; cooldown?: number; onReset: () => void }) => {
+  const getLevelColor = (s: number) => {
+    if (isLocked) return 'text-rose-600';
+    if (s > 70) return 'text-rose-400';
+    if (s >= 50) return 'text-amber-400';
+    return 'text-emerald-400';
+  };
+
+  const now = Date.now();
+  const cooldownRemaining = cooldown && cooldown > now ? Math.ceil((cooldown - now) / 1000) : 0;
+
+  return (
+    <div className={cn("glass-panel p-3 border-white/10 bg-black/60 rounded-xl relative overflow-hidden group shadow-2xl", isLocked && "border-rose-500/30")}>
+      <div className="flex justify-between items-center mb-3">
+        <div className="flex items-center gap-2">
+          <Shield className={cn("w-3.5 h-3.5", isLocked ? "text-rose-600" : (score > 70 ? "text-rose-500 animate-pulse border-rose-500" : "text-[var(--holo-cyan)]"))} />
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#848e9c]">
+            {isLocked ? "SHIELD_LOCKED_CYCLE_X" : "Shield Score Matrix"}
+          </span>
+        </div>
+        <div className={cn("text-lg font-black font-mono tracking-tighter drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]", getLevelColor(score))}>
+          {isLocked ? "LOCKED" : score.toFixed(1)}<span className="text-[10px] ml-0.5 opacity-50 font-normal">/100</span>
+        </div>
+      </div>
+      
+      {cooldownRemaining > 0 && (
+        <div className="absolute top-0 left-0 w-full h-0.5 bg-rose-500/20 overflow-hidden">
+          <div className="h-full bg-rose-500 animate-[shimmer_2s_infinite]" style={{ width: `${(cooldownRemaining/5)*100}%` }} />
+        </div>
+      )}
+
+      <div className="h-1.5 w-full bg-white/5 rounded-full mb-4 overflow-hidden border border-white/5 p-[1px]">
+        <div 
+          className={cn("h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.2)]", 
+            isLocked ? "bg-rose-900" : (
+            score > 70 ? "bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)]" : 
+            score >= 50 ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "bg-emerald-500"))}
+          style={{ width: `${isLocked ? 100 : score}%` }}
+        />
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        <ScorePillar label="Dist" val={Distance} weight={0.4} color="cyan" />
+        <ScorePillar label="Vol" val={Volatility} weight={0.3} color="purple" />
+        <ScorePillar label="Risk" val={Risk} weight={0.2} color="amber" />
+        <ScorePillar label="AI" val={AI} weight={0.1} color="blue" />
+      </div>
+
+      {(isLocked || cooldownRemaining > 0) && (
+        <button 
+          onClick={onReset}
+          className="w-full py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded font-black text-[9px] text-rose-400 uppercase tracking-widest transition-all active:scale-95"
+        >
+          {cooldownRemaining > 0 ? `COOLDOWN (${cooldownRemaining}s) - FORCE RESET` : "RESET SHIELD LOCK"}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const VisualHUD = React.memo(({ state, sideA }: { state: DeltaMasterState, sideA: string }) => {
   if (!state.isActive || !state.entryA) return (
@@ -135,9 +290,18 @@ const VisualHUD = React.memo(({ state, sideA }: { state: DeltaMasterState, sideA
   const hedgePct = calculatePositionPercentage(state.entryB, min, max);
 
   return (
-    <div className="relative w-full h-full flex flex-col justify-center px-10 py-6">
+    <div className={cn("relative w-full h-full flex flex-col justify-center px-10 py-6 transition-all duration-1000", 
+      state.intelligence?.regime === 'RANGE' ? "bg-amber-500/[0.03]" : 
+      state.intelligence?.regime === 'VOLATILE' ? "bg-rose-500/[0.03]" : "bg-cyan-500/[0.02]")}>
+      
+      {/* Regime Texture Overlay */}
+      <div className="absolute inset-0 opacity-[0.05] pointer-events-none overflow-hidden">
+         {state.intelligence?.regime === 'RANGE' && <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#fcd535_100%)] animate-pulse" />}
+         {state.intelligence?.regime === 'VOLATILE' && <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,_#f43f5e_0px,_transparent_2px,_transparent_10px)]" />}
+      </div>
+
       {/* Distance Telemetry */}
-      {state.intent === 'HEDGE_ARMED' && (
+      {state.botState === 'HEDGE_PENDING' && (
          <div className="absolute top-10 right-10 flex flex-col items-end">
             <span className="text-[10px] font-black text-[var(--holo-gold)] tracking-widest uppercase mb-1">Hedge Distance</span>
             <div className="flex items-center gap-2 bg-[var(--holo-gold)]/10 border border-[var(--holo-gold)]/20 px-2 py-1 rounded">
@@ -319,9 +483,28 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
       }
       toast.success('Agent Deployed!', { id: tId });
     } catch (err: any) {
-      toast.error(err.message, { id: tId });
-    } finally {
-      setLoading(false);
+      console.error('Failed to start Delta Master:', err);
+      toast.error(`Deployment Failed: ${err.message}`);
+    }
+  };
+
+  const handleResetShield = async () => {
+    try {
+      const resp = await fetch(`/api/delta-master/reset-lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.status) {
+          setState(data.status);
+          toast.success('Shield Lock Reset Successful');
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to reset shield lock:', err);
+      toast.error('Failed to reset shield lock');
     }
   };
 
@@ -357,28 +540,38 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
     const pnlRisk = (loss / (balance || 1)) * 100;
     
     const volFactor = (state.intelligence?.volatilityScore || 0) / 10;
+    const regimeRisk = state.intelligence?.regime === 'VOLATILE' ? 20 : 0;
     
-    return Math.min(100, marginRisk + pnlRisk + volFactor);
+    return Math.min(100, marginRisk + pnlRisk + volFactor + regimeRisk);
   };
 
   const badge = useMemo(() => {
-    if (!state.isActive) return { color: 'text-gray-500 bg-gray-500/10 border-gray-500/20', text: 'STBY', icon: <StopCircle className="w-3 h-3" /> };
+    if (!state.isActive) return { color: 'text-gray-500 bg-gray-500/10 border-gray-500/20', text: 'OFFLINE', icon: <StopCircle className="w-3 h-3" /> };
     
-    switch(state.intent) {
-      case 'HEDGING_ACTIVE':
-        return { color: 'text-rose-500 bg-rose-500/10 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.4)]', text: 'HEDGING ACTIVE', icon: <ShieldCheck className="w-3 h-3 animate-pulse" /> };
-      case 'HEDGE_ARMED':
-        return { color: 'text-[var(--holo-gold)] bg-[var(--holo-gold)]/10 border-[var(--holo-gold)]/20 shadow-[0_0_10px_rgba(252,213,53,0.2)]', text: 'HEDGE ARMED', icon: <Crosshair className="w-3 h-3 animate-bounce" /> };
-      case 'POSITION_ACTIVE':
-        return { color: 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 shadow-[0_0_10px_rgba(0,229,255,0.3)]', text: 'POSITION ACTIVE', icon: <Zap className="w-3 h-3" /> };
-      case 'TRADE_ARMED':
-        return { color: 'text-[#848e9c] bg-white/5 border-white/10', text: 'TRADE ARMED', icon: <Activity className="w-3 h-3" /> };
-      case 'MONITORING':
-        return { color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', text: 'MONITORING', icon: <Activity className="w-3 h-3 animate-pulse" /> };
+    switch(state.botState) {
+      case 'PRIMARY_ACTIVE':
+        return { color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', text: 'PRIMARY ACTIVE', icon: <Zap className="w-3 h-3 text-emerald-400" /> };
+      case 'HEDGE_PENDING':
+        return { color: 'text-amber-400 bg-amber-500/10 border-amber-500/30 animate-pulse', text: 'HEDGE PENDING (AUTH)', icon: <Activity className="w-3 h-3 text-amber-400" /> };
+      case 'HEDGE_ACTIVE':
+        return { color: 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 shadow-[0_0_15px_rgba(0,229,255,0.3)]', text: 'HEDGE ACTIVE', icon: <ShieldCheck className="w-3 h-3" /> };
+      case 'TP_SCALING':
+        return { color: 'text-violet-400 bg-violet-500/10 border-violet-500/30', text: 'TP SCALING', icon: <TrendingUp className="w-3 h-3" /> };
+      case 'EMERGENCY':
+        const isPanic = (state.hedgeScore || 0) > 90;
+        return { 
+          color: isPanic ? 'text-white bg-rose-600 border-rose-400 animate-[ping_1.5s_infinite] shadow-[0_0_30px_rgba(225,29,72,0.8)]' : 'text-rose-500 bg-rose-500/20 border-rose-500/50 animate-bounce', 
+          text: isPanic ? '🚀 PANIC EXIT ACTIVE' : '🏛️ EMERGENCY EXIT', 
+          icon: <AlertTriangle className="w-3 h-3" /> 
+        };
+      case 'IDLE':
       default:
-        return { color: 'text-gray-500 bg-gray-500/10 border-gray-500/20', text: 'IDLE', icon: <StopCircle className="w-3 h-3" /> };
+        if (state.hedgeCycleLocked) {
+          return { color: 'text-rose-600 bg-rose-900/20 border-rose-600/30', text: 'CYCLE LOCKED', icon: <Lock className="w-3 h-3" /> };
+        }
+        return { color: 'text-[#848e9c] bg-white/5 border-white/10', text: 'IDLE/MONITORING', icon: <Wind className="w-3 h-3" /> };
     }
-  }, [state.isActive, state.intent]);
+  }, [state.botState, state.isActive, state.hedgeCycleLocked]);
 
   return (
     <div className="h-full flex flex-col p-2 text-white overflow-hidden bg-[#05070a]/80 backdrop-blur-3xl gap-2 font-sans selection:bg-[var(--holo-cyan)]/20">
@@ -395,20 +588,40 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Intelligence Matrix Status */}
+          {/* AI Intelligence Matrix Status */}
           <div className="hidden xl:flex items-center gap-4 border-r border-white/10 pr-4 mr-1">
              <div className="flex flex-col items-end">
-                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Logic Kernel</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded">
-                   <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
-                   <span className="text-[8px] font-mono font-bold text-blue-400 select-none uppercase">Gemma 3 27B (14.4k RPD / Monitoring Optimized)</span>
+                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Research Kernel</span>
+                <div className={cn("flex items-center gap-1.5 px-2 py-0.5 border rounded transition-all duration-500", 
+                  state.intelligence?.regime === 'TREND' ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" : 
+                  state.intelligence?.regime === 'RANGE' ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : 
+                  "bg-rose-500/10 border-rose-500/20 text-rose-400")}>
+                   <div className={cn("w-1 h-1 rounded-full animate-pulse", 
+                     state.intelligence?.regime === 'TREND' ? "bg-cyan-400" : 
+                     state.intelligence?.regime === 'RANGE' ? "bg-amber-400" : "bg-rose-400")} />
+                   <span className="text-[8px] font-mono font-black uppercase">{state.intelligence?.regime || 'INITIALIZING'} REGIME</span>
                 </div>
              </div>
+
              <div className="flex flex-col items-end">
-                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Shield Kernel</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded">
-                   <div className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
-                   <span className="text-[8px] font-mono font-bold text-amber-400 select-none uppercase">Gemini 3 Flash Live (Sub-second / Unlimited Reactivity)</span>
+                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Execution Kernel</span>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded">
+                   <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
+                   <span className="text-[8px] font-mono font-bold text-blue-400 uppercase">
+                     {state.intelligence?.executionAdvisory?.friction ? `FRICTION: ${state.intelligence.executionAdvisory.friction.toFixed(2)}%` : 'Gemma-3 Calculating'}
+                   </span>
+                </div>
+             </div>
+
+             <div className="flex flex-col items-end">
+                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Shield Engine</span>
+                <div className={cn("flex items-center gap-1.5 px-2 py-0.5 border rounded animate-in fade-in transition-all", 
+                  state.botState === 'HEDGE_ACTIVE' ? "bg-rose-500/20 border-rose-500/40 text-rose-400" : 
+                  state.botState === 'HEDGE_PENDING' ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-white/5 border-white/10 text-white/40")}>
+                   <ShieldCheck className={cn("w-3 h-3", state.botState === 'HEDGE_ACTIVE' && "animate-pulse")} />
+                   <span className="text-[8px] font-mono font-black uppercase">
+                     {state.botState === 'HEDGE_ACTIVE' ? 'Shield Active' : state.botState === 'HEDGE_PENDING' ? 'Authorized' : 'Gated'}
+                   </span>
                 </div>
              </div>
           </div>
@@ -484,6 +697,21 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
                   </div>
                </div>
             </div>
+
+            {/* Shield Score Matrix HUD */}
+            <ShieldScoreHUD 
+              score={state.hedgeScore || 0}
+              Distance={state.scoreComponents?.distance || 0}
+              Volatility={state.scoreComponents?.volatility || 0}
+              Risk={state.scoreComponents?.drawdown || 0}
+              AI={state.scoreComponents?.ai || 0}
+              isLocked={state.hedgeCycleLocked}
+              cooldown={state.hedgeCooldownUntil}
+              onReset={handleResetShield}
+            />
+
+            {/* Intelligence Matrix HUD */}
+            <IntelligenceMatrix intel={state.intelligence} />
 
             {/* Trade Control Panel */}
             <div className="glass-panel p-3 rounded-xl border-white/10 bg-black/40 flex flex-col gap-3 shrink-0">
@@ -597,9 +825,9 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
                   }).map((ev, i) => {
                      let color = 'text-white/60';
                      if (ev.type.toLowerCase().includes('error') || ev.type.toLowerCase().includes('warning') || ev.type.toLowerCase().includes('risk')) color = 'text-rose-500';
-                     else if (ev.type.toLowerCase().includes('hedge') || ev.type.toLowerCase().includes('armed')) color = 'text-[var(--holo-gold)]';
-                     else if (ev.type.toLowerCase().includes('opened') || ev.type.toLowerCase().includes('trade')) color = 'text-[var(--holo-cyan)]';
-                     else if (ev.type.toLowerCase().includes('tp_hit')) color = 'text-emerald-400';
+                     else if (ev.type.toLowerCase().includes('hedge') || ev.type.toLowerCase().includes('armed') || ev.type.toLowerCase().includes('live')) color = 'text-[var(--holo-gold)]';
+                     else if (ev.type.toLowerCase().includes('opened') || ev.type.toLowerCase().includes('trade') || ev.type.toLowerCase().includes('dhe')) color = 'text-[var(--holo-cyan)] border-l-2 border-[var(--holo-cyan)] pl-2';
+                     else if (ev.type.toLowerCase().includes('tp_hit') || ev.type.toLowerCase().includes('target')) color = 'text-emerald-400';
                      
                      const time = new Date(ev.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
 
