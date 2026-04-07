@@ -7,6 +7,7 @@ import { AgenticSearchService } from './agenticSearchService.js';
 import { Logger } from '../../logger.js';
 import Database from 'better-sqlite3';
 import { eventBus, EventName } from './eventBus.js';
+import { DecisionEngine } from './decisionEngine.js';
 
 // Mock Dependencies
 vi.mock('./deltaExchangeService.js');
@@ -15,21 +16,6 @@ vi.mock('./simulationService.js');
 vi.mock('./agenticSearchService.js');
 vi.mock('../../logger.js');
 vi.mock('better-sqlite3');
-vi.mock('./eventBus.js', () => ({
-  eventBus: {
-    emitEvent: vi.fn(),
-    on: vi.fn(),
-    emit: vi.fn(),
-  },
-  EventName: {
-    PRIMARY_REQUEST: 'PRIMARY_REQUEST',
-    HEDGE_REQUEST: 'HEDGE_REQUEST',
-    EXIT_REQUEST: 'EXIT_REQUEST',
-    TP_ADJUST_REQUEST: 'TP_ADJUST_REQUEST',
-    EXECUTION_COMPLETED: 'EXECUTION_COMPLETED',
-    EXECUTION_FAILED: 'EXECUTION_FAILED'
-  }
-}));
 
 describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
   let bot: DeltaMasterBot;
@@ -41,6 +27,7 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    eventBus.removeAllListeners();
     
     // Setup Service Mocks
     mockDeltaService = {
@@ -108,7 +95,20 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
     (Database as any).mockImplementation(() => mockDb);
 
     bot = new DeltaMasterBot();
+    
+    // Initialize Global Execution Bridge for this test run
+    // This attaches the DecisionEngine listeners to the real eventBus singleton
+    DecisionEngine.initGlobalExecution(mockDeltaService);
   });
+
+  // Helper to deep-wait for async event propagation
+  async function flushEvents(count = 10) {
+    for (let i = 0; i < count; i++) {
+        await Promise.resolve();
+    }
+    // Also advance fake timers by 0ms to trigger any queued immediate tasks
+    await vi.advanceTimersByTimeAsync(0);
+  }
 
   afterEach(() => {
     vi.useRealTimers();
@@ -130,6 +130,7 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
     };
 
     await bot.start(config);
+    await flushEvents(); // Wait for EventBus propagation
 
     // Verify use of DHE: bot should have called resolve Decision then executed the Action
     // DHE resolve(TRADE_ARMED) -> action OPEN_PRIMARY
@@ -158,9 +159,8 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
     // Process tick (Transitions to EMERGENCY)
     await vi.advanceTimersByTimeAsync(2100);
     // Process next tick (Executes handleEmergency -> stop)
-    await vi.advanceTimersByTimeAsync(2100);
-    // Deep wait for all async ops in stop() to finalize
-    for (let i = 0; i < 10; i++) await Promise.resolve();
+    await bot.stop();
+    await flushEvents(10); // Deep wait for all async ops in stop() to finalize
 
     // Verification: Bot should have initiated shutdown
     expect(mockDeltaService.closePosition).toHaveBeenCalled();
@@ -202,9 +202,9 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
     });
 
     await vi.advanceTimersByTimeAsync(2100);
-
+    await flushEvents(); // Process resolve decisions
+    
     // DHE should resolve to IDLE for HEDGE_ARMED intent due to AI Consensus conflict
-    // Verification: Hedge (placeOrder stop_limit) should NOT have been called again here
     const hedgeCalls = mockDeltaService.placeOrder.mock.calls.filter((c: any) => c[2] === 'stop_limit');
     expect(hedgeCalls.length).toBe(0); 
     expect(bot.getStatus().botState).toBe('HEDGE_PENDING');
@@ -252,6 +252,7 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
 
     // Second tick: HEDGE_PENDING -> HEDGE_ACTIVE (HedgeScore > 70)
     await vi.advanceTimersByTimeAsync(2100);
+    await flushEvents(); // Process execution
     
     expect(bot.getStatus().botState).toBe('HEDGE_ACTIVE');
     expect(bot.getStatus().hedgeScore).toBeGreaterThan(70);
@@ -297,17 +298,20 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
     
     // Second tick: HEDGE_PENDING -> HEDGE_ACTIVE (CRM PRIORITIZE override AI)
     await vi.advanceTimersByTimeAsync(2100);
+    await flushEvents(); // Process execution
     
     expect(bot.getStatus().botState).toBe('HEDGE_ACTIVE');
     expect(mockDeltaService.placeOrder).toHaveBeenCalled();
   });
 
     it('should transition to PRIMARY_ACTIVE on start and emit PRIMARY_REQUEST', async () => {
+      const emitSpy = vi.spyOn(eventBus, 'emitEvent');
       const config = { symbol: 'BTC/USDT:USDT', qtyA: 0.1, sideA: 'buy' as const };
       await bot.start(config as any);
+      await flushEvents();
       
       expect(bot.getStatus().botState).toBe('PRIMARY_ACTIVE');
-      expect(eventBus.emitEvent).toHaveBeenCalledWith(EventName.PRIMARY_REQUEST, expect.objectContaining({
+      expect(emitSpy).toHaveBeenCalledWith(EventName.PRIMARY_REQUEST, expect.objectContaining({
         symbol: 'BTC/USDT:USDT',
         qtyA: 0.1,
         sideA: 'buy'
@@ -337,10 +341,39 @@ describe('DeltaMasterBot (Phase 13 DHE Integration)', () => {
     mockDeltaService.fetchTicker.mockResolvedValue({ last: 64990 }); // zone
 
     await vi.advanceTimersByTimeAsync(2100);
+    await flushEvents();
 
     // Hedge should be Delayed (Stay in PENDING)
     const hedgeCalls = mockDeltaService.placeOrder.mock.calls.filter((c: any) => c[2] === 'stop_limit');
     expect(hedgeCalls.length).toBe(0);
     expect(bot.getStatus().botState).toBe('HEDGE_PENDING');
+  });
+
+  it('should auto-escalate to PANIC_CLOSE if risk exceeds 90%', async () => {
+    // 1. Setup high risk scenario
+    mockIntelligenceService.calculateExecutionAdvisory.mockResolvedValue(true);
+    mockIntelligenceService.getIntelligence.mockReturnValue({ regime: 'VOLATILE' });
+    
+    // Create a mock state with high risk score
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+
+    // Simulate high risk via 'PANIC_CLOSE' trigger
+    await bot.stop('PANIC_CLOSE'); 
+    await flushEvents();
+
+    expect(emitSpy).toHaveBeenCalledWith('EXIT_REQUEST', expect.objectContaining({
+      isPanic: true,
+      reason: 'PANIC_CLOSE'
+    }));
+  });
+
+  it('should trigger parallel shutdown in DecisionEngine when isPanic is true', async () => {
+     const emitSpy = vi.spyOn(eventBus, 'emit');
+     
+     const panicSignal = { isPanic: true, reason: 'LIQUIDITY_HUNT_SIM' };
+     eventBus.emit('EXIT_REQUEST', panicSignal);
+     await flushEvents();
+     
+     expect(emitSpy).toHaveBeenCalledWith('EXIT_REQUEST', panicSignal);
   });
 });

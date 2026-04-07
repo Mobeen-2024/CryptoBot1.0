@@ -91,95 +91,92 @@ const MicroSparkline = React.memo(({ data, color }: { data: number[], color: str
   );
 });
 
-const RiskMeter = React.memo(({ risk }: { risk: number }) => {
-  const bars = 10;
-  const activeBars = Math.ceil((Math.min(100, risk) / 100) * bars);
-  const barString = '█'.repeat(activeBars) + '░'.repeat(bars - activeBars);
+const RiskMeterCircular = React.memo(({ risk, margin, volatility }: { risk: number; margin: number; volatility: string }) => {
+  const radius = 24;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (risk / 100) * circumference;
   
-  let color = 'text-emerald-400';
-  let label = '🟢 SAFE';
-  
-  if (risk > 90) {
-    color = 'text-rose-600 animate-[pulse_0.5s_infinite] font-black scale-110';
-    label = '💀 CRITICAL PANIC';
-  } else if (risk > 60) {
-    color = 'text-rose-500 animate-pulse';
-    label = '🔴 HIGH RISK';
-  } else if (risk > 30) {
-    color = 'text-[var(--holo-gold)]';
-    label = '🟡 MODERATE';
-  }
+  const color = risk > 70 ? '#f43f5e' : risk > 40 ? '#f59e0b' : '#10b981';
 
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c]">Risk Matrix - {label}</span>
-      <div className={cn("font-mono text-[10px] tracking-tighter flex items-center gap-2", color)}>
-        <span className="opacity-40">[{barString}]</span>
-        <span className="font-black">{risk.toFixed(0)}%</span>
+    <div className="flex flex-col items-center gap-3 p-4 bg-black/40 rounded-2xl border border-white/5 backdrop-blur-md">
+      <div className="relative flex items-center justify-center">
+        <svg className="w-20 h-20 -rotate-90">
+          <circle cx="40" cy="40" r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
+          <circle 
+            cx="40" cy="40" r={radius} fill="none" 
+            stroke={color} strokeWidth="6" 
+            strokeDasharray={circumference} 
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="circular-progress-arc"
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center">
+          <span className="text-sm font-black font-mono tracking-tighter" style={{ color }}>{risk.toFixed(0)}%</span>
+          <span className="text-[6px] font-black uppercase text-white/30 tracking-widest">Risk</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4 w-full">
+        <div className="flex flex-col items-center">
+          <span className="text-[7px] font-black uppercase text-white/20 tracking-widest">Margin</span>
+          <span className="text-[10px] font-bold font-mono text-white/80">{margin}%</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-[7px] font-black uppercase text-white/20 tracking-widest">Volatility</span>
+          <span className="text-[10px] font-bold font-mono text-white/80 uppercase">{volatility}</span>
+        </div>
       </div>
     </div>
   );
 });
 
-const IntelligenceMatrix = React.memo(({ intel }: { intel?: DeltaMasterState['intelligence'] }) => {
-  if (!intel) return (
-    <div className="glass-panel p-3 rounded-xl border border-white/5 bg-black/20 flex items-center justify-center min-h-[80px]">
-       <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5e6673] animate-pulse">Initializing Neural Link...</span>
-    </div>
-  );
-
+const AIKernelStatus = React.memo(({ intel, isActive }: { intel?: DeltaMasterState['intelligence']; isActive: boolean }) => {
   return (
-    <div className="glass-panel p-3 rounded-xl border border-white/10 bg-black/40 flex flex-col gap-2 shadow-lg">
-       <div className="flex items-center gap-2 mb-1 border-b border-white/5 pb-1.5">
-          <TerminalSquare className="w-3.5 h-3.5 text-[var(--holo-cyan)]" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Intelligence Matrix v3.1</span>
-       </div>
-       
-       <div className="grid grid-cols-3 gap-2">
-          {/* Regime */}
-          <div className="flex flex-col gap-1 p-2 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition-all group">
-             <span className="text-[7px] font-black uppercase text-[#848e9c] tracking-widest">Market State</span>
-             <span className={cn("text-[10px] font-black uppercase", 
-               intel.regime === 'TREND' ? "text-cyan-400" : 
-               intel.regime === 'RANGE' ? "text-amber-400" : "text-rose-400")}>
-               {intel.regime}
-             </span>
-             <div className="h-0.5 w-full bg-white/10 mt-1 rounded-full overflow-hidden">
-                <div className={cn("h-full transition-all duration-1000", 
-                  intel.regime === 'TREND' ? "w-full bg-cyan-400" : 
-                  intel.regime === 'RANGE' ? "w-[60%] bg-amber-400" : "w-[30%] bg-rose-400")} />
-             </div>
+    <div className="flex flex-col gap-2 p-3 bg-black/40 rounded-xl border border-white/5">
+      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+        <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Intelligence Stack</span>
+        <Activity className="w-3 h-3 text-[var(--holo-cyan)] animate-pulse" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {[
+          { name: 'Research', model: 'gemini-3.1-flash-lite', status: intel?.regime ? 'ACTIVE' : 'STANDBY' },
+          { name: 'Execution', model: 'gemma-3-27b', status: intel?.executionAdvisory ? 'OPTIMIZING' : 'STANDBY' },
+          { name: 'Live', model: 'gemini-3-flash-live', status: isActive ? 'ACTIVE' : 'STANDBY' }
+        ].map(kernel => (
+          <div key={kernel.name} className="flex items-center justify-between text-[9px]">
+            <div className="flex items-center gap-2">
+              <div className={cn("w-1.5 h-1.5 rounded-full", kernel.status === 'STANDBY' ? "bg-white/10" : "bg-emerald-500 shadow-[0_0_5px_#10b981] animate-pulse")} />
+              <span className="font-black uppercase tracking-tight text-white/70">{kernel.name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-white/30 text-[8px]">{kernel.model}</span>
+              <span className={cn("font-black uppercase", kernel.status === 'STANDBY' ? "text-white/20" : "text-emerald-400")}>{kernel.status}</span>
+            </div>
           </div>
-
-          {/* Friction */}
-          <div className="flex flex-col gap-1 p-2 bg-white/5 rounded-lg border border-white/5">
-             <span className="text-[7px] font-black uppercase text-[#848e9c] tracking-widest">ATR Friction</span>
-             <span className="text-[10px] font-black uppercase text-blue-400">
-               {intel.executionAdvisory?.friction ? `${intel.executionAdvisory.friction.toFixed(2)}%` : 'CALC...'}
-             </span>
-             <span className="text-[7px] font-mono text-white/40 truncate">offset: {intel.executionAdvisory?.offset.toFixed(1) || '0'}</span>
-          </div>
-
-          {/* Volatility */}
-          <div className="flex flex-col gap-1 p-2 bg-white/5 rounded-lg border border-white/5">
-             <span className="text-[7px] font-black uppercase text-[#848e9c] tracking-widest">Volatility</span>
-             <div className="flex items-center gap-1.5">
-                <Activity className="w-2.5 h-2.5 text-fuchsia-400" />
-                <span className="text-[10px] font-black uppercase text-white">{intel.volatilityScore?.toFixed(1) || '0'}</span>
-             </div>
-             <span className="text-[7px] font-mono text-white/40">liq: {intel.liquidityScore?.toFixed(0) || '0'}bps</span>
-          </div>
-       </div>
-
-       {intel.executionAdvisory?.reason && (
-          <div className="mt-1 px-2 py-1.5 bg-blue-500/5 border border-blue-500/10 rounded font-mono text-[8px] text-blue-400/80 leading-tight">
-             <span className="font-black text-blue-500 mr-1">EXECUTION_LOG:</span>
-             {intel.executionAdvisory.reason}
-          </div>
-       )}
+        ))}
+      </div>
     </div>
   );
 });
+
+const ConsensusDot = ({ active, state, label }: { active: boolean; state: 'success' | 'warning' | 'danger'; label: string }) => {
+  const colors = {
+    success: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]',
+    warning: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]',
+    danger: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+  };
+
+  return (
+    <div className={cn(
+      "w-3 h-3 rounded-full flex items-center justify-center text-[6px] font-black transition-all duration-500",
+      active ? colors[state] : "bg-white/5 text-white/10 grayscale border border-white/5",
+      active && state === 'danger' && "animate-pulse"
+    )}>
+      {active && label}
+    </div>
+  );
+};
 
 const ScorePillar = ({ label, val, weight, color }: { label: string; val: number; weight: number; color: string }) => {
   const colorMap: any = {
@@ -260,124 +257,351 @@ const ShieldScoreHUD = ({ score, Distance, Volatility, Risk, AI, isLocked, coold
   );
 };
 
-const VisualHUD = React.memo(({ state, sideA }: { state: DeltaMasterState, sideA: string }) => {
+const MicroPnLSplitView = React.memo(({ pnlA, pnlB, netPnl, statsA, statsB, sideA }: { pnlA: number; pnlB: number; netPnl: number; statsA?: any; statsB?: any; sideA: string }) => {
+  return (
+    <div className="flex flex-col gap-2 p-3 bg-black/40 rounded-xl border border-white/5 backdrop-blur-md">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between items-center">
+            <span className="text-[8px] font-black text-white/30 tracking-widest uppercase">Primary [A]</span>
+            <span className={cn("text-[9px] font-bold font-mono px-1 rounded", pnlA >= 0 ? "text-emerald-400 bg-emerald-400/10" : "text-rose-500 bg-rose-500/10")}>
+              {statsA?.pnlPct >= 0 ? '+' : ''}{statsA?.pnlPct.toFixed(2)}%
+            </span>
+          </div>
+          <div className={cn("text-lg font-black font-mono tracking-tighter tabular-nums", pnlA >= 0 ? "text-[var(--holo-cyan)]" : "text-rose-500")}>
+            <span className="pnl-ticker-up">{pnlA >= 0 ? '+' : ''}{pnlA.toFixed(2)}</span>
+            <span className="text-[10px] ml-1 opacity-40">USDT</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1 border-l border-white/10 pl-4">
+          <div className="flex justify-between items-center">
+            <span className="text-[8px] font-black text-white/30 tracking-widest uppercase">Hedge [B]</span>
+            <span className={cn("text-[9px] font-bold font-mono px-1 rounded", pnlB >= 0 ? "text-emerald-400 bg-emerald-400/10" : "text-rose-500 bg-rose-500/10")}>
+              {statsB?.pnlPct >= 0 ? '+' : ''}{statsB?.pnlPct.toFixed(2)}%
+            </span>
+          </div>
+          <div className={cn("text-lg font-black font-mono tracking-tighter tabular-nums", pnlB >= 0 ? "text-[var(--holo-gold)]" : "text-rose-500", !pnlB && "text-white/10")}>
+            <span className="pnl-ticker-down">{pnlB >= 0 ? '+' : ''}{pnlB.toFixed(2)}</span>
+            <span className="text-[10px] ml-1 opacity-40">USDT</span>
+          </div>
+        </div>
+      </div>
+      <div className={cn(
+        "relative h-1 w-full bg-white/5 rounded-full overflow-hidden mt-1",
+        netPnl >= 0 ? "shadow-[0_0_10px_rgba(16,185,129,0.1)]" : "shadow-[0_0_10px_rgba(244,63,94,0.1)]"
+      )}>
+        <div 
+          className={cn("h-full transition-all duration-1000", netPnl >= 0 ? "bg-emerald-500" : "bg-rose-500")}
+          style={{ width: `${Math.min(100, (Math.abs(netPnl) / 100) * 100)}%`, marginLeft: netPnl >= 0 ? '0' : 'auto' }}
+        />
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Net Realized Exposure</span>
+        <span className={cn("text-xs font-black font-mono", netPnl >= 0 ? "text-emerald-400" : "text-rose-500")}>
+          {netPnl >= 0 ? '+' : ''}{netPnl.toFixed(2)} USDT
+        </span>
+      </div>
+    </div>
+  );
+});
+
+const PriceRail2 = React.memo(({ state, sideA }: { state: DeltaMasterState, sideA: string }) => {
+  const [delayedPrice, setDelayedPrice] = useState(state.lastPrice);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDelayedPrice(state.lastPrice);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [state.lastPrice]);
+
   if (!state.isActive || !state.entryA) return (
-     <div className="h-full flex items-center justify-center text-[10px] uppercase font-black tracking-widest text-[#5e6673]">
-       Waiting for Deployment
+     <div className="h-full flex flex-col items-center justify-center text-[10px] uppercase font-black tracking-widest text-[#5e6673] gap-4">
+       <div className="w-16 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+         <div className="h-full bg-[var(--holo-cyan)]/20 animate-[loading_2s_infinite]" />
+       </div>
+       Awaiting Deployment Matrix
      </div>
   );
 
   const sl = state.slOrder?.price || 0;
-  const tp1 = state.tpTiers[0]?.price || 0;
+  const tpTiers = state.tpTiers || [];
   const isBuy = sideA === 'buy';
   
-  const highBound = isBuy ? Math.max(tp1, state.lastPrice, state.entryA) : Math.max(sl, state.lastPrice, state.entryA);
-  const lowBound = isBuy ? Math.min(sl, state.lastPrice, state.entryA) : Math.min(tp1, state.lastPrice, state.entryA);
-  const padding = (highBound - lowBound) * 0.2 || 10;
-  const max = highBound + padding;
-  const min = lowBound - padding;
+  const maxTP = Math.max(...tpTiers.map(t => t.price), state.entryA);
+  const minBound = Math.min(sl, state.lastPrice, state.entryA, state.entryB || state.entryA);
+  const maxBound = Math.max(maxTP, state.lastPrice, state.entryA, state.entryB || state.entryA);
+  const padding = (maxBound - minBound) * 0.15;
+  const topPrice = maxBound + padding;
+  const bottomPrice = minBound - padding;
 
-  const calculatePositionPercentage = (val: number, pMin: number, pMax: number) => {
-    if (pMax === pMin) return 50;
-    const pct = ((val - pMin) / (pMax - pMin)) * 100;
-    return Math.max(0, Math.min(100, pct));
+  const getPos = (price: number) => {
+    const pct = ((price - bottomPrice) / (topPrice - bottomPrice)) * 100;
+    return 100 - Math.max(0, Math.min(100, pct));
   };
 
-  const currentPct = calculatePositionPercentage(state.lastPrice, min, max);
-  const entryPct = calculatePositionPercentage(state.entryA, min, max);
-  const slPct = calculatePositionPercentage(sl, min, max);
-  const tpPct = calculatePositionPercentage(tp1, min, max);
-  const hedgePct = calculatePositionPercentage(state.entryB, min, max);
+  const pricePos = getPos(state.lastPrice);
+  const delayedPos = getPos(delayedPrice);
+  const entryPos = getPos(state.entryA);
+  const slPos = getPos(sl);
+  const hedgePos = getPos(state.entryB);
+  
+  const isHedgeArmed = state.botState === 'HEDGE_PENDING';
+  const isHedgeActive = state.botState === 'HEDGE_ACTIVE';
+  const riskColor = (state.hedgeScore || 0) > 70 ? 'var(--holo-magenta)' : 
+                    (state.hedgeScore || 0) > 50 ? 'var(--holo-gold)' : 
+                    'var(--holo-cyan)';
 
   return (
-    <div className={cn("relative w-full h-full flex flex-col justify-center px-10 py-6 transition-all duration-1000", 
-      state.intelligence?.regime === 'RANGE' ? "bg-amber-500/[0.03]" : 
-      state.intelligence?.regime === 'VOLATILE' ? "bg-rose-500/[0.03]" : "bg-cyan-500/[0.02]")}>
-      
-      {/* Regime Texture Overlay */}
-      <div className="absolute inset-0 opacity-[0.05] pointer-events-none overflow-hidden">
-         {state.intelligence?.regime === 'RANGE' && <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#fcd535_100%)] animate-pulse" />}
-         {state.intelligence?.regime === 'VOLATILE' && <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,_#f43f5e_0px,_transparent_2px,_transparent_10px)]" />}
+    <div className="relative w-full h-full flex items-center justify-center py-8">
+      {/* ─── PRICE RAIL 2.0 ─── */}
+      <div className="relative w-2 h-full bg-white/5 rounded-full mx-auto">
+        
+        {/* Zones */}
+        <div className="absolute w-full bg-emerald-500/10 rail-glow-safe rounded-full transition-all duration-500" 
+             style={{ top: isBuy ? `${getPos(maxTP)}%` : `${entryPos}%`, height: `${Math.abs(getPos(maxTP) - entryPos)}%` }} />
+
+        <div className={cn("absolute w-full bg-rose-500/10 rounded-full transition-all duration-500", (state.hedgeScore || 0) > 80 && "danger-zone-pulse")} 
+             style={{ top: isBuy ? `${entryPos}%` : `${slPos}%`, height: `${Math.abs(entryPos - slPos)}%` }} />
+
+        {state.entryB > 0 && (
+          <div className={cn("absolute w-full rounded-full transition-all duration-500", isHedgeArmed && "zone-shimmer-armed bg-amber-500/20")} 
+               style={{ top: `${hedgePos}%`, height: `2px`, boxShadow: isHedgeArmed ? '0 0 15px var(--holo-gold)' : 'none' }} />
+        )}
+
+        {/* Markers */}
+        {tpTiers.map((tp, i) => (
+          <div key={i} className="absolute left-1/2 -translate-x-1/2 w-6 h-[1px] bg-emerald-500/40" style={{ top: `${getPos(tp.price)}%` }}>
+            <span className="absolute left-8 -translate-y-1/2 text-[8px] font-black text-emerald-500/80 whitespace-nowrap">TP Tier {tp.tier}</span>
+          </div>
+        ))}
+
+        <div className="absolute left-1/2 -translate-x-1/2 w-5 h-5 rounded-full border-2 border-fuchsia-500 bg-black z-10 shadow-[0_0_15px_rgba(217,70,239,0.5)]" style={{ top: `${entryPos}%` }}>
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-fuchsia-400 animate-pulse" />
+           <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[9px] font-black text-fuchsia-400 tracking-widest">ENTRY</span>
+        </div>
+
+        <div className="absolute left-1/2 -translate-x-1/2 w-6 h-1 bg-rose-600 shadow-[0_0_10px_#f43f5e] z-10" style={{ top: `${slPos}%` }}>
+           <span className="absolute left-8 top-1/2 -translate-y-1/2 text-[9px] font-black text-rose-500 tracking-tighter">LIQ_SHUTDOWN</span>
+        </div>
+
+        {/* MAGNETIC PRICE BEACON */}
+        <div className="absolute left-1/2 -translate-x-1/2 z-20 price-beacon-magnetic" style={{ top: `${pricePos}%` }}>
+          <div className={cn("w-4 h-4 rotate-45 border-2 bg-black transition-colors duration-300", isHedgeActive ? "border-[var(--holo-gold)]" : "border-[var(--holo-cyan)]")} 
+               style={{ boxShadow: `0 0 15px ${isHedgeActive ? 'var(--holo-gold)' : 'var(--holo-cyan)'}` }} />
+          
+          <div className="absolute top-0 left-0 w-4 h-4 rotate-45 border border-white/10 opacity-30 scale-90"
+               style={{ transform: `translate(-50%, -50%) translateY(${(delayedPos - pricePos) * 2}px)`, transition: 'transform 0.1s linear' }} />
+
+          {/* Hedge Overlay */}
+          {(state.hedgeScore || 0) > 30 && (
+            <div className="absolute left-8 top-1/2 -translate-y-1/2 flex flex-col gap-1 pointer-events-none animate-in fade-in slide-in-from-left-2 duration-500">
+               <div className="flex items-center gap-3 px-3 py-1.5 bg-black/90 border border-white/10 rounded-lg backdrop-blur-xl shadow-2xl">
+                  <div className="flex flex-col">
+                    <span className="text-[7px] font-black text-white/40 uppercase tracking-widest">Hedge Risk</span>
+                    <span className={cn("text-[10px] font-black font-mono", (state.hedgeScore || 0) > 70 ? "text-rose-500" : "text-[var(--holo-gold)]")}>
+                      {state.hedgeScore?.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="w-px h-6 bg-white/10" />
+                  <div className="flex flex-col">
+                     <span className="text-[7px] font-black text-white/40 uppercase tracking-widest">Status</span>
+                     <span className="text-[8px] font-black text-white uppercase italic">{state.botState.replace('_', ' ')}</span>
+                  </div>
+               </div>
+               <svg className="absolute -left-[38px] -top-[14px] w-14 h-14 -rotate-90">
+                  <circle cx="28" cy="28" r="12" fill="none" stroke="white" strokeWidth="1" className="opacity-5" />
+                  <circle cx="28" cy="28" r="12" fill="none" stroke={riskColor} strokeWidth="2" 
+                          strokeDasharray={75.4} strokeDashoffset={75.4 - (75.4 * (state.hedgeScore || 0) / 100)}
+                          className="transition-all duration-1000" />
+               </svg>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Distance Telemetry */}
-      {state.botState === 'HEDGE_PENDING' && (
-         <div className="absolute top-10 right-10 flex flex-col items-end">
-            <span className="text-[10px] font-black text-[var(--holo-gold)] tracking-widest uppercase mb-1">Hedge Distance</span>
-            <div className="flex items-center gap-2 bg-[var(--holo-gold)]/10 border border-[var(--holo-gold)]/20 px-2 py-1 rounded">
-               <Wind className="w-3 h-3 text-[var(--holo-gold)] animate-pulse" />
-               <span className="font-mono text-sm font-bold text-white">-{state.distanceToHedge?.toFixed(2)} USDT</span>
-            </div>
+      <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-8 items-end pointer-events-none">
+         <div className="flex flex-col items-end">
+            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Mark Price</span>
+            <span className="text-base font-mono font-bold text-white tracking-tighter">${state.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 1 })}</span>
          </div>
+         {isHedgeArmed && (
+           <div className="flex flex-col items-end animate-pulse">
+              <span className="text-[8px] font-black text-[var(--holo-gold)] uppercase tracking-widest">Shield Trigger</span>
+              <span className="text-sm font-mono font-bold text-[var(--holo-gold)]">${state.entryB?.toLocaleString()}</span>
+           </div>
+         )}
+      </div>
+    </div>
+  );
+});
+
+const TradeIdentityStrip = React.memo(({ symbol, sideA, botState, isActive, hedgeScore, intelligence }: { symbol: string; sideA: string; botState: string; isActive: boolean; hedgeScore: number; intelligence?: any }) => {
+  const badge = useMemo(() => {
+    if (!isActive) return { color: 'text-gray-500 bg-gray-500/10 border-gray-500/20', text: 'OFFLINE', icon: <StopCircle className="w-3 h-3" /> };
+    switch(botState) {
+      case 'PRIMARY_ACTIVE': return { color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', text: 'PRIMARY ACTIVE', icon: <Zap className="w-3 h-3 text-emerald-400" /> };
+      case 'HEDGE_PENDING': return { color: 'text-amber-400 bg-amber-500/10 border-amber-500/30 animate-pulse', text: 'HEDGE PENDING', icon: <Activity className="w-3 h-3 text-amber-400" /> };
+      case 'HEDGE_ACTIVE': return { color: 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30', text: 'HEDGE ACTIVE', icon: <ShieldCheck className="w-3 h-3" /> };
+      case 'EMERGENCY': return { color: 'text-rose-500 bg-rose-600/20 border-rose-500/50 animate-bounce', text: 'EMERGENCY', icon: <AlertTriangle className="w-3 h-3" /> };
+      default: return { color: 'text-[#848e9c] bg-white/5 border-white/10', text: 'IDLE', icon: <Wind className="w-3 h-3" /> };
+    }
+  }, [botState, isActive]);
+
+  return (
+    <div className={cn(
+      "flex items-center justify-between px-6 py-3 bg-black/60 border border-white/5 rounded-2xl backdrop-blur-2xl shadow-2xl relative overflow-hidden h-[80px]",
+      isActive && "animate-active-trade-gradient"
+    )}>
+      <div className="flex items-center gap-6">
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-black tracking-tighter leading-none flex items-center gap-3">
+            <span className="text-white/40 font-mono text-base">{symbol}</span>
+            <span className={cn("px-3 py-1 rounded-md italic shadow-lg border", sideA === 'buy' ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/5" : "text-rose-500 border-rose-500/30 bg-rose-500/5")}>
+              {sideA === 'buy' ? 'LONG' : 'SHORT'}
+            </span>
+          </h1>
+          <div className="flex items-center gap-2 mt-2 opacity-40">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[9px] font-black tracking-widest font-mono">NEURAL_LINK: ACTIVE</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute left-1/2 -translate-x-1/2">
+         <div className={cn("px-8 py-2.5 rounded-full border-2 text-xs font-black tracking-widest uppercase flex items-center gap-4 transition-all duration-500 shadow-xl", badge.color)}>
+           {badge.icon} {badge.text}
+           {isActive && <div className="w-2 h-2 rounded-full bg-current animate-ping" />}
+         </div>
+      </div>
+
+      <div className="flex items-center gap-8">
+        <div className="flex flex-col items-end gap-1.5">
+           <span className="text-[9px] font-black text-white/20 tracking-widest uppercase">AI Consensus</span>
+           <div className="flex gap-2">
+              <ConsensusDot active={!!intelligence?.regime} state={intelligence?.regime === 'TREND' ? 'success' : intelligence?.regime === 'RANGE' ? 'warning' : 'danger'} label="R" />
+              <ConsensusDot active={!!intelligence?.executionAdvisory} state={(intelligence?.executionAdvisory?.friction || 0) < 1 ? 'success' : 'warning'} label="E" />
+              <ConsensusDot active={isActive} state={(hedgeScore || 0) < 30 ? 'success' : (hedgeScore || 0) < 70 ? 'warning' : 'danger'} label="S" />
+           </div>
+        </div>
+        <div className="w-12 h-12 border border-white/10 rounded-xl flex items-center justify-center bg-white/5 group transition-all hover:bg-white/10">
+           <Shield className={cn("w-6 h-6", isActive ? "text-[var(--holo-cyan)] animate-pulse" : "text-white/10")} />
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const SmartActionButton = React.memo(({ botState, isActive, loading, onStart, onStop }: { botState: string; isActive: boolean; loading: boolean; onStart: () => void; onStop: () => void }) => {
+  const config = useMemo(() => {
+    if (!isActive) return { text: 'ACTIVATE TRADE', color: 'bg-[var(--holo-cyan)] text-black', icon: <Play className="w-5 h-5 fill-black" />, action: onStart };
+    switch(botState) {
+      case 'PRIMARY_ACTIVE': return { text: 'ACTIVATE SHIELD', color: 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]', icon: <Shield className="w-5 h-5 fill-black" />, action: () => {} };
+      case 'HEDGE_ACTIVE': return { text: 'CLOSE PARTIAL', color: 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]', icon: <TrendingDown className="w-5 h-5" />, action: () => {} };
+      case 'EMERGENCY': return { text: 'PANIC CLOSE', color: 'bg-rose-600 text-white animate-pulse shadow-[0_0_30px_rgba(225,29,72,0.8)]', icon: <AlertTriangle className="w-5 h-5" />, action: onStop };
+      default: return { text: 'TERMINATE UNIT', color: 'bg-rose-500 text-white', icon: <StopCircle className="w-5 h-5" />, action: onStop };
+    }
+  }, [botState, isActive, onStart, onStop]);
+
+  return (
+    <button 
+      onClick={config.action} 
+      disabled={loading}
+      className={cn(
+        "w-full py-4 rounded-2xl font-black uppercase tracking-[0.3em] text-xs transition-all duration-500 flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 shadow-2xl",
+        config.color,
+        loading && "opacity-50 cursor-not-allowed"
       )}
+    >
+      {config.icon} {config.text}
+    </button>
+  );
+});
 
-      {/* Tactical Rail */}
-      <div className="relative h-1.5 bg-white/5 rounded-full w-full">
-          {/* Zones */}
-          <div className="absolute inset-y-0 bg-emerald-500/10 rounded-l-full" style={{ left: isBuy ? `${entryPct}%` : `${tpPct}%`, right: isBuy ? `${100 - tpPct}%` : `${100 - entryPct}%` }} />
-          <div className="absolute inset-y-0 bg-rose-500/10 rounded-r-full" style={{ left: isBuy ? `${slPct}%` : `${entryPct}%`, right: isBuy ? `${100 - entryPct}%` : `${100 - slPct}%` }} />
+const ModeSwitch = React.memo(({ value, onChange }: { value: string; onChange: (v: any) => void }) => {
+  const modes = [
+    { id: 'MIRROR', label: 'MIRROR', tip: 'Instant clone of primary' },
+    { id: 'DELAYED', label: 'DELAYED', tip: 'ATR-gated, safer entry' },
+    { id: 'GRID_HEDGE', label: 'GRID', tip: 'Multi-layer grid layers' },
+    { id: 'DYNAMIC', label: 'DYNAMIC', tip: 'AI/ATR adaptive sizing' }
+  ];
 
-          {/* Scale Labels */}
-          <div className="absolute -top-8 w-full flex justify-between px-2 text-[8px] font-mono text-gray-500 tabular-nums">
-             <span>${min.toLocaleString()}</span>
-             <span>${max.toLocaleString()}</span>
-          </div>
-
-          {/* Markers */}
-          <div className="absolute top-1/2 -translate-y-1/2 w-1 h-4 bg-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,0.5)] z-20" style={{ left: `${entryPct}%` }}>
-             <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[7px] font-black text-fuchsia-400">ENTRY</span>
-          </div>
-
-          {sl > 0 && (
-            <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-rose-600 z-10" style={{ left: `${slPct}%` }}>
-               <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[7px] font-black text-rose-500">STOP</span>
-            </div>
-          )}
-
-          {tp1 > 0 && (
-            <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-emerald-500 z-10" style={{ left: `${tpPct}%` }}>
-               <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[7px] font-black text-emerald-400 italic">TP_MAX</span>
-            </div>
-          )}
-
-          {state.entryB > 0 && (
-             <>
-               {state.hedgeStrategy === 'GRID_HEDGE' ? (
-                  Array.from({ length: state.gridLayers || 3 }).map((_, i) => {
-                    const gap = state.gridGapPct || 0.5;
-                    const layerOffset = (state.entryB ? Math.abs(state.entryA - state.entryB) : 5) + (state.entryA * (gap * i / 100));
-                    const layerPrice = isBuy ? state.entryA - layerOffset : state.entryA + layerOffset;
-                    const layerPct = calculatePositionPercentage(layerPrice, min, max);
-                    
-                    return (
-                       <div key={i} className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[var(--holo-gold)]/40" style={{ left: `${layerPct}%` }}>
-                          {i === 0 && (
-                            <div className="absolute -bottom-7 -translate-x-1/2 flex flex-col items-center">
-                              <span className="text-[8px] font-black tracking-widest text-[var(--holo-gold)] uppercase">Grid Start</span>
-                              <span className="font-mono text-[9px] text-[var(--holo-gold)]">${layerPrice.toFixed(1)}</span>
-                            </div>
-                          )}
-                       </div>
-                    );
-                  })
-               ) : (
-                  <div className="absolute top-1/2 -translate-y-1/2 w-1 h-3 bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] z-20" style={{ left: `${hedgePct}%` }}>
-                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[7px] font-black text-amber-500 italic">HEDGE</span>
-                  </div>
-               )}
-             </>
-          )}
-
-          {/* Current Price Beacon */}
-          <div 
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_20px_white] z-30 transition-all duration-300 ease-out"
-            style={{ left: `${currentPct}%` }}
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Strategy Mode</span>
+      <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 gap-1">
+        {modes.map(mode => (
+          <button
+            key={mode.id}
+            onClick={() => onChange(mode.id)}
+            className={cn(
+              "flex-1 py-2 rounded-lg text-[10px] font-black transition-all relative group",
+              value === mode.id ? "bg-[var(--holo-cyan)] text-black shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5"
+            )}
           >
-             <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-black px-2 py-0.5 rounded-md text-[9px] font-black tabular-nums whitespace-nowrap shadow-xl">
-               ${state.lastPrice.toLocaleString(undefined, { minimumFractionDigits: 1 })}
-             </div>
-             <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-20" />
+            {mode.label}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 mode-tooltip rounded text-[8px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              {mode.tip}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+const SafetyToggles = React.memo(() => {
+  const [states, setStates] = useState({ ab: true, ai: false, lock: false });
+  
+  const toggles = [
+    { id: 'ab', label: 'Auto-Breakeven', icon: <ShieldCheck className="w-3.5 h-3.5" /> },
+    { id: 'ai', label: 'Live AI Approval', icon: <Zap className="w-3.5 h-3.5" /> },
+    { id: 'lock', label: 'Hedge Lock', icon: <Lock className="w-3.5 h-3.5" /> }
+  ];
+
+  return (
+    <div className="flex flex-col gap-3 p-4 bg-white/5 rounded-2xl border border-white/5">
+      {toggles.map(t => (
+        <label key={t.id} className="flex items-center justify-between cursor-pointer group">
+          <div className="flex items-center gap-3">
+             <div className="text-white/30 group-hover:text-[var(--holo-cyan)] transition-colors">{t.icon}</div>
+             <span className="text-[10px] font-black uppercase tracking-tight text-white/60">{t.label}</span>
           </div>
+          <div 
+            onClick={() => setStates(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
+            className={cn("w-10 h-5 rounded-full transition-all relative flex items-center px-1 border", (states as any)[t.id] ? "bg-emerald-500/20 border-emerald-500/50" : "bg-white/5 border-white/10")}
+          >
+            <div className={cn("w-3 h-3 rounded-full transition-all", (states as any)[t.id] ? "bg-emerald-400 translate-x-5 shadow-[0_0_8px_#34d399]" : "bg-white/20")} />
+          </div>
+        </label>
+      ))}
+    </div>
+  );
+});
+
+const EventFeedMini = React.memo(({ events, onExpand }: { events: DeltaEvent[]; onExpand: () => void }) => {
+  return (
+    <div className="flex flex-col gap-2 cursor-pointer" onClick={onExpand}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Live Telemetry</span>
+        <TerminalSquare className="w-3 h-3 text-white/20" />
+      </div>
+      <div className="flex flex-col gap-1.5 p-3 bg-black/60 rounded-xl border border-white/5 font-mono text-[9px] min-h-[70px]">
+        {events.slice(-3).reverse().map(ev => {
+          const time = new Date(ev.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+          let color = 'text-white/60';
+          if (ev.type.toLowerCase().includes('error')) color = 'text-rose-500';
+          else if (ev.type.toLowerCase().includes('hedge')) color = 'text-[var(--holo-gold)]';
+          else if (ev.type.toLowerCase().includes('tp')) color = 'text-emerald-400';
+          
+          return (
+            <div key={ev.id} className="flex gap-2 items-start overflow-hidden">
+               <span className="text-white/20 shrink-0">[{time}]</span>
+               <span className={cn(color, "font-bold truncate")}>{ev.message}</span>
+            </div>
+          );
+        })}
+        {events.length === 0 && <div className="text-white/10 italic">Awaiting streams...</div>}
       </div>
     </div>
   );
@@ -389,7 +613,7 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
     isActive: false, phase: 'IDLE', pnlA: 0, pnlB: 0, netPnl: 0,
     lastPrice: 0, entryA: 0, entryB: 0, symbol: '', liqPriceA: 0,
     hedgeRatio: 1.0, availableMarginB: 0, dmsStatus: 'inactive',
-    tpTiers: [], slOrder: null, events: [], intent: 'MONITORING',
+    tpTiers: [], slOrder: null, events: [],
     marginStats: {
       accountA: { balance: 1000, used: 0, free: 1000, pnlPct: 0 },
       accountB: { balance: 1000, used: 0, free: 1000, pnlPct: 0 }
@@ -399,8 +623,18 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
   const [wsConnected, setWsConnected] = useState(false);
   const [pnlHistoryA, setPnlHistoryA] = useState<number[]>([]);
   const [pnlHistoryB, setPnlHistoryB] = useState<number[]>([]);
+  const [stateFlash, setStateFlash] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const prevBotState = useRef(state.botState);
   
-  // Configuration State
+  useEffect(() => {
+    if (state.isActive && state.botState !== prevBotState.current) {
+      setStateFlash(true);
+      setTimeout(() => setStateFlash(false), 400);
+      prevBotState.current = state.botState;
+    }
+  }, [state.botState, state.isActive]);
+
   const [qtyA, setQtyA] = useState('0.1');
   const [entryPrice, setEntryPrice] = useState('');
   const [entryOffset, setEntryOffset] = useState('5');
@@ -456,36 +690,41 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
 
   const handleStart = async () => {
     setLoading(true);
-    const tId = toast.loading('Initializing Agent...');
+    const tId = toast.loading('Initializing Mission...');
     try {
       const parsedEntry = entryPrice ? Number(entryPrice) : undefined;
       const res = await fetch('/api/delta-master/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          symbol, 
-          qtyA: Number(qtyA), 
-          sideA, 
-          entryPrice: parsedEntry,
-          entryOffset: Number(entryOffset), 
-          slPercent: Number(slPercent),
-          tpTiersArray: tpTiers.split(',').map(Number),
-          hedgeStrategy,
-          gridLayers: Number(gridLayers),
-          gridGapPct: Number(gridGapPct),
-          maxDrawdownPct: Number(maxDrawdown),
-          leverA: 10, leverB: 20
+          symbol, qtyA: Number(qtyA), sideA, entryPrice: parsedEntry,
+          entryOffset: Number(entryOffset), slPercent: Number(slPercent),
+          tpTiersArray: tpTiers.split(',').map(Number), hedgeStrategy,
+          gridLayers: Number(gridLayers), gridGapPct: Number(gridGapPct),
+          maxDrawdownPct: Number(maxDrawdown), leverA: 10, leverB: 20
         })
       });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Deployment failed');
-      }
+      if (!res.ok) throw new Error((await res.json()).error || 'Deployment failed');
       toast.success('Agent Deployed!', { id: tId });
     } catch (err: any) {
-      console.error('Failed to start Delta Master:', err);
-      toast.error(`Deployment Failed: ${err.message}`);
-    }
+      toast.error(`Deployment Failed: ${err.message}`, { id: tId });
+    } finally { setLoading(false); }
+  };
+
+  const handleStop = async () => {
+    setLoading(true);
+    const tId = toast.loading('Terminating Agent...');
+    try {
+      const res = await fetch('/api/delta-master/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol })
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Termination failed');
+      toast.success('Agent Terminated', { id: tId });
+    } catch (err: any) {
+      toast.error(err.message, { id: tId });
+    } finally { setLoading(false); }
   };
 
   const handleResetShield = async () => {
@@ -508,342 +747,120 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
     }
   };
 
-  const handleStop = async () => {
-    setLoading(true);
-    const tId = toast.loading('Terminating Agent...');
-    try {
-      const res = await fetch('/api/delta-master/stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol })
-      });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Termination failed');
-      }
-      toast.success('Agent Terminated', { id: tId });
-    } catch (err: any) {
-      toast.error(err.message, { id: tId });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateRisk = () => {
+  const calculateRiskValue = () => {
     if (!state.isActive || !state.marginStats) return 0;
-    
     const used = (state.marginStats.accountA.used || 0) + (state.marginStats.accountB.used || 0);
     const balance = (state.marginStats.accountA.balance || 0) + (state.marginStats.accountB.balance || 0);
     const marginRisk = (used / (balance || 1)) * 100;
-    
     const loss = Math.max(0, -state.pnlA) + Math.max(0, -state.pnlB);
     const pnlRisk = (loss / (balance || 1)) * 100;
-    
     const volFactor = (state.intelligence?.volatilityScore || 0) / 10;
     const regimeRisk = state.intelligence?.regime === 'VOLATILE' ? 20 : 0;
-    
     return Math.min(100, marginRisk + pnlRisk + volFactor + regimeRisk);
   };
 
-  const badge = useMemo(() => {
-    if (!state.isActive) return { color: 'text-gray-500 bg-gray-500/10 border-gray-500/20', text: 'OFFLINE', icon: <StopCircle className="w-3 h-3" /> };
-    
-    switch(state.botState) {
-      case 'PRIMARY_ACTIVE':
-        return { color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', text: 'PRIMARY ACTIVE', icon: <Zap className="w-3 h-3 text-emerald-400" /> };
-      case 'HEDGE_PENDING':
-        return { color: 'text-amber-400 bg-amber-500/10 border-amber-500/30 animate-pulse', text: 'HEDGE PENDING (AUTH)', icon: <Activity className="w-3 h-3 text-amber-400" /> };
-      case 'HEDGE_ACTIVE':
-        return { color: 'text-[var(--holo-cyan)] bg-[var(--holo-cyan)]/10 border-[var(--holo-cyan)]/30 shadow-[0_0_15px_rgba(0,229,255,0.3)]', text: 'HEDGE ACTIVE', icon: <ShieldCheck className="w-3 h-3" /> };
-      case 'TP_SCALING':
-        return { color: 'text-violet-400 bg-violet-500/10 border-violet-500/30', text: 'TP SCALING', icon: <TrendingUp className="w-3 h-3" /> };
-      case 'EMERGENCY':
-        const isPanic = (state.hedgeScore || 0) > 90;
-        return { 
-          color: isPanic ? 'text-white bg-rose-600 border-rose-400 animate-[ping_1.5s_infinite] shadow-[0_0_30px_rgba(225,29,72,0.8)]' : 'text-rose-500 bg-rose-500/20 border-rose-500/50 animate-bounce', 
-          text: isPanic ? '🚀 PANIC EXIT ACTIVE' : '🏛️ EMERGENCY EXIT', 
-          icon: <AlertTriangle className="w-3 h-3" /> 
-        };
-      case 'IDLE':
-      default:
-        if (state.hedgeCycleLocked) {
-          return { color: 'text-rose-600 bg-rose-900/20 border-rose-600/30', text: 'CYCLE LOCKED', icon: <Lock className="w-3 h-3" /> };
-        }
-        return { color: 'text-[#848e9c] bg-white/5 border-white/10', text: 'IDLE/MONITORING', icon: <Wind className="w-3 h-3" /> };
-    }
-  }, [state.botState, state.isActive, state.hedgeCycleLocked]);
+  const riskValue = calculateRiskValue();
+  const marginUsage = state.marginStats ? ((state.marginStats.accountA.used + state.marginStats.accountB.used) / (state.marginStats.accountA.balance + state.marginStats.accountB.balance) * 100) : 0;
 
   return (
-    <div className="h-full flex flex-col p-2 text-white overflow-hidden bg-[#05070a]/80 backdrop-blur-3xl gap-2 font-sans selection:bg-[var(--holo-cyan)]/20">
-      
-      {/* ─── HEADER ─── */}
-      <div className="flex items-center justify-between shrink-0 glass-panel px-3 py-2 border border-white/5 rounded-xl shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="p-1.5 bg-[var(--holo-cyan)]/10 border border-[var(--holo-cyan)]/20 rounded-lg">
-            <Shield className="w-5 h-5 text-[var(--holo-cyan)]" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-sm font-black uppercase tracking-widest leading-none drop-shadow-md">Delta Master AI</h1>
-            <span className="text-[9px] font-black text-[#848e9c] uppercase tracking-[0.2em] mt-1">Autonomous Hedge Matrix</span>
-          </div>
+    <div className={cn(
+      "h-full flex flex-col p-3 bg-[#0B0F14] text-white overflow-hidden gap-3 relative",
+      riskValue > 80 && "risk-high-shake"
+    )}>
+      {/* Risk Vignette */}
+      {riskValue > 80 && <div className="absolute inset-0 risk-vignette-overlay z-40 pointer-events-none" />}
+
+      {/* Layer 1: Header (80px) */}
+      <TradeIdentityStrip 
+        symbol={symbol} sideA={sideA} botState={state.botState} 
+        isActive={state.isActive} hedgeScore={state.hedgeScore || 0}
+        intelligence={state.intelligence}
+      />
+
+      {/* Layer 2: Core Visual Engine (360px) */}
+      <div className="flex-none h-[360px] flex gap-3 min-h-0">
+        <div className="flex-1 bg-black/40 rounded-3xl border border-white/5 relative overflow-hidden flex flex-col pt-8">
+           <PriceRail2 state={state} sideA={sideA} />
         </div>
-        <div className="flex items-center gap-3">
-          {/* AI Intelligence Matrix Status */}
-          <div className="hidden xl:flex items-center gap-4 border-r border-white/10 pr-4 mr-1">
-             <div className="flex flex-col items-end">
-                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Research Kernel</span>
-                <div className={cn("flex items-center gap-1.5 px-2 py-0.5 border rounded transition-all duration-500", 
-                  state.intelligence?.regime === 'TREND' ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" : 
-                  state.intelligence?.regime === 'RANGE' ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : 
-                  "bg-rose-500/10 border-rose-500/20 text-rose-400")}>
-                   <div className={cn("w-1 h-1 rounded-full animate-pulse", 
-                     state.intelligence?.regime === 'TREND' ? "bg-cyan-400" : 
-                     state.intelligence?.regime === 'RANGE' ? "bg-amber-400" : "bg-rose-400")} />
-                   <span className="text-[8px] font-mono font-black uppercase">{state.intelligence?.regime || 'INITIALIZING'} REGIME</span>
-                </div>
-             </div>
-
-             <div className="flex flex-col items-end">
-                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Execution Kernel</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded">
-                   <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
-                   <span className="text-[8px] font-mono font-bold text-blue-400 uppercase">
-                     {state.intelligence?.executionAdvisory?.friction ? `FRICTION: ${state.intelligence.executionAdvisory.friction.toFixed(2)}%` : 'Gemma-3 Calculating'}
-                   </span>
-                </div>
-             </div>
-
-             <div className="flex flex-col items-end">
-                <span className="text-[7px] font-black uppercase tracking-[0.2em] text-[#848e9c] mb-0.5">Shield Engine</span>
-                <div className={cn("flex items-center gap-1.5 px-2 py-0.5 border rounded animate-in fade-in transition-all", 
-                  state.botState === 'HEDGE_ACTIVE' ? "bg-rose-500/20 border-rose-500/40 text-rose-400" : 
-                  state.botState === 'HEDGE_PENDING' ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-white/5 border-white/10 text-white/40")}>
-                   <ShieldCheck className={cn("w-3 h-3", state.botState === 'HEDGE_ACTIVE' && "animate-pulse")} />
-                   <span className="text-[8px] font-mono font-black uppercase">
-                     {state.botState === 'HEDGE_ACTIVE' ? 'Shield Active' : state.botState === 'HEDGE_PENDING' ? 'Authorized' : 'Gated'}
-                   </span>
-                </div>
-             </div>
-          </div>
-
-          {/* Risk Matrix HUD */}
-          <RiskMeter risk={calculateRisk()} />
-          
-          {/* Agent State Badge */}
-          <div className={cn("px-2.5 py-1 rounded-md border text-[9px] font-black tracking-widest flex items-center gap-1.5 transition-colors duration-500", badge.color)}>
-             {badge.icon}
-             {badge.text}
-          </div>
+        <div className="w-[200px] flex flex-col justify-end">
+           <MicroPnLSplitView 
+             pnlA={state.pnlA} pnlB={state.pnlB} netPnl={state.netPnl}
+             statsA={state.marginStats?.accountA} statsB={state.marginStats?.accountB}
+             sideA={sideA}
+           />
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-2 min-h-0">
-         {/* ─── LEFT: CONTROLS & ACCOUNTS ─── */}
-         <div className="w-full lg:w-[400px] flex flex-col gap-2 shrink-0 overflow-y-auto custom-scrollbar pr-1">
-            
-            {/* Account Panel Matrix */}
-            <div className="grid grid-cols-2 gap-2">
-               {/* Account A */}
-               <div className="glass-panel border-white/10 p-3 rounded-xl flex flex-col relative overflow-hidden bg-black/40 hover:bg-black/60 transition-colors group">
-                  <div className="flex justify-between items-center mb-2">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-[#848e9c] group-hover:text-white transition-colors">Primary (A)</span>
-                     {state.isActive && <div className="w-2 h-2 rounded-full bg-[var(--holo-cyan)] shadow-[0_0_8px_var(--holo-cyan)] animate-pulse" />}
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className={cn("text-2xl font-black font-mono tracking-tighter drop-shadow-md", state.pnlA >= 0 ? "text-[var(--holo-cyan)]" : "text-rose-500")}>
-                        {state.pnlA >= 0 ? '+' : ''}{state.pnlA.toFixed(2)}
-                    </span>
-                    <span className={cn("text-[10px] font-bold font-mono", state.pnlA >= 0 ? "text-emerald-500/60" : "text-rose-500/60")}>
-                       ({state.marginStats?.accountA.pnlPct.toFixed(2)}%)
-                    </span>
-                  </div>
-                  {/* Micro Sparkline A */}
-                  <div className="mt-1 h-4 flex items-center">
-                    <MicroSparkline data={pnlHistoryA} color={state.pnlA >= 0 ? "#00e5ff" : "#f43f5e"} />
-                  </div>
-                  <div className="flex flex-col gap-1 mt-2 text-[9px] font-mono tracking-widest text-white/50">
-                     <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Balance:</span> <span className="text-white font-bold">${state.marginStats?.accountA.balance.toFixed(0)}</span></div>
-                     <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Used Margin:</span> <span className="text-white font-bold">${state.marginStats?.accountA.used.toFixed(1)}</span></div>
-                     <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Free Margin:</span> <span className="text-emerald-400 font-bold">${state.marginStats?.accountA.free.toFixed(1)}</span></div>
-                     <div className="flex justify-between border-b border-white/5 pb-0.5 mt-1"><span>Active:</span> <span className="text-[var(--holo-cyan)] uppercase font-bold">{state.isActive ? (state.netExposureDelta > 0 ? `LONG ${qtyA}` : `SHORT ${qtyA}`) : 'NONE'}</span></div>
-                  </div>
-               </div>
+      {/* Layer 3: Control + Telemetry (247px) */}
+      <div className="flex-1 grid grid-cols-2 gap-4 h-[247px]">
+        {/* Left: Controls */}
+        <div className="flex flex-col gap-4">
+           <SmartActionButton 
+             botState={state.botState} isActive={state.isActive} 
+             loading={loading} onStart={handleStart} onStop={handleStop}
+           />
+           <ModeSwitch value={hedgeStrategy} onChange={setHedgeStrategy} />
+           <SafetyToggles />
+        </div>
 
-               {/* Account B */}
-               <div className={cn("glass-panel border-white/10 p-3 rounded-xl flex flex-col relative overflow-hidden transition-colors group", state.intent === 'HEDGING_ACTIVE' ? "bg-rose-500/10 border-rose-500/30 shadow-[inset_0_0_20px_rgba(244,63,94,0.1)]" : "bg-black/40 hover:bg-black/60")}>
-                  <div className="flex justify-between items-center mb-2">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-[#848e9c] group-hover:text-white transition-colors">Hedge (B)</span>
-                     {state.intent === 'HEDGING_ACTIVE' && <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse" />}
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className={cn("text-2xl font-black font-mono tracking-tighter drop-shadow-md", state.pnlB >= 0 ? "text-[var(--holo-gold)]" : "text-rose-500", !state.pnlB && "text-white/20 blur-[1px]")}>
-                        {state.pnlB >= 0 ? '+' : ''}{state.pnlB.toFixed(2)}
-                    </span>
-                    {state.pnlB !== 0 && (
-                       <span className={cn("text-[10px] font-bold font-mono text-white/40")}>
-                          ({state.marginStats?.accountB.pnlPct.toFixed(2)}%)
-                       </span>
-                    )}
-                  </div>
-                  {/* Micro Sparkline B */}
-                  <div className="mt-1 h-4 flex items-center">
-                    <MicroSparkline data={pnlHistoryB} color={state.pnlB >= 0 ? "#fcd535" : "#f43f5e"} />
-                  </div>
-                  <div className="flex flex-col gap-1 mt-2 text-[9px] font-mono tracking-widest text-white/50">
-                     <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Balance:</span> <span className="text-white font-bold">${state.marginStats?.accountB.balance.toFixed(0)}</span></div>
-                     <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Used Margin:</span> <span className="text-white font-bold">${state.marginStats?.accountB.used.toFixed(1)}</span></div>
-                     <div className="flex justify-between border-b border-white/5 pb-0.5"><span>Free Margin:</span> <span className="text-emerald-400 font-bold">${state.marginStats?.accountB.free.toFixed(1)}</span></div>
-                     <div className="flex justify-between border-b border-white/5 pb-0.5 mt-1"><span>Status:</span> <span className={cn("uppercase font-bold", state.intent === 'HEDGING_ACTIVE' ? "text-rose-500" : "text-white/40")}>{state.intent}</span></div>
-                  </div>
-               </div>
-            </div>
-
-            {/* Shield Score Matrix HUD */}
-            <ShieldScoreHUD 
-              score={state.hedgeScore || 0}
-              Distance={state.scoreComponents?.distance || 0}
-              Volatility={state.scoreComponents?.volatility || 0}
-              Risk={state.scoreComponents?.drawdown || 0}
-              AI={state.scoreComponents?.ai || 0}
-              isLocked={state.hedgeCycleLocked}
-              cooldown={state.hedgeCooldownUntil}
-              onReset={handleResetShield}
-            />
-
-            {/* Intelligence Matrix HUD */}
-            <IntelligenceMatrix intel={state.intelligence} />
-
-            {/* Trade Control Panel */}
-            <div className="glass-panel p-3 rounded-xl border-white/10 bg-black/40 flex flex-col gap-3 shrink-0">
-               <div className="flex items-center gap-2 mb-1">
-                  <StopCircle className="w-3.5 h-3.5 text-[var(--holo-cyan)]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Execution Parameters</span>
-               </div>
-               
-               <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-[#848e9c] tracking-widest ml-1">Asset Target</label>
-                     <div className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 font-mono text-[10px] uppercase text-white shadow-inner">{symbol}</div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-[#848e9c] tracking-widest ml-1">Entry Price <span className="text-[var(--holo-cyan)] text-[7px] lowercase">(Blank=Mkt)</span></label>
-                     <input type="text" value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} placeholder="MARKET" className="bg-black/60 border border-white/10 focus:border-[var(--holo-cyan)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner text-[var(--holo-cyan)] placeholder:text-[var(--holo-cyan)]/30" />
-                  </div>
-                  
-                  <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-rose-400 tracking-widest ml-1">Stop Loss (%)</label>
-                     <input type="number" step="0.1" value={slPercent} onChange={(e) => setSlPercent(e.target.value)} className="bg-rose-500/5 border border-rose-500/20 focus:border-rose-500/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-emerald-400 tracking-widest ml-1">TP Tiers (CSV)</label>
-                     <input type="text" value={tpTiers} onChange={(e) => setTpTiers(e.target.value)} placeholder="2,3,4,5" className="bg-emerald-500/5 border border-emerald-500/20 focus:border-emerald-500/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner" />
-                  </div>
-               </div>
-
-               <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-1" />
-
-               <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-[#848e9c] tracking-widest ml-1">Hedge Strategy</label>
-                     <select value={hedgeStrategy} onChange={(e: any) => setHedgeStrategy(e.target.value)} className="bg-black/60 border border-white/10 focus:border-[var(--holo-gold)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] text-[var(--holo-gold)] outline-none transition-colors shadow-inner appearance-none custom-select">
-                        <option value="OFF">OFF (Manual)</option>
-                        <option value="MIRROR">MIRROR (Instant)</option>
-                        <option value="DELAYED">DELAYED (Safer)</option>
-                        <option value="GRID_HEDGE">GRID (Advanced)</option>
-                        <option value="DYNAMIC">DYNAMIC (AI/ATR)</option>
-                     </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                     <label className="text-[8px] font-black uppercase text-[var(--holo-magenta)] tracking-widest ml-1">Drawdown Max (%)</label>
-                     <input type="number" step="0.5" value={maxDrawdown} onChange={(e) => setMaxDrawdown(e.target.value)} className="bg-[var(--holo-magenta)]/5 border border-[var(--holo-magenta)]/20 focus:border-[var(--holo-magenta)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner text-[var(--holo-magenta)]" />
-                  </div>
-               </div>
-
-               {hedgeStrategy === 'GRID_HEDGE' && (
-                  <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                     <div className="flex flex-col gap-1">
-                        <label className="text-[8px] font-black uppercase text-[var(--holo-gold)] tracking-widest ml-1">Grid Layers</label>
-                        <input type="number" value={gridLayers} onChange={(e) => setGridLayers(e.target.value)} className="bg-[var(--holo-gold)]/5 border border-[var(--holo-gold)]/20 focus:border-[var(--holo-gold)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner text-[var(--holo-gold)]" />
-                     </div>
-                     <div className="flex flex-col gap-1">
-                        <label className="text-[8px] font-black uppercase text-[var(--holo-gold)] tracking-widest ml-1">Gap per Layer (%)</label>
-                        <input type="number" step="0.1" value={gridGapPct} onChange={(e) => setGridGapPct(e.target.value)} className="bg-[var(--holo-gold)]/5 border border-[var(--holo-gold)]/20 focus:border-[var(--holo-gold)]/50 rounded-lg px-2 py-1.5 font-mono text-[10px] outline-none transition-colors shadow-inner text-[var(--holo-gold)]" />
-                     </div>
-                  </div>
-               )}
-
-               <div className="flex gap-2 mt-2">
-                  {!state.isActive ? (
-                     <button onClick={handleStart} disabled={loading} className="flex-1 py-3 bg-[var(--holo-cyan)] text-black font-black uppercase tracking-[0.2em] text-[10px] rounded-lg hover:shadow-[0_0_20px_rgba(0,229,255,0.4)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                        <Play className="w-4 h-4 fill-black" /> Open Trade
-                     </button>
-                  ) : (
-                     <button onClick={handleStop} disabled={loading} className="flex-1 py-3 bg-rose-500 text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-lg hover:shadow-[0_0_20px_rgba(244,63,94,0.4)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                        <StopCircle className="w-4 h-4" /> Close Positions & Exit
-                     </button>
-                  )}
-                  <button className="px-4 py-3 bg-white/5 text-white/50 border border-white/10 font-black uppercase tracking-[0.2em] text-[10px] rounded-lg hover:bg-white/10 hover:text-white transition-all">
-                     Reset
-                  </button>
-               </div>
-            </div>
-         </div>
-
-         {/* ─── RIGHT: VISUAL & LOGS ─── */}
-         <div className="flex-1 flex flex-col gap-2 min-h-[400px]">
-            {/* Hybrid Chart Area */}
-            <div className="flex-[2] glass-panel rounded-xl border-white/10 bg-black/40 relative overflow-hidden flex flex-col">
-               <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
-                  <BarChart2 className="w-4 h-4 text-[#5e6673]" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#848e9c]">Virtual Tactical Matrix</span>
-               </div>
-               <VisualHUD state={state} sideA={sideA} />
-            </div>
-
-            {/* Expandable Logs Terminal */}
-            <div className="flex-1 glass-panel rounded-xl border-white/10 bg-[#0b0e11] flex flex-col overflow-hidden shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)]">
-               <div className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-white/5 shrink-0">
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar">
-                     {['ALL', 'TRADE', 'HEDGE', 'ERROR'].map(f => (
-                        <button key={f} onClick={() => setLogFilter(f as any)} className={cn("text-[9px] font-black tracking-widest uppercase transition-colors px-1 pb-1 border-b-2", logFilter === f ? "text-[var(--holo-cyan)] border-[var(--holo-cyan)]" : "text-[#5e6673] border-transparent hover:text-white")}>
-                           {f}
-                        </button>
-                     ))}
-                  </div>
-                  <span className="text-[8px] font-mono font-bold text-white/20 lowercase hidden sm:block">tail -f /logs</span>
-               </div>
-               <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col font-mono text-[9px] gap-1.5">
-                  {state.events?.length === 0 && (
-                     <div className="text-white/20 italic">Awaiting telemetry streams...</div>
-                  )}
-                  {state.events && [...state.events].reverse().filter(ev => {
-                    if (logFilter === 'ALL') return true;
-                    if (logFilter === 'ERROR' && (ev.type.toLowerCase().includes('error') || ev.type.toLowerCase().includes('warning') || ev.type.toLowerCase().includes('risk'))) return true;
-                    if (logFilter === 'HEDGE' && (ev.type.toLowerCase().includes('hedge') || ev.type.toLowerCase().includes('shield'))) return true;
-                    if (logFilter === 'TRADE' && (ev.type.toLowerCase().includes('trade') || ev.type.toLowerCase().includes('hit'))) return true;
-                    return false;
-                  }).map((ev, i) => {
-                     let color = 'text-white/60';
-                     if (ev.type.toLowerCase().includes('error') || ev.type.toLowerCase().includes('warning') || ev.type.toLowerCase().includes('risk')) color = 'text-rose-500';
-                     else if (ev.type.toLowerCase().includes('hedge') || ev.type.toLowerCase().includes('armed') || ev.type.toLowerCase().includes('live')) color = 'text-[var(--holo-gold)]';
-                     else if (ev.type.toLowerCase().includes('opened') || ev.type.toLowerCase().includes('trade') || ev.type.toLowerCase().includes('dhe')) color = 'text-[var(--holo-cyan)] border-l-2 border-[var(--holo-cyan)] pl-2';
-                     else if (ev.type.toLowerCase().includes('tp_hit') || ev.type.toLowerCase().includes('target')) color = 'text-emerald-400';
-                     
-                     const time = new Date(ev.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-
-                     return (
-                        <div key={ev.id} className="flex gap-2 items-start leading-relaxed hover:bg-white/5 px-1 py-0.5 rounded transition-colors group">
-                           <span className="text-white/30 shrink-0 select-none">[{time}]</span>
-                           <span className={cn(color, "font-bold lowercase tracking-wider mt-px shrink-0 select-none")}>_{ev.type}</span>
-                           <span className="text-white/80 break-words group-hover:text-white transition-colors">{ev.message}</span>
-                        </div>
-                     )
-                  })}
-                  <div ref={logsEndRef} />
-               </div>
-            </div>
-         </div>
+        {/* Right: Telemetry Stack */}
+        <div className="grid grid-cols-2 gap-4">
+           <div className="flex flex-col gap-4">
+              <RiskMeterCircular 
+                risk={riskValue} 
+                margin={Number(marginUsage.toFixed(1))}
+                volatility={state.intelligence?.regime || 'NORMAL'}
+              />
+              <AIKernelStatus intel={state.intelligence} isActive={state.isActive} />
+           </div>
+           <div className="flex flex-col gap-4">
+              <EventFeedMini events={state.events || []} onExpand={() => setShowTerminal(true)} />
+              
+              {/* Shield HUD Collapsible (Brief version) */}
+              <div 
+                onClick={state.hedgeCycleLocked ? handleResetShield : undefined}
+                className={cn(
+                  "mt-auto p-3 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between transition-all",
+                  state.hedgeCycleLocked ? "cursor-pointer hover:bg-rose-500/10 border-rose-500/30" : ""
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className={cn("w-4 h-4", state.hedgeCycleLocked ? "text-rose-500 animate-pulse" : "text-emerald-400")} />
+                  <span className="text-[10px] font-black text-white/40 uppercase">
+                    {state.hedgeCycleLocked ? "RESET LOCK" : "Shield Matrix"}
+                  </span>
+                </div>
+                <span className={cn("text-xs font-mono font-bold", state.hedgeCycleLocked ? "text-rose-500" : "text-emerald-400")}>
+                  {state.hedgeCycleLocked ? "LOCKED" : (state.hedgeScore || 0).toFixed(1)}
+                </span>
+              </div>
+           </div>
+        </div>
       </div>
+
+      {/* Full Terminal Overlay */}
+      {showTerminal && (
+        <div className="absolute inset-0 bg-black/95 z-50 flex flex-col animate-in slide-in-from-bottom duration-500">
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <span className="font-black text-xs tracking-widest uppercase">System Telemetry Log</span>
+            <button onClick={() => setShowTerminal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+              <StopCircle className="w-5 h-5 text-rose-500 rotate-90" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 font-mono text-[11px] tactical-scrollbar">
+             {[...state.events].reverse().map(ev => {
+               const time = new Date(ev.timestamp).toLocaleTimeString();
+               return (
+                 <div key={ev.id} className="mb-2 opacity-80 hover:opacity-100 transition-opacity">
+                    <span className="text-white/20 mr-4">[{time}]</span>
+                    <span className="text-[var(--holo-cyan)] mr-4">[{ev.type}]</span>
+                    <span>{ev.message}</span>
+                 </div>
+               );
+             })}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

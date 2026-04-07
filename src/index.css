@@ -30,6 +30,64 @@
   --surface-card: #1c2025;
   --border-subtle: #2b3139;
   --tp-green: #00E5FF;
+  /* ─── Visual Engine 2.0: Core Aesthetics ───────────────────────── */
+
+@keyframes magnetic-glide {
+  0% { transform: translateY(0); filter: drop-shadow(0 0 5px var(--holo-cyan)); }
+  50% { transform: translateY(-2px); filter: drop-shadow(0 0 15px var(--holo-cyan)); }
+  100% { transform: translateY(0); filter: drop-shadow(0 0 5px var(--holo-cyan)); }
+}
+
+@keyframes zone-shimmer-armed {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-danger-ultra {
+  0%, 100% { opacity: 0.1; box-shadow: 0 0 20px rgba(244, 63, 94, 0.2); }
+  50% { opacity: 0.4; box-shadow: 0 0 40px rgba(244, 63, 94, 0.6); }
+}
+
+.price-beacon-magnetic {
+  transition: top 0.4s cubic-bezier(0.19, 1, 0.22, 1), transform 0.2s ease-out;
+  will-change: top, transform;
+}
+
+.zone-shimmer-armed {
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: zone-shimmer-armed 3s linear infinite;
+}
+
+.danger-zone-pulse {
+  animation: pulse-danger-ultra 1.5s ease-in-out infinite;
+}
+
+.pnl-ticker-up {
+  animation: ticker-up 0.3s ease-out;
+}
+
+.pnl-ticker-down {
+  animation: ticker-down 0.3s ease-out;
+}
+
+@keyframes ticker-up {
+  from { transform: translateY(5px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes ticker-down {
+  from { transform: translateY(-5px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.rail-glow-safe {
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.05);
+}
+
+.rail-glow-risk {
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.1);
+}
   /* Sync to cyan */
   --sl-red: #FF007F;
   /* Sync to magenta */
@@ -141,6 +199,36 @@ body {
 }
 .tactical-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 229, 255, 0.4);
+}
+
+/* ─── Autonomous Command Center Redesign Animations ───────────── */
+
+@keyframes state-flash-pulse {
+  0% { background-color: rgba(255, 255, 255, 0.4); }
+  100% { background-color: transparent; }
+}
+
+.animate-state-flash {
+  animation: state-flash-pulse 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+@keyframes border-flow-identity {
+  0% { border-color: rgba(0, 229, 255, 0.2); }
+  50% { border-color: rgba(0, 229, 255, 0.6); box-shadow: 0 0 15px rgba(0, 229, 255, 0.3); }
+  100% { border-color: rgba(188, 19, 254, 0.4); box-shadow: 0 0 15px rgba(188, 19, 254, 0.2); }
+}
+
+.animate-active-trade-border {
+  animation: border-flow-identity 4s linear infinite alternate;
+}
+
+@keyframes consensus-dot-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.animate-consensus-dot {
+  animation: consensus-dot-blink 1.5s ease-in-out infinite;
 }
 
 /* ─── Vertical Fullscreen Fallback ────────────────────────────── */
@@ -995,5 +1083,77 @@ input[type="number"] {
 .active-projection {
   opacity: 1;
 }
+
+/* ─── Delta Master v2.0: Autonomous Trade Command Center ───────── */
+
+@keyframes tp-hit-ripple {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.2); box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.tp-hit-ripple {
+  animation: tp-hit-ripple 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+@keyframes hedge-triggered-pulse {
+  0% { box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0); }
+  50% { box-shadow: inset 0 0 50px 10px rgba(0, 229, 255, 0.4); }
+  100% { box-shadow: inset 0 0 0 0 rgba(0, 229, 255, 0); }
+}
+
+.hedge-edge-pulse {
+  animation: hedge-triggered-pulse 1s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+@keyframes risk-high-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-1px, -1px); }
+  20%, 40%, 60%, 80% { transform: translate(1px, 1px); }
+}
+
+.risk-high-shake {
+  animation: risk-high-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+
+@keyframes ai-conflict-flicker {
+  0%, 100% { opacity: 1; filter: contrast(100%); }
+  33% { opacity: 0.8; filter: contrast(120%); }
+  66% { opacity: 0.9; filter: contrast(90%); }
+}
+
+.ai-conflict-flicker {
+  animation: ai-conflict-flicker 0.15s infinite;
+}
+
+.risk-vignette-overlay {
+  background: radial-gradient(circle, transparent 40%, rgba(244, 63, 94, 0.2) 100%);
+  pointer-events: none;
+  z-index: 40;
+}
+
+.mode-tooltip {
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 229, 255, 0.1);
+  background: rgba(11, 22, 34, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+}
+
+@keyframes trade-identity-gradient {
+  0% { border-color: rgba(0, 229, 255, 0.3); box-shadow: 0 0 10px rgba(0, 229, 255, 0.1); }
+  50% { border-color: rgba(188, 19, 254, 0.3); box-shadow: 0 0 20px rgba(188, 19, 254, 0.2); }
+  100% { border-color: rgba(0, 229, 255, 0.3); box-shadow: 0 0 10px rgba(0, 229, 255, 0.1); }
+}
+
+.animate-active-trade-gradient {
+  animation: trade-identity-gradient 4s linear infinite;
+}
+
+.circular-progress-arc {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 
 
