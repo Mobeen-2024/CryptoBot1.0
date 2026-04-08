@@ -685,8 +685,10 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
   }, [symbol]);
 
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [state.events]);
+    if (showTerminal) {
+      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [state.events, showTerminal]);
 
   const handleStart = async () => {
     setLoading(true);
@@ -858,6 +860,7 @@ export const DeltaMasterAgentPanel = React.memo(({ symbol }: { symbol: string })
                  </div>
                );
              })}
+             <div ref={logsEndRef} />
           </div>
         </div>
       )}

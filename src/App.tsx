@@ -595,7 +595,7 @@ export default function App() {
       </header>
 
       {/* ═══════════════════════════ MAIN ═════════════════════════════ */}
-      <main className="flex-1 p-2 flex flex-col gap-2 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <main className="flex-1 p-2 flex flex-col gap-2 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar" style={{ overflowAnchor: 'none' }}>
 
         {/* Error Overlay */}
         {error && (
